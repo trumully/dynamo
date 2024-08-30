@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "dynamo"
+version = "0.1.0"
+description = ""
+authors = ["trumully <truman.mulholland@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+discord-py = "^2.4.0"
+click = "^8.1.7"
+winloop = "^0.1.6"
+toml = "^0.10.2"
+
+[tool.poetry.scripts]
+dynamo = "dynamo.launcher:main"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
