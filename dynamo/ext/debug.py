@@ -6,7 +6,7 @@ from dynamo.bot import Dynamo
 from dynamo.ext.utils.enums import Status
 
 
-class Debug(commands.GroupCog, name="debug"):
+class Debug(commands.GroupCog, group_name="debug"):
     """Debug commands"""
 
     def __init__(self, bot: Dynamo) -> None:

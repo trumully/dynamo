@@ -1,4 +1,5 @@
 import discord
+from discord import app_commands
 from discord.ext import commands
 
 from dynamo.bot import Dynamo
@@ -39,7 +40,8 @@ class DropdownView(discord.ui.View):
         self.add_item(Dropdown(events))
 
 
-class Events(commands.GroupCog, name="events"):
+@app_commands.guild_only()
+class Events(commands.GroupCog, group_name="events"):
     """Scheduled event related commands"""
 
     def __init__(self, bot: Dynamo) -> None:
