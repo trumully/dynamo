@@ -7,6 +7,7 @@ from typing import Any
 import aiohttp
 import discord
 import discord.ext.commands as commands
+from pretty_help import AppMenu, PrettyHelp
 
 import dynamo.config as config
 
@@ -56,6 +57,7 @@ class Dynamo(commands.AutoShardedBot):
             description=description,
             pm_help=None,
             help_attrs=dict(hidden=True),
+            help_command=PrettyHelp(menu=AppMenu(ephemeral=True)),
             chunk_guilds_at_startup=False,
             heartbeat_timeout=150.0,
             allowed_mentions=allowed_mentions,

@@ -6,7 +6,9 @@ from dynamo.bot import Dynamo
 from dynamo.ext.utils.enums import Status
 
 
-class Debug(commands.Cog, name="debug"):
+class Debug(commands.GroupCog, name="debug"):
+    """Debug commands"""
+
     def __init__(self, bot: Dynamo) -> None:
         self.bot: Dynamo = bot
 
@@ -105,7 +107,7 @@ class Debug(commands.Cog, name="debug"):
             else:
                 statuses.append((Status.SUCCESS, ext))
 
-        await ctx.send("\n".join(f"{status}: `{ext}`" for status, ext in statuses))
+        await ctx.send("\n".join(f"{status} `{ext}`" for status, ext in statuses))
 
     @commands.hybrid_command(
         name="shutdown",

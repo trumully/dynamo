@@ -181,6 +181,17 @@ files = [
 ]
 
 [[package]]
+name = "discord-pretty-help"
+version = "2.0.7"
+description = "And nicer looking interactive help menu for discord.py"
+optional = false
+python-versions = ">=3.8,<4.0"
+files = [
+    {file = "discord_pretty_help-2.0.7-py3-none-any.whl", hash = "sha256:ca8ee02bed8012b511fde57303d003c30c67d59b106f8afaa01bb7befad37990"},
+    {file = "discord_pretty_help-2.0.7.tar.gz", hash = "sha256:965154e4660be07a5050413d7ee7c3ea62a12d1b8d30b39741d23be2cfe4a748"},
+]
+
+[[package]]
 name = "discord-py"
 version = "2.4.0"
 description = "A Python wrapper for the Discord API"
@@ -532,4 +543,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
-content-hash = "0e013e3eb9c976cbd00402b9e4b6b8cc5d59bcdc76a0894181aa08c6ce5d4d64"
+content-hash = "018ae9bbb148b364ff99e80c4701b9ded35899356a8a83a7501ee5078abc9d48"

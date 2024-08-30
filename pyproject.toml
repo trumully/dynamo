@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "dynamo"
-version = "0.1.0"
-description = ""
+version = "0.2.0"
+description = "Quantum entanglement!"
 authors = ["trumully <truman.mulholland@gmail.com>"]
 readme = "README.md"
 
@@ -11,6 +11,7 @@ discord-py = "^2.4.0"
 click = "^8.1.7"
 winloop = "^0.1.6"
 toml = "^0.10.2"
+discord-pretty-help = "^2.0.7"
 
 [tool.poetry.scripts]
 dynamo = "dynamo.launcher:main"

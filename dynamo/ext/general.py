@@ -4,7 +4,9 @@ from discord.ext import commands
 from dynamo.bot import Dynamo
 
 
-class General(commands.Cog, name="general"):
+class General(commands.GroupCog, name="general"):
+    """General commands"""
+
     def __init__(self, bot: Dynamo) -> None:
         self.bot: Dynamo = bot
 

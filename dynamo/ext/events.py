@@ -39,7 +39,9 @@ class DropdownView(discord.ui.View):
         self.add_item(Dropdown(events))
 
 
-class Events(commands.Cog, name="events"):
+class Events(commands.GroupCog, name="events"):
+    """Scheduled event related commands"""
+
     def __init__(self, bot: Dynamo) -> None:
         self.bot: Dynamo = bot
 
