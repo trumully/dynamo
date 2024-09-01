@@ -11,7 +11,7 @@ class General(commands.GroupCog, group_name="general"):
         self.bot: Dynamo = bot
 
     @commands.hybrid_command(name="invite")
-    async def invite(self, interaction: discord.Interaction) -> None:
+    async def invite(self, ctx: discord.Context) -> None:
         """Get the invite link for the bot"""
         if (user := self.bot.user) is None:
             return
@@ -20,12 +20,10 @@ class General(commands.GroupCog, group_name="general"):
             description=f"[Invite me here!]({discord.utils.oauth_url(user.id)})"
         )
         try:
-            await interaction.author.send(embed=embed)
-            await interaction.response.send_message(
-                "Check your DMs!", delete_after=10.0
-            )
+            await ctx.author.send(embed=embed)
+            await ctx.send("Check your DMs!", delete_after=10.0)
         except discord.Forbidden:
-            await interaction.response.send_message(embed=embed)
+            await ctx.send(embed=embed)
 
 
 async def setup(bot: Dynamo) -> None:
