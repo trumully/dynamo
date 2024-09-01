@@ -10,8 +10,13 @@ class General(commands.GroupCog, group_name="general"):
     def __init__(self, bot: Dynamo) -> None:
         self.bot: Dynamo = bot
 
+    @commands.hybrid_command(name="ping")
+    async def ping(self, ctx: commands.Context) -> None:
+        """Get the bot's latency"""
+        await ctx.send(f"Pong! {round(self.bot.latency * 1000)}ms")
+
     @commands.hybrid_command(name="invite")
-    async def invite(self, ctx: discord.Context) -> None:
+    async def invite(self, ctx: commands.Context) -> None:
         """Get the invite link for the bot"""
         if (user := self.bot.user) is None:
             return

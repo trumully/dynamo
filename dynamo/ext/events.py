@@ -8,8 +8,9 @@ from dynamo.ext.utils.helpers import truncate_string
 
 
 class Dropdown(discord.ui.Select):
-    def __init__(self, events: list[discord.ScheduledEvent]) -> None:
-        self.events = events
+    def __init__(self, events: list[discord.ScheduledEvent], author_id: int) -> None:
+        self.events: list[discord.ScheduledEvent] = events
+        self.author_id: int = author_id
 
         options = [
             discord.SelectOption(
@@ -25,10 +26,13 @@ class Dropdown(discord.ui.Select):
             placeholder="Select an event", min_values=1, max_values=1, options=options
         )
 
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        return interaction.user and interaction.user.id == self.author_id
+
     async def callback(self, interaction: discord.Interaction) -> None:
         event = next(e for e in self.events if e.name == self.values[0])
         users: list[discord.User] = [user async for user in event.users()]
-        pings = f"`{" ".join(f"<@{u.id}>" for u in users)}`" or "No users found"
+        pings = f"`{' '.join(f'<@{u.id}>' for u in users)}`" or "No users found"
 
         await interaction.response.send_message(
             f"{event.name}: {pings}", ephemeral=True
