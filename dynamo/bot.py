@@ -7,9 +7,9 @@ from typing import Any
 import aiohttp
 import discord
 import discord.ext.commands as commands
-from pretty_help import AppMenu, PrettyHelp
 
 import dynamo.config as config
+from dynamo.ext.utils.context import Context
 
 log = logging.getLogger(__name__)
 
@@ -57,7 +57,6 @@ class Dynamo(commands.AutoShardedBot):
             description=description,
             pm_help=None,
             help_attrs=dict(hidden=True),
-            help_command=PrettyHelp(menu=AppMenu(ephemeral=True)),
             chunk_guilds_at_startup=False,
             heartbeat_timeout=150.0,
             allowed_mentions=allowed_mentions,
@@ -101,3 +100,8 @@ class Dynamo(commands.AutoShardedBot):
             self.uptime = discord.utils.utcnow()
 
         log.info("Ready: %s (ID: %s)", self.user, self.user.id)
+
+    async def get_context(
+        self, origin: discord.Interaction | discord.Message, /, *, cls=Context
+    ) -> Context:
+        return await super().get_context(origin, cls=cls)

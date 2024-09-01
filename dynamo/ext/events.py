@@ -3,7 +3,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from dynamo.bot import Dynamo
-from dynamo.ext.utils.cache import async_cache
+from dynamo.ext.utils.cache import cache
 from dynamo.ext.utils.helpers import truncate_string
 
 
@@ -27,9 +27,11 @@ class Dropdown(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction) -> None:
         event = next(e for e in self.events if e.name == self.values[0])
-        pings = " ".join([f"<@{user.id}>" async for user in event.users()])
+        users: list[discord.User] = [user async for user in event.users()]
+        pings = f"`{" ".join(f"<@{u.id}>" for u in users)}`" or "No users found"
+
         await interaction.response.send_message(
-            f"{event.name}: `{pings}`", ephemeral=True
+            f"{event.name}: {pings}", ephemeral=True
         )
 
 
@@ -47,40 +49,23 @@ class Events(commands.GroupCog, group_name="events"):
     def __init__(self, bot: Dynamo) -> None:
         self.bot: Dynamo = bot
 
-    @async_cache
+    @cache()
     async def fetch_events(self, guild: discord.Guild) -> list[discord.ScheduledEvent]:
         events = await guild.fetch_scheduled_events()
         return sorted(events, key=lambda e: e.start_time)
 
-    @commands.hybrid_command(
-        name="event",
-        description="Get a list of members subscribed to an event",
-    )
+    @commands.hybrid_command(name="event")
     async def event(self, ctx: commands.Context) -> None:
         """Get a list of members subscribed to an event"""
-        if ctx.guild is None:
+        if not (guild := ctx.guild):
             return
 
-        events: list[discord.ScheduledEvent] = await self.fetch_events(ctx.guild)
+        events: list[discord.ScheduledEvent] = await self.fetch_events(guild)
         if not events:
             return await ctx.send("No events found!")
         view = DropdownView(events)
-        await ctx.send("Select an event", view=view, ephemeral=True)
-
-    @commands.hybrid_command(
-        name="refresh",
-        description="Refresh the event cache for current guild",
-    )
-    @commands.is_owner()
-    async def refresh(self, ctx: commands.Context) -> None:
-        """Refresh the event cache for current guild."""
-        if ctx.guild is None:
-            return
-
-        async_cache.invalidate(self.fetch_events, ctx.guild)
-
-        await self.fetch_events(ctx.guild)
-        await ctx.send(f"Refreshed event cache for {ctx.guild.name}")
+        view.message = await ctx.send("Select an event", ephemeral=True, view=view)
+        await view.wait()
 
 
 async def setup(bot: Dynamo) -> None:

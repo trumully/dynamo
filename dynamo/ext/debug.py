@@ -15,10 +15,7 @@ class Debug(commands.GroupCog, group_name="debug"):
     async def cog_check(self, ctx: commands.Context) -> bool:
         return await self.bot.is_owner(ctx.author)
 
-    @commands.hybrid_group(
-        description="Sync slash commands",
-        invoke_without_command=True,
-    )
+    @commands.hybrid_group(invoke_without_command=True)
     @app_commands.describe(
         guild_id="The ID of the guild to sync commands to",
         copy="Copy global commands to the specified guild",
@@ -38,16 +35,28 @@ class Debug(commands.GroupCog, group_name="debug"):
         commands = await self.bot.tree.sync(guild=guild)
         await ctx.send(f"Successfully synced {len(commands)} commands")
 
-    @sync.command(name="global", description="Sync global commands")
+    @sync.command(name="global")
     async def sync_global(self, ctx: commands.Context) -> None:
+        """Sync global slash commands"""
         commands = await self.bot.tree.sync(guild=None)
         await ctx.send(f"Successfully synced {len(commands)} commands")
 
-    @commands.hybrid_command(
-        description="Load a cog",
-        aliases=["l"],
-        hidden=True,
-    )
+    @sync.command(name="clear")
+    async def clear_commands(self, ctx: commands.Context, guild_id: int | None) -> None:
+        """Clear all slash commands"""
+        confirm = await ctx.prompt("Are you sure you want to clear all commands?")
+        if not confirm:
+            return
+
+        if guild_id is not None:
+            guild = discord.Object(id=guild_id)
+        else:
+            guild = None
+
+        self.bot.tree.clear_commands(guild=guild)
+        await ctx.send("Successfully cleared all commands")
+
+    @commands.hybrid_command(aliases=["l"], hidden=True)
     @app_commands.describe(module="The name of the cog to load")
     async def load(self, ctx: commands.Context, *, module: str) -> None:
         """Load a cog"""
@@ -58,11 +67,7 @@ class Debug(commands.GroupCog, group_name="debug"):
         else:
             await ctx.send(Status.OK)
 
-    @commands.hybrid_command(
-        description="Unload a cog",
-        aliases=["ul"],
-        hidden=True,
-    )
+    @commands.hybrid_command(aliases=["ul"], hidden=True)
     @app_commands.describe(module="The name of the cog to unload")
     async def unload(self, ctx: commands.Context, *, module: str) -> None:
         """Unload a cog"""
@@ -74,11 +79,7 @@ class Debug(commands.GroupCog, group_name="debug"):
             await ctx.send(Status.OK)
 
     @commands.hybrid_group(
-        name="reload",
-        description="Reload a cog",
-        aliases=["r"],
-        hidden=True,
-        invoke_without_command=True,
+        name="reload", aliases=["r"], hidden=True, invoke_without_command=True
     )
     async def _reload(self, ctx: commands.Context, *, module: str) -> None:
         """Reload a cog."""
@@ -98,6 +99,9 @@ class Debug(commands.GroupCog, group_name="debug"):
     @_reload.command(name="all", hidden=True)
     async def _reload_all(self, ctx: commands.Context) -> None:
         """Reload all cogs"""
+        confirm = await ctx.prompt("Are you sure you want to reload all cogs?")
+        if not confirm:
+            return
         statuses = []
         for ext in self.bot.extensions:
             try:
@@ -107,13 +111,9 @@ class Debug(commands.GroupCog, group_name="debug"):
             else:
                 statuses.append((Status.SUCCESS, ext))
 
-        await ctx.send("\n".join(f"{status} `{ext}`" for status, ext in statuses))
+        await ctx.reply("\n".join(f"{status} `{ext}`" for status, ext in statuses))
 
-    @commands.hybrid_command(
-        name="shutdown",
-        description="Shutdown the bot",
-        aliases=["exit", "quit", "q"],
-    )
+    @commands.hybrid_command(name="quit", aliases=["exit", "shutdown", "q"])
     @commands.is_owner()
     async def shutdown(self, ctx: commands.Context) -> None:
         """Shutdown the bot"""
