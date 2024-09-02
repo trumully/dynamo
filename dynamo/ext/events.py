@@ -4,7 +4,7 @@ from discord.ext import commands
 
 from dynamo.bot import Dynamo
 from dynamo.ext.utils.cache import cache
-from dynamo.ext.utils.helpers import truncate_string
+from dynamo.ext.utils.format import truncate_string
 
 
 class Dropdown(discord.ui.Select):
