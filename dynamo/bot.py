@@ -77,8 +77,9 @@ class Dynamo(commands.AutoShardedBot):
         for ext in initial_extensions:
             try:
                 await self.load_extension(ext)
+                log.debug(f"Loaded ext {ext}")
             except Exception as exc:
-                log.error(f"Failed to load extension {ext}: {exc}")
+                log.warning(f"Failed to load extension {ext}: {exc}")
 
     @property
     def owner(self) -> discord.User:

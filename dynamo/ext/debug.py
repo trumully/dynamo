@@ -1,9 +1,13 @@
+import logging
+
 import discord
 from discord import app_commands
 from discord.ext import commands
 
 from dynamo.bot import Dynamo
 from dynamo.ext.utils.enums import Status
+
+log = logging.getLogger("dynamo")
 
 
 class Debug(commands.GroupCog, group_name="debug"):
@@ -118,6 +122,7 @@ class Debug(commands.GroupCog, group_name="debug"):
     async def shutdown(self, ctx: commands.Context) -> None:
         """Shutdown the bot"""
         await ctx.send("Shutting down...")
+        log.info("Shutting down...")
         await self.bot.close()
 
 

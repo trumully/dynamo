@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 
 from dynamo.bot import Dynamo
+from dynamo.ext.utils.time import human_timedelta
 
 
 class General(commands.GroupCog, group_name="general"):
@@ -21,14 +22,25 @@ class General(commands.GroupCog, group_name="general"):
         if (user := self.bot.user) is None:
             return
 
-        embed = discord.Embed(
-            description=f"[Invite me here!]({discord.utils.oauth_url(user.id)})"
-        )
+        inv = f"[Invite me here!]({discord.utils.oauth_url(user.id)})"
         try:
-            await ctx.author.send(embed=embed)
+            await ctx.author.send(inv)
             await ctx.send("Check your DMs!", delete_after=10.0)
         except discord.Forbidden:
-            await ctx.send(embed=embed)
+            await ctx.send(inv)
+
+    @commands.hybrid_command(name="about")
+    async def about(self, ctx: commands.Context) -> None:
+        """Get information about the bot"""
+        embed = discord.Embed(
+            title="About Dynamo",
+            description="Dynamo is a bot that does stuff.",
+        )
+        uptime = f"Up for `{human_timedelta(dt=self.bot.uptime, suffix=False)}`"
+        embed.add_field(name="Uptime", value=uptime)
+        embed.set_image(url=self.bot.user.avatar.url)
+        embed.set_author(name=self.bot.user.name, icon_url=self.bot.user.avatar.url)
+        await ctx.send(embed=embed)
 
 
 async def setup(bot: Dynamo) -> None:
