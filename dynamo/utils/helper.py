@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 import platformdirs
@@ -23,3 +24,22 @@ def resolve_path_with_links(path: Path, folder: bool = False) -> Path:
         # 0o600: read/write
         path.mkdir(mode=0o700) if folder else path.touch(mode=0o600)
         return path.resolve(strict=True)
+
+
+def valid_token(token: str) -> bool:
+    """Validate a discord bot token
+
+    Discord Bot Token ([M|N|O]XXXXXXXXXXXXXXXXXXXXXXX[XX].XXXXXX.XXXXXXXXXXXXXXXXXXXXXXXXXXX)
+
+    Args:
+        token (str): The token to validate
+
+    Returns:
+        bool: True if the token is valid, False otherwise
+    """
+    # refs:
+    # https://github.com/Yelp/detect-secrets/blob/master/detect_secrets/plugins/discord.py
+    # https://discord.com/developers/docs/reference#authentication
+    # https://github.com/Yelp/detect-secrets/issues/627
+    pattern = re.compile(r"[MNO][a-zA-Z\d_-]{23,25}\.[a-zA-Z\d_-]{6}\.[a-zA-Z\d_-]{27}")
+    return bool(pattern.match(token))

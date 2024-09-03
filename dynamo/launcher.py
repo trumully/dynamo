@@ -13,7 +13,7 @@ import discord
 import toml
 
 from dynamo.bot import Dynamo
-from dynamo.utils.helper import platformdir, resolve_path_with_links
+from dynamo.utils.helper import platformdir, resolve_path_with_links, valid_token
 
 try:
     import winloop
@@ -113,11 +113,21 @@ def _get_token() -> str:
 
 @main.command()
 def setup() -> None:
-    token = click.prompt("Enter your bot token", hide_input=True)
-    if not token:
-        msg = "Not storing empty token"
-        raise RuntimeError(msg)
+    """Set the bot's token"""
+    if not valid_token(token := click.prompt("Enter your bot token", hide_input=True, type=str)):
+        msg = click.style(
+            "\N{WARNING SIGN} WARNING: That token doesn't seem right. Double check before running the bot.",
+            bold=True,
+            fg="yellow",
+        )
+        click.echo(msg, err=True)
     _store_token(token)
+
+
+@main.command()
+def config() -> None:
+    """Get the path to the bot's config directory"""
+    click.echo(platformdir.user_config_path)
 
 
 if __name__ == "__main__":
