@@ -8,13 +8,13 @@ from typing import Any, Callable, Coroutine, Iterator, MutableMapping, Protocol,
 
 from lru import LRU
 
-T = TypeVar("T")
+R = TypeVar("R")
 
 
-class CacheProtocol(Protocol[T]):
-    cache: MutableMapping[str, asyncio.Task[T]]
+class CacheProtocol(Protocol[R]):
+    cache: MutableMapping[str, asyncio.Task[R]]
 
-    def __call__(self, *args: Any, **kwargs: Any) -> asyncio.Task[T]: ...
+    def __call__(self, *args: Any, **kwargs: Any) -> asyncio.Task[R]: ...
 
     def get_key(self, *args: Any, **kwargs: Any) -> str: ...
 
@@ -40,9 +40,7 @@ class EphemeralCache(dict):
 
     def __verify_cache_integrity(self) -> None:
         current_time = time.monotonic()
-        to_remove = [
-            k for (k, (v, t)) in super().items() if current_time > (t + self.ttl)
-        ]
+        to_remove = [k for (k, (v, t)) in super().items() if current_time > (t + self.ttl)]
         for k in to_remove:
             del self[k]
 
@@ -81,8 +79,8 @@ def _stats() -> tuple[int, int]:
 
 def cache(
     maxsize: int = 128, strategy: Strategy = Strategy.LRU
-) -> Callable[[Callable[..., Coroutine[Any, Any, T]]], CacheProtocol[T]]:
-    def decorator(func: Callable[..., Coroutine[Any, Any, T]]) -> CacheProtocol[T]:
+) -> Callable[[Callable[..., Coroutine[Any, Any, R]]], CacheProtocol[R]]:
+    def decorator(func: Callable[..., Coroutine[Any, Any, R]]) -> CacheProtocol[R]:
         if strategy is Strategy.LRU:
             cache = LRU(maxsize)
             stats = cache.get_stats
@@ -94,7 +92,7 @@ def cache(
             stats = _stats
 
         def make_key(args: tuple[Any, ...], kwargs: dict[str, Any]) -> str:
-            def true_repr(o):
+            def true_repr(o: Any) -> str:
                 if o.__class__.__repr__ is object.__repr__:
                     return f"<{o.__class__.__module__}.{o.__class__.__name__}>"
                 return repr(o)
@@ -105,7 +103,7 @@ def cache(
             return ":".join(key)
 
         @wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> asyncio.Task[T]:
+        def wrapper(*args: Any, **kwargs: Any) -> asyncio.Task[R]:
             key = make_key(args, kwargs)
 
             try:

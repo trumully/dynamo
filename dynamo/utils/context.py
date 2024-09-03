@@ -21,9 +21,7 @@ class ConfirmationView(discord.ui.View):
         return interaction.user and interaction.user.id == self.author_id
 
     @discord.ui.button(label="Confirm", style=discord.ButtonStyle.green)
-    async def confirm(
-        self, interaction: discord.Interaction, button: discord.ui.Button
-    ) -> None:
+    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         self.value = True
         await interaction.response.defer()
         if self.delete_after:
@@ -31,26 +29,21 @@ class ConfirmationView(discord.ui.View):
         self.stop()
 
     @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red)
-    async def cancel(
-        self, interaction: discord.Interaction, button: discord.ui.Button
-    ) -> None:
+    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         self.value = False
         await interaction.response.defer()
         if self.delete_after:
             await interaction.delete_original_response()
-
         self.stop()
 
 
 class Context(commands.Context):
-    channel: (
-        discord.VoiceChannel | discord.TextChannel | discord.Thread | discord.DMChannel
-    )
+    channel: discord.VoiceChannel | discord.TextChannel | discord.Thread | discord.DMChannel
     prefix: str
     command: commands.Command[Any, ..., Any]
     bot: Dynamo
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, **kwargs: dict[str, Any]) -> None:
         super().__init__(**kwargs)
 
     def __repr__(self) -> str:
@@ -60,14 +53,12 @@ class Context(commands.Context):
         self,
         message: str,
         *,
-        timeout: float = 60.0,
+        timeout: float = 60.0,  # noqa: ASYNC109  - timeout is not awaited
         delete_after: bool = True,
         author_id: int | None = None,
     ) -> bool | None:
         author_id = author_id or self.author.id
-        view = ConfirmationView(
-            timeout=timeout, author_id=author_id, delete_after=delete_after
-        )
+        view = ConfirmationView(timeout=timeout, author_id=author_id, delete_after=delete_after)
         view.message = await self.send(message, view=view, ephemeral=delete_after)
         await view.wait()
         return view.value

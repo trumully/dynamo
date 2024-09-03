@@ -5,9 +5,9 @@ from discord import app_commands
 from discord.ext import commands
 
 from dynamo.bot import Dynamo
-from dynamo.ext.utils.enums import Status
+from dynamo.utils.enums import Status
 
-log = logging.getLogger("dynamo")
+log = logging.getLogger(__name__)
 
 
 class Debug(commands.GroupCog, group_name="debug"):
@@ -24,14 +24,9 @@ class Debug(commands.GroupCog, group_name="debug"):
         guild_id="The ID of the guild to sync commands to",
         copy="Copy global commands to the specified guild",
     )
-    async def sync(
-        self, ctx: commands.Context, guild_id: int | None, copy: bool = False
-    ) -> None:
+    async def sync(self, ctx: commands.Context, guild_id: int | None, copy: bool = False) -> None:
         """Sync slash commands"""
-        if guild_id:
-            guild = discord.Object(id=guild_id)
-        else:
-            guild = ctx.guild
+        guild = discord.Object(id=guild_id) if guild_id else ctx.guild
 
         if copy:
             self.bot.tree.copy_global_to(guild=guild)
@@ -52,10 +47,7 @@ class Debug(commands.GroupCog, group_name="debug"):
         if not confirm:
             return
 
-        if guild_id is not None:
-            guild = discord.Object(id=guild_id)
-        else:
-            guild = None
+        guild = discord.Object(id=guild_id) if guild_id is not None else None
 
         self.bot.tree.clear_commands(guild=guild)
         await ctx.send("Successfully cleared all commands")
@@ -82,9 +74,7 @@ class Debug(commands.GroupCog, group_name="debug"):
         else:
             await ctx.send(Status.OK)
 
-    @commands.hybrid_group(
-        name="reload", aliases=["r"], hidden=True, invoke_without_command=True
-    )
+    @commands.hybrid_group(name="reload", aliases=["r"], hidden=True, invoke_without_command=True)
     async def _reload(self, ctx: commands.Context, *, module: str) -> None:
         """Reload a cog."""
         try:
@@ -122,7 +112,7 @@ class Debug(commands.GroupCog, group_name="debug"):
     async def shutdown(self, ctx: commands.Context) -> None:
         """Shutdown the bot"""
         await ctx.send("Shutting down...")
-        log.info("Shutting down...")
+        log.info("Shutting down with command...")
         await self.bot.close()
 
 

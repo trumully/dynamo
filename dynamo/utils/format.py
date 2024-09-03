@@ -2,9 +2,7 @@ from dataclasses import dataclass
 from typing import Sequence
 
 
-def truncate_string(
-    string: str, max_len: int = 50, placeholder: str = "Nothing provided"
-) -> str:
+def truncate_string(string: str, max_len: int = 50, placeholder: str = "Nothing provided") -> str:
     """Truncate a string to a maximum length of `max_len`
 
     Example:
@@ -21,9 +19,7 @@ def truncate_string(
     if not string:
         return placeholder
     truncated = string[: max(max_len, len(string) // 2)]
-    if len(string) > max_len:
-        truncated += "..."
-    return truncated
+    return truncated + "..." if len(string) > max_len else truncated
 
 
 @dataclass(frozen=True)
@@ -44,9 +40,7 @@ class plural:
         return f"{v} {plural}" if abs(v) != 1 else f"{v} {singular}"
 
 
-def human_join(
-    seq: Sequence[str], sep: str = ", ", final: str = "or", oxford_comma: bool = True
-) -> str:
+def human_join(seq: Sequence[str], sep: str = ", ", final: str = "or", oxford_comma: bool = True) -> str:
     """Join a sequence of strings into a human-readable format.
 
     Args:

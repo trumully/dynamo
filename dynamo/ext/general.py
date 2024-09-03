@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 
 from dynamo.bot import Dynamo
-from dynamo.ext.utils.time import human_timedelta
+from dynamo.utils.time import human_timedelta
 
 
 class General(commands.GroupCog, group_name="general"):
@@ -36,7 +36,7 @@ class General(commands.GroupCog, group_name="general"):
             title="About Dynamo",
             description="Dynamo is a bot that does stuff.",
         )
-        uptime = f"Up for `{human_timedelta(dt=self.bot.uptime, suffix=False)}`"
+        uptime = f"`{human_timedelta(dt=self.bot.uptime, suffix=False)}`"
         embed.add_field(name="Uptime", value=uptime)
         embed.set_image(url=self.bot.user.avatar.url)
         embed.set_author(name=self.bot.user.name, icon_url=self.bot.user.avatar.url)

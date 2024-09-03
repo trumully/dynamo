@@ -11,6 +11,7 @@ git clone https://github.com/trumully/Dynamo
 ```
 #### Install and run:
 ```shell
-poetry install
+poetry install  
+poetry run dynamo setup
 poetry run dynamo
 ```
