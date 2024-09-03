@@ -1,14 +1,34 @@
 from __future__ import annotations
 
 import asyncio
+import pickle
 import time
 from enum import Enum, auto
 from functools import wraps
-from typing import Any, Callable, Coroutine, Iterator, MutableMapping, Protocol, TypeVar
+from typing import Any, Callable, Coroutine, Hashable, Iterator, MutableMapping, Protocol, TypeVar
 
-from lru import LRU
+from dynamo.utils.helper import platformdir, resolve_path_with_links
 
 R = TypeVar("R")
+K = TypeVar("K", bound=Hashable)
+V = TypeVar("V")
+T = TypeVar("T")
+
+
+# TODO: alternative to pickle
+def cache_bytes(name: str, data: bytes) -> None:
+    p = resolve_path_with_links(platformdir.user_cache_path / "identicon" / f"{name}.pkl")
+    with p.open("wb") as fp:
+        pickle.dump(data, fp)
+
+
+def get_bytes(name: str) -> bytes | None:
+    p = resolve_path_with_links(platformdir.user_cache_path / "identicon" / f"{name}.pkl")
+    try:
+        with p.open("rb") as fp:
+            return pickle.load(fp)  # noqa: S301
+    except (FileNotFoundError, EOFError):
+        return None
 
 
 class CacheProtocol(Protocol[R]):
@@ -25,46 +45,69 @@ class CacheProtocol(Protocol[R]):
     def get_stats(self) -> tuple[int, int]: ...
 
 
+class LRU(CacheProtocol):
+    def __init__(self, maxsize: int = 128) -> None:
+        self.maxsize = maxsize
+        self.cache: MutableMapping[str, asyncio.Task[R]] = {}
+        super().__init__()
+
+    def get(self, key: K, default: T, /) -> V | T:
+        if key not in self.cache:
+            return default
+        self.cache[key] = self.cache.pop(key)
+        return self.cache[key]
+
+    def __getitem__(self, key: K, /) -> V:
+        self.cache[key] = self.cache.pop(key)
+        return self.cache[key]
+
+    def __setitem__(self, key: K, value: V, /) -> None:
+        self.cache[key] = value
+        if len(self.cache) > self.maxsize:
+            self.cache.pop(next(iter(self.cache)))
+
+
+class TTL(CacheProtocol):
+    def __init__(self, seconds: float = 1800) -> None:
+        self.ttl = seconds
+        self.cache: MutableMapping[str, asyncio.Task[R]] = {}
+        super().__init__()
+
+    def __verify_cache_integrity(self) -> None:
+        current_time = time.monotonic()
+        to_remove = [k for (k, (_, t)) in super().items() if current_time > (t + self.ttl)]
+        for k in to_remove:
+            del self[k]
+
+    def __contains__(self, key: K, /) -> bool:
+        self.__verify_cache_integrity()
+        return super().__contains__(key)
+
+    def __getitem__(self, key: K, /) -> V:
+        self.__verify_cache_integrity()
+        v, _ = super().__getitem__(key)
+        return v
+
+    def get(self, key: str, default: T, /) -> Any:
+        v = super().get(key, default)
+        return default if v is default else v[0]
+
+    def __setitem__(self, key: T, value: V, /) -> None:
+        super().__setitem__(key, (value, time.monotonic()))
+
+    def values(self) -> Iterator[V]:
+        return map(extract_value, super().values())
+
+    def items(self) -> Iterator[tuple[K, V]]:
+        return map(extract_key, super().items())
+
+
 def extract_value(item: tuple[Any, Any]) -> Any:
     return item[1]
 
 
 def extract_key(item: tuple[str, tuple[Any, Any]]) -> tuple[str, Any]:
     return (item[0], item[1][0])
-
-
-class EphemeralCache(dict):
-    def __init__(self, seconds: float) -> None:
-        self.ttl = seconds
-        super().__init__()
-
-    def __verify_cache_integrity(self) -> None:
-        current_time = time.monotonic()
-        to_remove = [k for (k, (v, t)) in super().items() if current_time > (t + self.ttl)]
-        for k in to_remove:
-            del self[k]
-
-    def __contains__(self, key: str) -> bool:
-        self.__verify_cache_integrity()
-        return super().__contains__(key)
-
-    def __getitem__(self, key: str) -> Any:
-        self.__verify_cache_integrity()
-        v, _ = super().__getitem__(key)
-        return v
-
-    def get(self, key: str, default: Any = None) -> Any:
-        v = super().get(key, default)
-        return default if v is default else v[0]
-
-    def __setitem__(self, key: str, value: Any) -> None:
-        super().__setitem__(key, (value, time.monotonic()))
-
-    def values(self) -> Iterator[Any]:
-        return map(extract_value, super().values())
-
-    def items(self) -> Iterator[Any]:
-        return map(extract_key, super().items())
 
 
 class Strategy(Enum):
@@ -82,13 +125,13 @@ def cache(
 ) -> Callable[[Callable[..., Coroutine[Any, Any, R]]], CacheProtocol[R]]:
     def decorator(func: Callable[..., Coroutine[Any, Any, R]]) -> CacheProtocol[R]:
         if strategy is Strategy.LRU:
-            cache = LRU(maxsize)
+            cache = LRU(maxsize=maxsize)
             stats = cache.get_stats
         elif strategy is Strategy.RAW:
-            cache = {}
+            cache: MutableMapping[str, asyncio.Task[R]] = {}
             stats = _stats
         elif strategy is Strategy.TIMED:
-            cache = EphemeralCache(maxsize)
+            cache = TTL(maxsize=maxsize)
             stats = _stats
 
         def make_key(args: tuple[Any, ...], kwargs: dict[str, Any]) -> str:

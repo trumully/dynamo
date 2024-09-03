@@ -5,7 +5,6 @@ from discord.ext import commands
 
 from dynamo.bot import Dynamo
 from dynamo.utils.cache import cache
-from dynamo.utils.format import truncate_string
 
 log = logging.getLogger(__name__)
 
@@ -14,13 +13,7 @@ class Dropdown(discord.ui.Select):
     def __init__(self, events: list[discord.ScheduledEvent]) -> None:
         self.events: list[discord.ScheduledEvent] = events
 
-        options = [
-            discord.SelectOption(
-                label=e.name,
-                description=truncate_string(e.description, placeholder="No description given"),
-            )
-            for e in events
-        ]
+        options = [discord.SelectOption(label=e.name, description="An event") for e in events]
 
         super().__init__(placeholder="Select an event", min_values=1, max_values=1, options=options)
 

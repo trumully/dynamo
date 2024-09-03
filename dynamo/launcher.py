@@ -106,7 +106,7 @@ def _store_token(token: str, /) -> None:
 
 def _get_token() -> str:
     if not (token := _load_token()):
-        msg = "Token not found. Please run `dynamo setup` to set up the bot."
+        msg = "Token not found. Please run `dynamo setup` before starting the bot."
         raise RuntimeError(msg)
     return token
 
@@ -116,7 +116,7 @@ def setup() -> None:
     """Set the bot's token"""
     if not valid_token(token := click.prompt("Enter your bot token", hide_input=True, type=str)):
         msg = click.style(
-            "\N{WARNING SIGN} WARNING: That token doesn't seem right. Double check before running the bot.",
+            "\N{WARNING SIGN} WARNING: That token doesn't look right. Double check before starting the bot.",
             bold=True,
             fg="yellow",
         )

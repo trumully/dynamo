@@ -17,6 +17,8 @@ platformdirs = "^4.2.2"
 xxhash = "^3.5.0"
 msgspec = "^0.18.6"
 base2048 = "^0.1.3"
+numpy = "^2.1.0"
+pillow = "^10.4.0"
 
 [tool.poetry.scripts]
 dynamo = "dynamo.launcher:main"

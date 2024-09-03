@@ -1,4 +1,6 @@
+import importlib
 import logging
+import sys
 
 import discord
 from discord import app_commands
@@ -96,8 +98,24 @@ class Debug(commands.GroupCog, group_name="debug"):
         confirm = await ctx.prompt("Are you sure you want to reload all cogs?")
         if not confirm:
             return
-        statuses = []
-        for ext in self.bot.extensions:
+
+        log.info("!!! STARTING FULL RELOAD !!!")
+
+        # Reload all pre-existing modules from the utils folder
+        utils_modules = [mod for mod in sys.modules if mod.startswith("dynamo.utils.")]
+        successful_reloads = 0
+        for module in utils_modules:
+            try:
+                importlib.reload(sys.modules[module])
+            except (KeyError, ModuleNotFoundError):
+                log.exception("Failed to reload %s", module)
+            else:
+                successful_reloads += 1
+        log.info("Reloaded %d/%d utilities", successful_reloads, len(utils_modules))
+
+        extensions = self.bot.extensions.copy()
+        statuses: list[tuple[Status, str]] = []
+        for ext in extensions:
             try:
                 await self.reload_or_load_extension(ext)
             except commands.ExtensionError:
@@ -105,6 +123,7 @@ class Debug(commands.GroupCog, group_name="debug"):
             else:
                 statuses.append((Status.SUCCESS, ext))
 
+        log.info("Reloaded %d/%d extensions", len(statuses), len(extensions))
         await ctx.reply("\n".join(f"{status} `{ext}`" for status, ext in statuses))
 
     @commands.hybrid_command(name="quit", aliases=["exit", "shutdown", "q"])
@@ -112,7 +131,7 @@ class Debug(commands.GroupCog, group_name="debug"):
     async def shutdown(self, ctx: commands.Context) -> None:
         """Shutdown the bot"""
         await ctx.send("Shutting down...")
-        log.info("Shutting down with command...")
+        log.info("Shutting down...")
         await self.bot.close()
 
 
