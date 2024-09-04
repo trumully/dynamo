@@ -15,8 +15,8 @@ from dynamo.utils.time import human_timedelta
 def embed_from_user(user: discord.Member | discord.User) -> discord.Embed:
     e = discord.Embed()
     e.set_footer(text=f"Discord ID: {user.id}")
-    e.set_author(name=str(user))
     avatar = user.display_avatar.with_static_format("png")
+    e.set_author(name=str(user), icon_url=avatar.url)
     e.set_image(url=avatar.url)
     return e
 
@@ -53,28 +53,47 @@ class General(commands.GroupCog, group_name="general"):
     @commands.hybrid_command(name="user")
     @app_commands.describe(user="The user to get information about")
     async def user(self, ctx: commands.Context, user: discord.Member | discord.User | None = None) -> None:
-        """Get information about a user"""
+        """Get information about a user
+
+        Parameters
+        ----------
+        user: discord.Member | discord.User | None
+            The user to check. If nothing is provided, check author instead.
+        """
         await ctx.send(embed=embed_from_user(user or ctx.author), ephemeral=True)
 
     @commands.hybrid_command(name="identicon")
-    @app_commands.describe(seed="The seed to use for the identicon.")
+    @app_commands.describe(seed="The seed to use for the identicon. This can be a user or a string.")
     async def identicon(self, ctx: commands.Context, seed: MemberConverter = None) -> None:
+        """Generate an identicon from a user or string
+
+        Parameters
+        ----------
+        seed: discord.Member | discord.User | str | None
+            The seed to use. If nothing is provided, a random seed will be generated.
+        """
+        cmd_mention = await self.bot.tree.find_mention_for("general identicon", guild=ctx.guild)
+        cname = None
+
         if isinstance(seed, discord.Member):
-            seed = seed.id
-        seed, fname = generate_seed(seed)
+            cname = f"<@{seed.id}>"
+            fname = seed.id
+            seed, _ = generate_seed(seed.id)
+        else:
+            seed, fname = generate_seed(seed)
+
+        description = f"**Command:**\n{cmd_mention} {cname or fname}\nd!identicon {cname or fname}"
 
         fg, bg = get_colors(seed=seed)
 
         if (cached := get_bytes(fname)) is None:
-            idt = Identicon(5, fg, bg, 0.4, seed)
-            data = make_identicon(idt)
+            data = make_identicon(Identicon(5, fg, bg, 0.4, seed))
             cache_bytes(fname, data)
         else:
             data = cached
 
-        e = discord.Embed()
-        e.set_author(name=fname)
-        e.set_footer(text=f"d!identicon {fname}")   
+        embed_color = discord.Color.from_rgb(*fg.as_tuple())
+        e = discord.Embed(title=fname, description=description, color=embed_color)
         file = discord.File(
             io.BytesIO(data),
             filename=f"{fname}.png",

@@ -31,7 +31,7 @@ class DropdownView(discord.ui.View):
         self.add_item(Dropdown(events))
 
 
-class Events(commands.GroupCog, group_name="events"):
+class Events(commands.Cog, name="events"):
     """Scheduled event related commands"""
 
     def __init__(self, bot: Dynamo) -> None:
@@ -56,7 +56,7 @@ class Events(commands.GroupCog, group_name="events"):
 
         events: list[discord.ScheduledEvent] = await self.fetch_events(guild)
         if not events:
-            await ctx.send("No events found!")
+            await ctx.send("No events found!", ephemeral=True)
             return
         view = DropdownView(events)
         view.message = await ctx.send("Select an event", ephemeral=True, view=view)

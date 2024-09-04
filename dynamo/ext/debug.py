@@ -27,7 +27,15 @@ class Debug(commands.GroupCog, group_name="debug"):
         copy="Copy global commands to the specified guild",
     )
     async def sync(self, ctx: commands.Context, guild_id: int | None, copy: bool = False) -> None:
-        """Sync slash commands"""
+        """Sync slash commands
+
+        Parameters
+        ----------
+        guild_id: int | None
+            The ID of the guild to sync commands to. If nothing is provided, the current guild will be used.
+        copy: bool
+            Whether to copy global commands to the specified guild.
+        """
         guild = discord.Object(id=guild_id) if guild_id else ctx.guild
 
         if copy:
@@ -44,7 +52,13 @@ class Debug(commands.GroupCog, group_name="debug"):
 
     @sync.command(name="clear")
     async def clear_commands(self, ctx: commands.Context, guild_id: int | None) -> None:
-        """Clear all slash commands"""
+        """Clear all slash commands
+
+        Parameters
+        ----------
+        guild_id: int | None
+            The ID of the guild to clear commands from. If nothing is provided, the current guild will be used.
+        """
         confirm = await ctx.prompt("Are you sure you want to clear all commands?")
         if not confirm:
             return
@@ -57,7 +71,13 @@ class Debug(commands.GroupCog, group_name="debug"):
     @commands.hybrid_command(aliases=["l"], hidden=True)
     @app_commands.describe(module="The name of the cog to load")
     async def load(self, ctx: commands.Context, *, module: str) -> None:
-        """Load a cog"""
+        """Load a cog
+
+        Parameters
+        ----------
+        module: str
+            The name of the cog to load.
+        """
         try:
             await self.bot.load_extension(module)
         except commands.ExtensionError as exc:
@@ -68,7 +88,13 @@ class Debug(commands.GroupCog, group_name="debug"):
     @commands.hybrid_command(aliases=["ul"], hidden=True)
     @app_commands.describe(module="The name of the cog to unload")
     async def unload(self, ctx: commands.Context, *, module: str) -> None:
-        """Unload a cog"""
+        """Unload a cog
+
+        Parameters
+        ----------
+        module: str
+            The name of the cog to unload.
+        """
         try:
             await self.bot.unload_extension(module)
         except commands.ExtensionError as exc:
@@ -78,7 +104,13 @@ class Debug(commands.GroupCog, group_name="debug"):
 
     @commands.hybrid_group(name="reload", aliases=["r"], hidden=True, invoke_without_command=True)
     async def _reload(self, ctx: commands.Context, *, module: str) -> None:
-        """Reload a cog."""
+        """Reload a cog.
+
+        Parameters
+        ----------
+        module: str
+            The name of the cog to reload.
+        """
         try:
             await self.bot.reload_extension(module)
         except commands.ExtensionError as e:

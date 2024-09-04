@@ -33,17 +33,17 @@ def get_version() -> str:
 
 
 class RemoveNoise(logging.Filter):
-    def __init__(self):
-        super().__init__(name="discord.state")
+    known_messages: tuple[str, ...] = ("referencing an unknown", "PyNaCl is not installed, voice will NOT be supported")
 
-    def filter(self, record: logging.LogRecord) -> bool:
-        return not (record.levelname == "WARNING" and "referencing an unknown" in record.msg)
+    def filter(self, record: logging.LogRecord) -> bool | logging.LogRecord:
+        return not any(message in record.msg for message in self.known_messages)
 
 
 @contextmanager
 def setup_logging() -> Generator[None]:
     q: queue.SimpleQueue[Any] = queue.SimpleQueue()
     q_handler = logging.handlers.QueueHandler(q)
+    q_handler.addFilter(RemoveNoise())
     stream_handler = logging.StreamHandler()
 
     log_path = resolve_path_with_links(platformdir.user_log_path, folder=True)
@@ -55,7 +55,7 @@ def setup_logging() -> Generator[None]:
 
     logging.getLogger("discord").setLevel(logging.INFO)
     logging.getLogger("discord.http").setLevel(logging.WARNING)
-    logging.getLogger("discord.state").addFilter(RemoveNoise())
+    logging.getLogger("discord.state")
 
     root_logger = logging.getLogger()
     root_logger.removeHandler(stream_handler)
