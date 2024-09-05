@@ -146,7 +146,7 @@ class Dynamo(commands.AutoShardedBot):
     bot_app_info: discord.AppInfo
     tree: VersionableTree
 
-    def __init__(self) -> None:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         allowed_mentions = discord.AllowedMentions(roles=False, everyone=False, users=True)
         intents = discord.Intents(
             guilds=True,
@@ -155,6 +155,7 @@ class Dynamo(commands.AutoShardedBot):
             message_content=True,
         )
         super().__init__(
+            *args,
             command_prefix=_prefix_callable,
             description=description,
             pm_help=None,
@@ -165,6 +166,7 @@ class Dynamo(commands.AutoShardedBot):
             intents=intents,
             enable_debug_events=True,
             tree_cls=VersionableTree,
+            **kwargs,
         )
 
     async def setup_hook(self) -> None:
