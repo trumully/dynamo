@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 
 import discord
@@ -7,6 +8,13 @@ from discord.ext import commands
 
 if TYPE_CHECKING:
     from dynamo.bot import Dynamo
+
+
+class Status(StrEnum):
+    SUCCESS = "\N{WHITE HEAVY CHECK MARK}"
+    FAILURE = "\N{CROSS MARK}"
+    WARNING = "\N{WARNING SIGN}"
+    OK = "\N{OK HAND SIGN}"
 
 
 class ConfirmationView(discord.ui.View):

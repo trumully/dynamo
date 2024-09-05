@@ -7,7 +7,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from dynamo.bot import Dynamo
-from dynamo.utils.enums import Status
+from dynamo.utils.context import Status
 
 log = logging.getLogger(__name__)
 

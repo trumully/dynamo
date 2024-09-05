@@ -13,22 +13,34 @@ class Dropdown(discord.ui.Select):
     def __init__(self, events: list[discord.ScheduledEvent]) -> None:
         self.events: list[discord.ScheduledEvent] = events
 
-        options = [discord.SelectOption(label=e.name, description="An event") for e in events]
+        options = [discord.SelectOption(label=e.name, value=e.id, description="An event") for e in events]
 
         super().__init__(placeholder="Select an event", min_values=1, max_values=1, options=options)
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        event = next(e for e in self.events if e.name == self.values[0])
-        users: list[discord.User] = [user async for user in event.users()]
-        pings = f"`{' '.join(f'<@{u.id}>' for u in users)}`" or "No users found"
-
-        await interaction.response.send_message(f"{event.name}: {pings}", ephemeral=True)
+        event = next(filter(lambda e: e.name == self.values[0], self.events))
+        interested = await get_interested(event)
+        await interaction.response.send_message(interested, ephemeral=True)
 
 
 class DropdownView(discord.ui.View):
     def __init__(self, events: list[discord.ScheduledEvent]) -> None:
         super().__init__()
         self.add_item(Dropdown(events))
+
+
+@cache()
+async def fetch_events(guild: discord.Guild) -> list[discord.ScheduledEvent]:
+    try:
+        events = await guild.fetch_scheduled_events()
+    except discord.HTTPException:
+        log.exception("Failed to fetch events for guild %s", guild.id)
+    return sorted(events, key=lambda e: e.start_time)
+
+
+async def get_interested(event: discord.ScheduledEvent) -> str:
+    users: list[discord.User] = [user async for user in event.users()]
+    return f"`[{event.name}]({event.url}) {' '.join(f'<@{u.id}>' for u in users) or "No users found"}`"
 
 
 class Events(commands.Cog, name="events"):
@@ -40,22 +52,26 @@ class Events(commands.Cog, name="events"):
     async def cog_check(self, ctx: commands.Context) -> bool:
         return ctx.guild is not None
 
-    @cache()
-    async def fetch_events(self, guild: discord.Guild) -> list[discord.ScheduledEvent]:
-        try:
-            events = await guild.fetch_scheduled_events()
-        except discord.HTTPException:
-            log.exception("Failed to fetch events for guild %s", guild.id)
-        return sorted(events, key=lambda e: e.start_time)
-
     @commands.hybrid_command(name="event")
-    async def event(self, ctx: commands.Context) -> None:
-        """Get a list of members subscribed to an event"""
-        if not (guild := ctx.guild):
+    async def event(self, ctx: commands.Context, event: int | None) -> None:
+        """Get a list of members subscribed to an event
+
+        Parameters
+        ----------
+        event: int | None
+            The event ID to get attendees of (optional)
+        """
+        if event is not None:
+            try:
+                await ctx.guild.fetch_scheduled_event(event)
+            except discord.NotFound:
+                await ctx.send(f"No event with id: {event}", ephemeral=True)
+                return
+            interested = await get_interested(event)
+            await ctx.send(interested, ephemeral=True)
             return
 
-        events: list[discord.ScheduledEvent] = await self.fetch_events(guild)
-        if not events:
+        if not (events := await fetch_events(ctx.guild)):
             await ctx.send("No events found!", ephemeral=True)
             return
         view = DropdownView(events)

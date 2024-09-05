@@ -5,7 +5,6 @@ import queue
 import signal
 from collections.abc import Generator
 from contextlib import contextmanager
-from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Any
 
@@ -44,7 +43,7 @@ def setup_logging() -> Generator[None]:
 
     log_path = resolve_path_with_links(platformdir.user_log_path, folder=True)
     log_location = log_path / "dynamo.log"
-    rotating_file_handler = RotatingFileHandler(log_location, maxBytes=2_000_000, backupCount=5)
+    rotating_file_handler = logging.handlers.RotatingFileHandler(log_location, maxBytes=2_000_000, backupCount=5)
 
     discord.utils.setup_logging(handler=stream_handler)
     discord.utils.setup_logging(handler=rotating_file_handler)
@@ -108,7 +107,7 @@ def run_bot() -> None:
 
         tasks: set[asyncio.Task[Any]] = {t for t in asyncio.all_tasks(loop) if not t.done()}
 
-        async def limited_finalization():
+        async def limited_finalization() -> None:
             _done, pending = await asyncio.wait(tasks, timeout=0.1)
             if not pending:
                 log.debug("Clean shutdown accomplished.")

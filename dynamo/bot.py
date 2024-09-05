@@ -180,22 +180,24 @@ class Dynamo(commands.AutoShardedBot):
             except commands.ExtensionError:
                 log.exception("Failed to load extension %s", ext)
 
-        tree_path = platformdir.user_cache_path / "tree.hash"
-        tree_path = resolve_path_with_links(tree_path)
+        tree_path = resolve_path_with_links(platformdir.user_cache_path / "tree.hash")
         tree_hash = await self.tree.get_hash(self.tree)
         with tree_path.open("r+b") as fp:
             data = fp.read()
             if data != tree_hash:
-                dev_guild = discord.Object(id=681408104495448088)
-                log.info("Syncing commands to dev guild (ID: %s)", dev_guild.id)
-                self.tree.copy_global_to(guild=dev_guild)
-                await self.tree.sync(guild=dev_guild)
+                log.info("Syncing commands to dev guild (ID: %s)", self.dev_guild.id)
+                self.tree.copy_global_to(guild=self.dev_guild)
+                await self.tree.sync(guild=self.dev_guild)
                 fp.seek(0)
                 fp.write(tree_hash)
 
     @property
     def owner(self) -> discord.User:
         return self.bot_app_info.owner
+
+    @property
+    def dev_guild(self) -> discord.Guild:
+        return discord.Object(id=681408104495448088)
 
     async def start(self, token: str, *, reconnect: bool = True) -> None:
         return await super().start(token, reconnect=reconnect)
