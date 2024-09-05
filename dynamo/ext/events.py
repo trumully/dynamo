@@ -18,7 +18,7 @@ class Dropdown(discord.ui.Select):
         super().__init__(placeholder="Select an event", min_values=1, max_values=1, options=options)
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        event = next(filter(lambda e: e.name == self.values[0], self.events))
+        event = next(filter(lambda e: e.id == self.values[0], self.events))
         interested = await get_interested(event)
         await interaction.response.send_message(interested, ephemeral=True)
 

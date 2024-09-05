@@ -52,6 +52,7 @@ ignore = [
     "UP007", # "Use | For Union" doesn't account for typevar tuple unpacking.
     "COM812", # ruff format suggested
     "ISC001", # ruff format suggested
+    "B008",
 ]
 unfixable = [
     "ERA"  # I don't want anything erroneously detected deleted by this.

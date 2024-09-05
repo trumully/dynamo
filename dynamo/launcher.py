@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import logging.handlers
 import os
 import queue
 import signal
@@ -13,16 +14,16 @@ import click
 import discord
 import toml
 
+from dynamo._evt_policy import get_event_loop_policy
 from dynamo.bot import Dynamo
 from dynamo.utils.helper import platformdir, resolve_path_with_links, valid_token
-
-from ._evt_policy import get_event_loop_policy
 
 log = logging.getLogger("dynamo")
 
 
 def get_version() -> str:
-    with Path.open("../pyproject.toml", mode="r") as f:
+    parent_dir = resolve_path_with_links(Path(__file__).parent.parent, True)
+    with Path.open(parent_dir / "pyproject.toml") as f:
         data = toml.load(f)
     return data["tool"]["poetry"]["version"]
 
@@ -35,7 +36,7 @@ class RemoveNoise(logging.Filter):
 
 
 @contextmanager
-def setup_logging() -> Generator[None]:
+def setup_logging() -> Generator[None, Any, None]:
     q: queue.SimpleQueue[Any] = queue.SimpleQueue()
     q_handler = logging.handlers.QueueHandler(q)
     q_handler.addFilter(RemoveNoise())

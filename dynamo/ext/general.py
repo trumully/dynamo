@@ -6,10 +6,10 @@ from discord.ext import commands
 
 from dynamo.bot import Dynamo
 from dynamo.utils.cache import cache_bytes, get_bytes
-from dynamo.utils.converter import MemberConverter
 from dynamo.utils.helper import generate_seed
 from dynamo.utils.identicon import Identicon, get_colors, make_identicon
 from dynamo.utils.time import human_timedelta
+from dynamo.utils.transformer import MemberTransformer
 
 
 def embed_from_user(user: discord.Member | discord.User) -> discord.Embed:
@@ -66,7 +66,9 @@ class General(commands.GroupCog, group_name="general"):
 
     @commands.hybrid_command(name="identicon")
     @app_commands.describe(seed="The seed to use for the identicon. This can be a user or a string.")
-    async def identicon(self, ctx: commands.Context, seed: MemberConverter = None) -> None:
+    async def identicon(
+        self, ctx: commands.Context, seed: str = commands.param(default=None, converter=MemberTransformer)
+    ) -> None:
         """Generate an identicon from a user or string
 
         Parameters
