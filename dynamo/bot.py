@@ -199,7 +199,7 @@ class Dynamo(commands.AutoShardedBot):
 
     @property
     def dev_guild(self) -> discord.Guild:
-        return discord.Object(id=681408104495448088)
+        return discord.Object(id=681408104495448088, type=discord.Guild)
 
     async def start(self, token: str, *, reconnect: bool = True) -> None:
         return await super().start(token, reconnect=reconnect)

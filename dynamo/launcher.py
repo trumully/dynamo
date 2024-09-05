@@ -22,7 +22,7 @@ from dynamo._evt_policy import get_event_loop_policy
 from dynamo.bot import Dynamo
 from dynamo.utils.helper import platformdir, resolve_path_with_links, valid_token
 
-log = logging.getLogger("dynamo")
+log = logging.getLogger(__name__)
 
 
 def get_version() -> str:
@@ -40,7 +40,7 @@ class RemoveNoise(logging.Filter):
 
 
 @contextmanager
-def setup_logging() -> Generator[None, Any, None]:
+def setup_logging(log_level: int = logging.INFO) -> Generator[None, Any, None]:
     q: queue.SimpleQueue[Any] = queue.SimpleQueue()
     q_handler = logging.handlers.QueueHandler(q)
     q_handler.addFilter(RemoveNoise())
@@ -61,6 +61,8 @@ def setup_logging() -> Generator[None, Any, None]:
     root_logger.removeHandler(stream_handler)
     root_logger.removeHandler(rotating_file_handler)
 
+    root_logger.setLevel(log_level)
+
     q_listener = logging.handlers.QueueListener(q, stream_handler, rotating_file_handler)
     root_logger.addHandler(q_handler)
 
@@ -74,6 +76,8 @@ def setup_logging() -> Generator[None, Any, None]:
 def run_bot() -> None:
     policy_type = get_event_loop_policy()
     asyncio.set_event_loop_policy(policy_type())
+
+    log.debug("Event loop policy: %s", policy_type.__name__)
 
     loop = asyncio.new_event_loop()
     loop.set_task_factory(asyncio.eager_task_factory)
@@ -189,15 +193,15 @@ def _get_token() -> str:
 @click.group(invoke_without_command=True, options_metavar="[options]")
 @click.version_option(
     version=get_version(),
-    prog_name="dynamo",
-    message=click.style("%(version)s", bold=True, fg="bright_cyan"),
+    prog_name="Dynamo",
+    message=click.style("%(prog)s - %(version)s", bold=True, fg="bright_cyan"),
 )
 @click.pass_context
 def main(ctx: click.Context) -> None:
     """Launch the bot"""
     os.umask(0o077)
     if ctx.invoked_subcommand is None:
-        with setup_logging():
+        with setup_logging(log_level=logging.DEBUG):
             run_bot()
 
 

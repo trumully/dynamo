@@ -63,12 +63,12 @@ class Debug(commands.GroupCog, group_name="debug"):
         if not confirm:
             return
 
-        guild = discord.Object(id=guild_id) if guild_id is not None else None
+        guild = discord.Object(id=guild_id, type=discord.Guild) if guild_id is not None else None
 
         self.bot.tree.clear_commands(guild=guild)
         await ctx.send("Successfully cleared all commands")
 
-    @commands.hybrid_command(aliases=["l"], hidden=True)
+    @commands.hybrid_command(aliases=("l",), hidden=True)
     @app_commands.describe(module="The name of the cog to load")
     async def load(self, ctx: commands.Context, *, module: str) -> None:
         """Load a cog
@@ -85,7 +85,7 @@ class Debug(commands.GroupCog, group_name="debug"):
         else:
             await ctx.send(Status.OK)
 
-    @commands.hybrid_command(aliases=["ul"], hidden=True)
+    @commands.hybrid_command(aliases=("ul",), hidden=True)
     @app_commands.describe(module="The name of the cog to unload")
     async def unload(self, ctx: commands.Context, *, module: str) -> None:
         """Unload a cog
@@ -102,7 +102,7 @@ class Debug(commands.GroupCog, group_name="debug"):
         else:
             await ctx.send(Status.OK)
 
-    @commands.hybrid_group(name="reload", aliases=["r"], hidden=True, invoke_without_command=True)
+    @commands.hybrid_group(name="reload", aliases=("r",), hidden=True, invoke_without_command=True)
     async def _reload(self, ctx: commands.Context, *, module: str) -> None:
         """Reload a cog.
 
@@ -131,34 +131,35 @@ class Debug(commands.GroupCog, group_name="debug"):
         if not confirm:
             return
 
-        log.info("!!! STARTING FULL RELOAD !!!")
-
         # Reload all pre-existing modules from the utils folder
         utils_modules = [mod for mod in sys.modules if mod.startswith("dynamo.utils.")]
-        successful_reloads = 0
+        utils_reloads = 0
         for module in utils_modules:
             try:
                 importlib.reload(sys.modules[module])
             except (KeyError, ModuleNotFoundError):
                 log.exception("Failed to reload %s", module)
             else:
-                successful_reloads += 1
-        log.info("Reloaded %d/%d utilities", successful_reloads, len(utils_modules))
+                utils_reloads += 1
+        log.info("Reloaded %d/%d utilities", utils_reloads, len(utils_modules))
 
         extensions = self.bot.extensions.copy()
         statuses: list[tuple[Status, str]] = []
+        ext_reloads = 0
         for ext in extensions:
             try:
                 await self.reload_or_load_extension(ext)
             except commands.ExtensionError:
+                log.exception("Failed to reload extension %s", ext)
                 statuses.append((Status.FAILURE, ext))
             else:
                 statuses.append((Status.SUCCESS, ext))
+                ext_reloads += 1
 
-        log.info("Reloaded %d/%d extensions", len(statuses), len(extensions))
+        log.info("Reloaded %d/%d extensions", ext_reloads, len(extensions))
         await ctx.reply("\n".join(f"{status} `{ext}`" for status, ext in statuses))
 
-    @commands.hybrid_command(name="quit", aliases=["exit", "shutdown", "q"])
+    @commands.hybrid_command(name="quit", aliases=("exit", "shutdown", "q"))
     @commands.is_owner()
     async def shutdown(self, ctx: commands.Context) -> None:
         """Shutdown the bot"""
