@@ -40,20 +40,19 @@ def valid_token(token: str) -> bool:
         bool: True if the token is valid, False otherwise
     """
     # refs:
-    # https://github.com/Yelp/detect-secrets/blob/master/detect_secrets/plugins/discord.py
     # https://discord.com/developers/docs/reference#authentication
+    # https://github.com/Yelp/detect-secrets/blob/master/detect_secrets/plugins/discord.py
     # https://github.com/Yelp/detect-secrets/issues/627
     pattern = re.compile(r"[MNO][a-zA-Z\d_-]{23,25}\.[a-zA-Z\d_-]{6}\.[a-zA-Z\d_-]{27}")
     return bool(pattern.match(token))
 
 
-def generate_seed(seed: int | str | None = None) -> tuple[int, int | str]:
-    """Generate a seed from a discord snowflake"""
+def generate_seed(seed: int | str | None = None) -> int:
+    """Generate a seed from integer, integer-like (i.e discord snowflake) or string"""
     if not seed:
         seed = str(time.monotonic()).replace(".", "")
-    real_seed = seed
     if isinstance(seed, int):
         seed = str(seed)
     seed = seed.encode()
     hashed = int.from_bytes(seed + hashlib.sha256(seed).digest(), byteorder="big")
-    return hashed, real_seed
+    return hashed  # noqa: RET504  needs to be assigned as a var to work properly
