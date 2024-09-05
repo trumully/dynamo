@@ -58,7 +58,7 @@ class Context(commands.Context):
         self,
         message: str,
         *,
-        timeout: float = 60.0,  # noqa: ASYNC109  - timeout is not awaited
+        timeout: float = 60.0,
         delete_after: bool = True,
         author_id: int | None = None,
     ) -> bool | None:
