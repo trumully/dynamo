@@ -7,8 +7,6 @@ class MemberConverter(commands.MemberConverter):
         converter = commands.MemberConverter()
 
         try:
-            member = await converter.convert(ctx, argument)
+            return await converter.convert(ctx, argument)
         except commands.MemberNotFound:
             return argument
-
-        return member

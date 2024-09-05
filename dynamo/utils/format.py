@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Sequence
 
 
-def truncate_string(string: str, max_len: int = 50, placeholder: str = "Nothing provided") -> str:
+def shorten_string(string: str, max_len: int = 50, placeholder: str = "Nothing provided") -> str:
     """Truncate a string to a maximum length of `max_len`
 
     Example:
@@ -18,8 +18,9 @@ def truncate_string(string: str, max_len: int = 50, placeholder: str = "Nothing 
     """
     if not string:
         return placeholder
-    truncated = string[: max(max_len, len(string) // 2)]
-    return truncated + "..." if len(string) > max_len else truncated
+    if len(string) <= max_len:
+        return string
+    return string[:max_len] + "..."
 
 
 @dataclass(frozen=True)
@@ -40,13 +41,13 @@ class plural:
         return f"{v} {plural}" if abs(v) != 1 else f"{v} {singular}"
 
 
-def human_join(seq: Sequence[str], sep: str = ", ", final: str = "or", oxford_comma: bool = True) -> str:
+def human_join(seq: Sequence[str], sep: str = ", ", conjunction: str = "or", *, oxford_comma: bool = True) -> str:
     """Join a sequence of strings into a human-readable format.
 
     Args:
         seq (Sequence[str]): The sequence of strings to join.
         sep (str, optional): The separator to use between the strings. Defaults to ", ".
-        final (str, optional): The word to use before the last string. Defaults to "or".
+        conjunction (str, optional): The word to use before the last string. Defaults to "or".
         oxford_comma (bool, optional): Whether to use an oxford comma. Defaults to True.
 
     Returns:
@@ -59,6 +60,6 @@ def human_join(seq: Sequence[str], sep: str = ", ", final: str = "or", oxford_co
         return seq[0]
 
     if size == 2:
-        return f"{seq[0]} {final} {seq[1]}"
+        return f"{seq[0]} {conjunction} {seq[1]}"
 
-    return f"{sep.join(seq[:-1])}{sep if oxford_comma else " "}{final} {seq[-1]}"
+    return f"{sep.join(seq[:-1])}{sep if oxford_comma else " "}{conjunction} {seq[-1]}"

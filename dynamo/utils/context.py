@@ -46,9 +46,6 @@ class Context(commands.Context):
     def __init__(self, **kwargs: dict[str, Any]) -> None:
         super().__init__(**kwargs)
 
-    def __repr__(self) -> str:
-        return "<Context>"
-
     async def prompt(
         self,
         message: str,

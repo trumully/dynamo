@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 from typing import Any, AsyncGenerator, Coroutine, Generator
 
-import aiohttp
 import discord
 import msgspec
 import xxhash
@@ -169,7 +168,6 @@ class Dynamo(commands.AutoShardedBot):
         )
 
     async def setup_hook(self) -> None:
-        self.session: aiohttp.ClientSession = aiohttp.ClientSession()
         self.prefixes: dict[int, list[str]] = {}
 
         self.bot_app_info = await self.application_info()
@@ -203,8 +201,7 @@ class Dynamo(commands.AutoShardedBot):
         return await super().start(token, reconnect=reconnect)
 
     async def close(self) -> None:
-        await self.session.close()
-        await super().close()
+        return await super().close()
 
     async def on_ready(self) -> None:
         if not hasattr(self, "uptime"):

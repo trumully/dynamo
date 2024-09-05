@@ -5,6 +5,7 @@ import math
 import random
 from dataclasses import dataclass, field
 from functools import cached_property
+from typing import Annotated, Self, TypeVar
 
 import numpy as np
 from PIL import Image
@@ -13,23 +14,27 @@ from PIL import Image
 COLOR_THRESHOLD = 306
 
 
-def color_distance(a: RGB, /, b: RGB) -> float:
+D = TypeVar("D", bound=np.generic)
+ArrayRGB = Annotated[np.ndarray[D], tuple[int, int, int]]
+
+
+def color_distance(x: RGB, /, y: RGB) -> float:
     """Measure distance between two colors
 
     See:
         https://www.compuphase.com/cmetric.htm
 
     Args:
-        a (RGB): The first color
-        b (RGB): The second color
+        x (RGB): The first color
+        y (RGB): The second color
 
     Returns:
         float: The distance between the two colors
     """
-    mean = a.red_mean(b)
-    diff = a - b
+    mean = red_mean(x, y)
+    r, g, b = (x - y).as_tuple()
 
-    return math.sqrt((2 + (mean / 256)) * diff.r**2 + 4 * diff.g**2 + (2 + (255 - mean) / 256) * diff.b**2)
+    return math.sqrt(((512 + mean) * r * r) >> 8 + 4 * g * g + ((767 - mean) * b * b) >> 8)
 
 
 def make_color(seed: int) -> RGB:
@@ -44,23 +49,39 @@ def get_colors(fg: RGB | None = None, bg: RGB | None = None, *, seed: int) -> tu
     return (fg, bg) if fg != bg else (fg.flip(), bg)
 
 
+def red_mean(a: RGB, b: RGB) -> float:
+    return (a.r + b.r) / 2
+
+
+def rgb_as_hex(rgb: RGB) -> str:
+    return f"#{rgb.r:02x}{rgb.g:02x}{rgb.b:02x}"
+
+
 @dataclass
 class RGB:
     r: int
     g: int
     b: int
 
-    def __sub__(self, other: RGB) -> RGB:
-        return RGB(self.r - other.r, self.g - other.g, self.b - other.b)
+    def __post_init__(self):
+        self.r = max(0, min(self.r, 255))
+        self.g = max(0, min(self.g, 255))
+        self.b = max(0, min(self.b, 255))
+
+    def __sub__(self, other: RGB) -> Self:
+        self.r = max(self.r - other.r, 0)
+        self.g = max(self.g - other.g, 0)
+        self.b = max(self.b - other.b, 0)
+        return self
 
     def __eq__(self, other: RGB) -> bool:
         return color_distance(self, other) < COLOR_THRESHOLD
 
-    def red_mean(self, other: RGB) -> int:
-        return (self.r + other.r) // 2
-
-    def flip(self) -> RGB:
-        return RGB(255 - self.r, 255 - self.g, 255 - self.b)
+    def flip(self) -> Self:
+        self.r = 255 - self.r
+        self.g = 255 - self.g
+        self.b = 255 - self.b
+        return self
 
     def as_tuple(self) -> tuple[int, int, int]:
         return self.r, self.g, self.b
@@ -80,25 +101,23 @@ class Identicon:
         self.rng = np.random.default_rng(seed=self.seed)
 
     @cached_property
-    def pattern(self) -> np.ndarray:
+    def pattern(self) -> ArrayRGB:
         colors = np.array((self.fg, self.bg))
         size = (self.size * 2, self.size)
         weight = (self.fg_weight, 1 - self.fg_weight)
         return self.rng.choice(colors, size=size, p=weight)
 
     @property
-    def icon(self) -> np.ndarray:
+    def icon(self) -> ArrayRGB:
         return self.reflect(np.array([[c.as_tuple() for c in row] for row in self.pattern]))
 
     @staticmethod
-    def reflect(matrix: np.ndarray) -> np.ndarray:
+    def reflect(matrix: np.ndarray) -> ArrayRGB:
         return np.hstack((matrix, np.fliplr(matrix)))
 
 
-def make_identicon(i: Identicon, size: int = 256) -> bytes:
-    icon = i.icon
-
-    im = Image.fromarray(icon.astype("uint8"))
+def make_identicon(idt: Identicon, size: int = 256) -> bytes:
+    im = Image.fromarray(idt.icon.astype("uint8"))
     im = im.convert("RGB")
     im = im.resize((size, size), Image.Resampling.NEAREST)
 

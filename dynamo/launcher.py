@@ -1,6 +1,8 @@
 import asyncio
 import logging
+import os
 import queue
+import signal
 from collections.abc import Generator
 from contextlib import contextmanager
 from logging.handlers import RotatingFileHandler
@@ -15,19 +17,13 @@ import toml
 from dynamo.bot import Dynamo
 from dynamo.utils.helper import platformdir, resolve_path_with_links, valid_token
 
-try:
-    import winloop
-except ImportError:
-    pass
-else:
-    asyncio.set_event_loop_policy(winloop.EventLoopPolicy())
-
+from ._evt_policy import get_event_loop_policy
 
 log = logging.getLogger("dynamo")
 
 
 def get_version() -> str:
-    with Path.open("pyproject.toml", mode="r") as f:
+    with Path.open("../pyproject.toml", mode="r") as f:
         data = toml.load(f)
     return data["tool"]["poetry"]["version"]
 
@@ -71,24 +67,89 @@ def setup_logging() -> Generator[None]:
         q_listener.stop()
 
 
-async def run_bot() -> None:
-    async with Dynamo() as bot:
-        await bot.start(_get_token())
+def run_bot() -> None:
+    policy_type = get_event_loop_policy()
+    asyncio.set_event_loop_policy(policy_type())
 
+    loop = asyncio.new_event_loop()
+    loop.set_task_factory(asyncio.eager_task_factory)
+    asyncio.set_event_loop(loop)
 
-@click.group(invoke_without_command=True, options_metavar="[options]")
-@click.version_option(
-    version=get_version(),
-    prog_name="dynamo",
-    message=click.style("%(version)s", bold=True, fg="bright_cyan"),
-)
-@click.pass_context
-def main(ctx: click.Context) -> None:
-    """Launch the bot"""
-    if ctx.invoked_subcommand is None:
-        _get_token()
-        with setup_logging():
-            asyncio.run(run_bot())
+    bot = Dynamo()
+
+    async def entrypoint() -> None:
+        try:
+            async with bot:
+                await bot.start(_get_token())
+        finally:
+            if not bot.is_closed():
+                await bot.close()
+
+    try:
+        loop.add_signal_handler(signal.SIGINT, lambda: loop.stop())
+        loop.add_signal_handler(signal.SIGTERM, lambda: loop.stop())
+    except NotImplementedError:
+        pass
+
+    def stop_when_done(fut: asyncio.Future[None]) -> None:
+        loop.stop()
+
+    fut = asyncio.ensure_future(entrypoint(), loop=loop)
+    try:
+        fut.add_done_callback(stop_when_done)
+        loop.run_forever()
+    except KeyboardInterrupt:
+        log.info("Shutdown via keyboard interrupt")
+    finally:
+        fut.remove_done_callback(stop_when_done)
+        if not bot.is_closed():
+            _close_task = loop.create_task(bot.close())  # noqa: RUF006
+        loop.run_until_complete(asyncio.sleep(0.001))
+
+        tasks: set[asyncio.Task[Any]] = {t for t in asyncio.all_tasks(loop) if not t.done()}
+
+        async def limited_finalization():
+            _done, pending = await asyncio.wait(tasks, timeout=0.1)
+            if not pending:
+                log.debug("Clean shutdown accomplished.")
+                return
+
+            for task in tasks:
+                task.cancel()
+
+            _done, pending = await asyncio.wait(tasks, timeout=0.1)
+
+            for task in pending:
+                name = task.get_name()
+                coro = task.get_coro()
+                log.warning("Task %s wrapping coro %r did not exit properly", name, coro)
+
+        if tasks:
+            loop.run_until_complete(limited_finalization())
+        loop.run_until_complete(loop.shutdown_asyncgens())
+        loop.run_until_complete(loop.shutdown_default_executor())
+
+        for task in tasks:
+            try:
+                if (exc := task.exception()) is not None:
+                    loop.call_exception_handler(
+                        {
+                            "message": "Unhandled exception in task during shutdown.",
+                            "exception": exc,
+                            "task": task,
+                        }
+                    )
+            except (asyncio.InvalidStateError, asyncio.CancelledError):
+                pass
+
+        asyncio.set_event_loop(None)
+        loop.close()
+
+        if not fut.cancelled():
+            try:
+                fut.result()
+            except KeyboardInterrupt:
+                pass
 
 
 def _load_token() -> str | None:
@@ -109,6 +170,21 @@ def _get_token() -> str:
         msg = "Token not found. Please run `dynamo setup` before starting the bot."
         raise RuntimeError(msg)
     return token
+
+
+@click.group(invoke_without_command=True, options_metavar="[options]")
+@click.version_option(
+    version=get_version(),
+    prog_name="dynamo",
+    message=click.style("%(version)s", bold=True, fg="bright_cyan"),
+)
+@click.pass_context
+def main(ctx: click.Context) -> None:
+    """Launch the bot"""
+    os.umask(0o077)
+    if ctx.invoked_subcommand is None:
+        with setup_logging():
+            run_bot()
 
 
 @main.command()

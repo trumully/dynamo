@@ -14,9 +14,11 @@ from dynamo.utils.time import human_timedelta
 
 def embed_from_user(user: discord.Member | discord.User) -> discord.Embed:
     e = discord.Embed()
-    e.set_footer(text=f"Discord ID: {user.id}")
+    e.set_footer(text=f"ID: {user.id}")
     avatar = user.display_avatar.with_static_format("png")
     e.set_author(name=str(user), icon_url=avatar.url)
+    e.add_field(name="Created", value=f"`{human_timedelta(dt=user.created_at, suffix=False)}`", inline=False)
+    e.add_field(name="Joined", value=f"`{human_timedelta(dt=user.joined_at, suffix=False)}`", inline=False)
     e.set_image(url=avatar.url)
     return e
 
@@ -92,8 +94,7 @@ class General(commands.GroupCog, group_name="general"):
         else:
             data = cached
 
-        embed_color = discord.Color.from_rgb(*fg.as_tuple())
-        e = discord.Embed(title=fname, description=description, color=embed_color)
+        e = discord.Embed(title=fname, description=description, color=discord.Color.from_rgb(*fg.as_tuple()))
         file = discord.File(
             io.BytesIO(data),
             filename=f"{fname}.png",

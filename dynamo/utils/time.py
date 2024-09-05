@@ -37,10 +37,10 @@ def human_timedelta(
 
         if attr == "day" and (weeks := delta.weeks):
             elem -= weeks * 7
-            output.append(format(plural(weeks), "week") if not brief else f"{weeks}w")
+            output.append(f"{weeks}w" if brief else f"{plural(weeks):week}")
 
         if elem > 0:
-            output.append(f"{elem}{brief_attr}" if brief else format(plural(elem), attr))
+            output.append(f"{elem}{brief_attr}" if brief else f"{plural(elem):{attr}}")
 
     if accuracy is not None:
         output = output[:accuracy]
@@ -48,4 +48,4 @@ def human_timedelta(
     if len(output) == 0:
         return "now"
 
-    return (human_join(output, final="and") if not brief else " ".join(output)) + output_suffix
+    return (human_join(output, conjunction="and") if not brief else " ".join(output)) + output_suffix
