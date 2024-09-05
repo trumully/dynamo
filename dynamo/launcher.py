@@ -4,15 +4,19 @@ import logging.handlers
 import os
 import queue
 import signal
+import socket
+import ssl
 from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
+import aiohttp
 import base2048
 import click
 import discord
 import toml
+import truststore
 
 from dynamo._evt_policy import get_event_loop_policy
 from dynamo.bot import Dynamo
@@ -75,7 +79,17 @@ def run_bot() -> None:
     loop.set_task_factory(asyncio.eager_task_factory)
     asyncio.set_event_loop(loop)
 
-    bot = Dynamo()
+    # https://github.com/aio-libs/aiohttp/issues/8599
+    # https://github.com/mikeshardmind/discord.py/tree/salamander-reloaded
+    connector = aiohttp.TCPConnector(
+        happy_eyeballs_delay=None,
+        family=socket.AddressFamily.AF_INET,
+        ttl_dns_cache=60,
+        loop=loop,
+        ssl_context=truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT),
+    )
+
+    bot = Dynamo(connector=connector)
 
     async def entrypoint() -> None:
         try:
