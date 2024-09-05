@@ -1,0 +1,26 @@
+name: Lint
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'dynamo/**'
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ruff:
+    name: Lint with ruff
+    runs-on: ubuntu-22.04
+    concurrency: lint
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jpetrucciani/ruff-check@main
+        with:
+          path: './dynamo/'
+          flags: '--config ./pyproject.toml'
