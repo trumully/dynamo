@@ -1,4 +1,5 @@
-import io
+import time
+from io import BytesIO
 
 import discord
 from discord import app_commands
@@ -7,7 +8,7 @@ from discord.ext import commands
 from dynamo.bot import Dynamo
 from dynamo.utils.cache import cache_bytes, get_bytes
 from dynamo.utils.helper import generate_seed
-from dynamo.utils.identicon import Identicon, get_colors, make_identicon
+from dynamo.utils.identicon import Identicon, get_colors, identicon_buffer
 from dynamo.utils.time import human_timedelta
 from dynamo.utils.transformer import MemberTransformer
 
@@ -17,8 +18,10 @@ def embed_from_user(user: discord.Member | discord.User) -> discord.Embed:
     e.set_footer(text=f"ID: {user.id}")
     avatar = user.display_avatar.with_static_format("png")
     e.set_author(name=str(user), icon_url=avatar.url)
-    e.add_field(name="Created", value=f"`{human_timedelta(dt=user.created_at, suffix=False)}`", inline=False)
-    e.add_field(name="Joined", value=f"`{human_timedelta(dt=user.joined_at, suffix=False)}`", inline=False)
+    if not user.bot:
+        e.add_field(name="Account Created", value=f"`{human_timedelta(dt=user.created_at, suffix=True)}`")
+    if not isinstance(user, discord.ClientUser):
+        e.add_field(name="Joined Server", value=f"`{human_timedelta(dt=user.joined_at, suffix=True)}`")
     e.set_image(url=avatar.url)
     return e
 
@@ -67,37 +70,42 @@ class General(commands.GroupCog, group_name="general"):
     @commands.hybrid_command(name="identicon")
     @app_commands.describe(seed="The seed to use for the identicon. This can be a user or a string.")
     async def identicon(
-        self, ctx: commands.Context, seed: str = commands.param(default=None, converter=MemberTransformer)
+        self,
+        ctx: commands.Context,
+        seed: str | None = None,
+        member: discord.User | discord.Member = commands.param(default=None, converter=MemberTransformer),
     ) -> None:
         """Generate an identicon from a user or string
 
         Parameters
         ----------
-        seed: discord.Member | discord.User | str | None
-            The seed to use. If nothing is provided, a random seed will be generated.
+        seed: str | None
+            The seed to use. Random seed if empty.
+        member: discord.User | discord.Member | None
+            The member the seed derives from. Random seed if empty.
         """
-        if isinstance(seed, discord.Member):
-            display_name = f"<@{seed.id}>"
-            seed = seed.id
-        else:
-            display_name = seed
+        # If both or none are provided, generate a random seed
+        if seed and member or seed is None and member is None:
+            seed = str(time.monotonic()).replace(".", "")
 
-        fname = f"{seed}.png"
-        seed = generate_seed(seed)
+        display_name = seed if member is None else str(member)
+
+        fname = seed or member.id
+        seed = generate_seed(seed or member.id)
         fg, bg = get_colors(seed=seed)
 
         if (cached := get_bytes(fname)) is None:
-            data = make_identicon(Identicon(5, fg, bg, 0.4, seed))
-            cache_bytes(fname, data)
+            idt_bytes = await identicon_buffer(Identicon(5, fg, bg, 0.4, seed))
+            cache_bytes(display_name, idt_bytes)
         else:
-            data = cached
+            idt_bytes = cached
+        file = discord.File(BytesIO(idt_bytes), filename=f"{fname}.png")
 
         cmd_mention = await self.bot.tree.find_mention_for("general identicon", guild=ctx.guild)
         prefix = self.bot.prefixes.get(ctx.guild.id, ["d!", "d?"])[0]
         description = f"**Command:**\n{cmd_mention} {display_name}\n{prefix}identicon {display_name}"
 
-        e = discord.Embed(title=fname, description=description, color=discord.Color.from_rgb(*fg.as_tuple()))
-        file = discord.File(io.BytesIO(data), filename=fname)
+        e = discord.Embed(title=display_name, description=description, color=discord.Color.from_rgb(*fg.as_tuple()))
         e.set_image(url=f"attachment://{fname}.png")
         await ctx.send(embed=e, file=file)
 

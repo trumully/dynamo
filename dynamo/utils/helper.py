@@ -1,6 +1,5 @@
 import hashlib
 import re
-import time
 from pathlib import Path
 
 import platformdirs
@@ -49,8 +48,6 @@ def valid_token(token: str) -> bool:
 
 def generate_seed(seed: int | str | None = None) -> int:
     """Generate a seed from integer, integer-like (i.e discord snowflake) or string"""
-    if not seed:
-        seed = str(time.monotonic()).replace(".", "")
     if isinstance(seed, int):
         seed = str(seed)
     seed = seed.encode()

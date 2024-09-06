@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, AsyncGenerator, Coroutine, Generator
+from collections.abc import AsyncGenerator, Coroutine, Generator
+from typing import Any
 
 import discord
 import msgspec
@@ -130,6 +131,14 @@ class VersionableTree(app_commands.CommandTree["Dynamo"]):
                     log.warning("Could not find a mention for command %s in the API. Are you out of sync?", command)
 
 
+class EmbedMinimalHelpCommand(commands.MinimalHelpCommand):
+    async def send_pages(self) -> None:
+        destination = self.get_destination()
+        for page in self.paginator.pages:
+            e = discord.Embed(description=page)
+            await destination.send(embed=e)
+
+
 def _prefix_callable(bot: Dynamo, msg: discord.Message) -> list[str]:
     user_id = bot.user.id
     base = [f"<@{user_id}> ", f"<@!{user_id}> "]
@@ -166,6 +175,7 @@ class Dynamo(commands.AutoShardedBot):
             intents=intents,
             enable_debug_events=True,
             tree_cls=VersionableTree,
+            help_command=EmbedMinimalHelpCommand(),
             **kwargs,
         )
 
@@ -192,6 +202,10 @@ class Dynamo(commands.AutoShardedBot):
                 await self.tree.sync(guild=self.dev_guild)
                 fp.seek(0)
                 fp.write(tree_hash)
+
+        self._cd = commands.CooldownMapping.from_cooldown(2, 5, commands.BucketType.user)
+        for cmd in self.walk_commands():
+            cmd._buckets = self._cd
 
     @property
     def owner(self) -> discord.User:

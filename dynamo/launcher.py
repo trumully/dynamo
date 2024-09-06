@@ -90,7 +90,7 @@ def run_bot() -> None:
         family=socket.AddressFamily.AF_INET,
         ttl_dns_cache=60,
         loop=loop,
-        ssl_context=truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT),
+        ssl=truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT),
     )
 
     bot = Dynamo(connector=connector)
@@ -201,7 +201,7 @@ def main(ctx: click.Context) -> None:
     """Launch the bot"""
     os.umask(0o077)
     if ctx.invoked_subcommand is None:
-        with setup_logging(log_level=logging.DEBUG):
+        with setup_logging():
             run_bot()
 
 

@@ -13,12 +13,14 @@ class Dropdown(discord.ui.Select):
     def __init__(self, events: list[discord.ScheduledEvent]) -> None:
         self.events: list[discord.ScheduledEvent] = events
 
-        options = [discord.SelectOption(label=e.name, value=e.id, description="An event") for e in events]
+        options = [discord.SelectOption(label=e.name, value=str(e.id), description="An event") for e in events]
 
         super().__init__(placeholder="Select an event", min_values=1, max_values=1, options=options)
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        event = next(filter(lambda e: e.id == self.values[0], self.events))
+        if (event := next((e for e in self.events if str(e.id) == self.values[0]), None)) is None:
+            await interaction.response.send_message("Something went wrong, please try again.", ephemeral=True)
+            return
         interested = await get_interested(event)
         await interaction.response.send_message(interested, ephemeral=True)
 
@@ -43,7 +45,7 @@ async def get_interested(event: discord.ScheduledEvent) -> str:
     return f"`[{event.name}]({event.url}) {' '.join(f'<@{u.id}>' for u in users) or "No users found"}`"
 
 
-class Events(commands.Cog, name="events"):
+class Events(commands.Cog, name="Events"):
     """Scheduled event related commands"""
 
     def __init__(self, bot: Dynamo) -> None:
@@ -63,11 +65,11 @@ class Events(commands.Cog, name="events"):
         """
         if event is not None:
             try:
-                await ctx.guild.fetch_scheduled_event(event)
+                ev = await ctx.guild.fetch_scheduled_event(event)
             except discord.NotFound:
                 await ctx.send(f"No event with id: {event}", ephemeral=True)
                 return
-            interested = await get_interested(event)
+            interested = await get_interested(ev)
             await ctx.send(interested, ephemeral=True)
             return
 

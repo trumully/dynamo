@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import time
+from collections.abc import Callable, Coroutine, Hashable, MutableMapping
 from enum import Enum, auto
 from functools import wraps
-from typing import Any, Callable, Coroutine, Hashable, MutableMapping, Protocol, TypeVar
+from typing import Any, Protocol, TypeVar
 
 import msgspec
 
