@@ -1,0 +1,33 @@
+name: 🐛 Bug Report
+description: File a bug report.
+title: "[Bug] "
+labels: ["bug"]
+projects: ["trumully/1"]
+body:
+  - type: textarea
+    attributes:
+      label: Current Behavior
+      description: A concise description of what happened.
+    validations:
+      required: false
+  - type: textarea
+    attributes:
+      label: Expected Behavior
+      description: A concise description of what was expected to happen.
+    validations:
+      required: false
+  - type: textarea
+    attributes:
+      label: Steps to Reproduce
+      description: Steps to reproduce the behavior.
+      placeholder: |
+        1. Do this
+        2. Then do that
+        3. And then this
+    validations:
+      required: false
+  - type: textarea
+    attributes:
+      label: Anything else?
+    validations:
+      required: false
