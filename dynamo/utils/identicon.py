@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import math
-import random
 from dataclasses import dataclass, field
 from functools import cached_property
 from io import BytesIO
@@ -10,6 +9,8 @@ from typing import Annotated, Self, TypeVar
 
 import numpy as np
 from PIL import Image
+
+from dynamo.utils.cache import async_lru_cache
 
 # 765 * 0.4
 COLOR_THRESHOLD = 306
@@ -39,8 +40,8 @@ def color_distance(x: RGB, /, y: RGB) -> float:
 
 
 def make_color(seed: int) -> RGB:
-    random.seed(seed)
-    return RGB(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))  # noqa: S311
+    rng = np.random.default_rng(seed=seed)
+    return RGB(rng.integers(0, 256), rng.integers(0, 256), rng.integers(0, 256))
 
 
 def get_colors(fg: RGB | None = None, bg: RGB | None = None, *, seed: int) -> tuple[RGB, RGB]:
@@ -58,7 +59,7 @@ def rgb_as_hex(rgb: RGB) -> str:
     return f"#{rgb.r:02x}{rgb.g:02x}{rgb.b:02x}"
 
 
-@dataclass
+@dataclass(slots=True)
 class RGB:
     r: int
     g: int
@@ -88,7 +89,7 @@ class RGB:
         return self.r, self.g, self.b
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class Identicon:
     size: int
     fg: RGB
@@ -116,8 +117,15 @@ class Identicon:
     def reflect(matrix: np.ndarray) -> ArrayRGB:
         return np.hstack((matrix, np.fliplr(matrix)))
 
+    def __hash__(self) -> int:
+        # TODO: This is ok for now but should be more specific if we want user customisable identicons
+        return hash(self.seed)
 
+
+@async_lru_cache()
 async def identicon_buffer(idt: Identicon, size: int = 256) -> bytes:
+    """Threadsafe identicon generation"""
+
     def _buffer(idt: Identicon, size: int) -> bytes:
         with BytesIO() as buffer:
             im = Image.fromarray(idt.icon.astype("uint8"))

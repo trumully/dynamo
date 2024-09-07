@@ -6,7 +6,6 @@ from discord import app_commands
 from discord.ext import commands
 
 from dynamo.bot import Dynamo
-from dynamo.utils.cache import cache_bytes, get_bytes
 from dynamo.utils.helper import generate_seed
 from dynamo.utils.identicon import Identicon, get_colors, identicon_buffer
 from dynamo.utils.time import human_timedelta
@@ -94,11 +93,7 @@ class General(commands.GroupCog, group_name="general"):
         seed = generate_seed(seed or member.id)
         fg, bg = get_colors(seed=seed)
 
-        if (cached := get_bytes(fname)) is None:
-            idt_bytes = await identicon_buffer(Identicon(5, fg, bg, 0.4, seed))
-            cache_bytes(display_name, idt_bytes)
-        else:
-            idt_bytes = cached
+        idt_bytes = await identicon_buffer(Identicon(5, fg, bg, 0.4, seed))
         file = discord.File(BytesIO(idt_bytes), filename=f"{fname}.png")
 
         cmd_mention = await self.bot.tree.find_mention_for("general identicon", guild=ctx.guild)

@@ -4,7 +4,7 @@ import discord
 from discord.ext import commands
 
 from dynamo.bot import Dynamo
-from dynamo.utils.cache import cache
+from dynamo.utils.cache import async_lru_cache
 
 log = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ class DropdownView(discord.ui.View):
         self.add_item(Dropdown(events))
 
 
-@cache()
+@async_lru_cache()
 async def fetch_events(guild: discord.Guild) -> list[discord.ScheduledEvent]:
     try:
         events = await guild.fetch_scheduled_events()
@@ -40,6 +40,7 @@ async def fetch_events(guild: discord.Guild) -> list[discord.ScheduledEvent]:
     return sorted(events, key=lambda e: e.start_time)
 
 
+@async_lru_cache()
 async def get_interested(event: discord.ScheduledEvent) -> str:
     users: list[discord.User] = [user async for user in event.users()]
     return f"`[{event.name}]({event.url}) {' '.join(f'<@{u.id}>' for u in users) or "No users found"}`"
