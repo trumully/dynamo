@@ -35,8 +35,7 @@ class VersionableTree(app_commands.CommandTree["Dynamo"]):
     async def get_hash(self, tree: app_commands.CommandTree) -> bytes:
         commands = sorted(self._get_all_commands(guild=None), key=lambda c: c.qualified_name)
 
-        translator = self.translator
-        if translator:
+        if translator := self.translator:
             payload = [await command.get_translated_payload(tree, translator) for command in commands]
         else:
             payload = [command.to_dict(tree) for command in commands]
@@ -155,7 +154,7 @@ class Dynamo(commands.AutoShardedBot):
     bot_app_info: discord.AppInfo
     tree: VersionableTree
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, *args: tuple[Any, ...], **kwargs: dict[str, Any]) -> None:
         allowed_mentions = discord.AllowedMentions(roles=False, everyone=False, users=True)
         intents = discord.Intents(
             guilds=True,
