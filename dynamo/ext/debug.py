@@ -7,6 +7,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from dynamo.bot import Dynamo
+from dynamo.utils.cache import cached_functions
 from dynamo.utils.context import Status
 
 log = logging.getLogger(__name__)
@@ -22,10 +23,7 @@ class Debug(commands.GroupCog, group_name="debug"):
         return await self.bot.is_owner(ctx.author)
 
     @commands.hybrid_group(invoke_without_command=True)
-    @app_commands.describe(
-        guild_id="The ID of the guild to sync commands to",
-        copy="Copy global commands to the specified guild",
-    )
+    @app_commands.describe(guild_id="The ID of the guild to sync commands to", copy="Copy global commands to the guild")
     async def sync(self, ctx: commands.Context, guild_id: int | None, copy: bool = False) -> None:
         """Sync slash commands
 
@@ -36,7 +34,7 @@ class Debug(commands.GroupCog, group_name="debug"):
         copy: bool
             Whether to copy global commands to the specified guild.
         """
-        guild = discord.Object(id=guild_id) if guild_id else ctx.guild
+        guild: discord.Guild = discord.Object(id=guild_id, type=discord.Guild) if guild_id else ctx.guild
 
         if copy:
             self.bot.tree.copy_global_to(guild=guild)
@@ -63,7 +61,7 @@ class Debug(commands.GroupCog, group_name="debug"):
         if not confirm:
             return
 
-        guild = discord.Object(id=guild_id, type=discord.Guild) if guild_id is not None else None
+        guild: discord.Guild | None = discord.Object(id=guild_id, type=discord.Guild) if guild_id else None
 
         self.bot.tree.clear_commands(guild=guild)
         await ctx.send("Successfully cleared all commands")
@@ -80,8 +78,8 @@ class Debug(commands.GroupCog, group_name="debug"):
         """
         try:
             await self.bot.load_extension(module)
-        except commands.ExtensionError as exc:
-            await ctx.send(f"{exc.__class__.__name__}: {exc}")
+        except commands.ExtensionError:
+            log.exception("Failed to load %s", module)
         else:
             await ctx.send(Status.OK)
 
@@ -97,8 +95,8 @@ class Debug(commands.GroupCog, group_name="debug"):
         """
         try:
             await self.bot.unload_extension(module)
-        except commands.ExtensionError as exc:
-            await ctx.send(f"{exc.__class__.__name__}: {exc}")
+        except commands.ExtensionError:
+            log.exception("Failed to unload %s", module)
         else:
             await ctx.send(Status.OK)
 
@@ -113,8 +111,8 @@ class Debug(commands.GroupCog, group_name="debug"):
         """
         try:
             await self.bot.reload_extension(module)
-        except commands.ExtensionError as e:
-            await ctx.send(f"{e.__class__.__name__}: {e}")
+        except commands.ExtensionError:
+            log.exception("Failed to reload %s", module)
         else:
             await ctx.send(Status.OK)
 
@@ -132,7 +130,7 @@ class Debug(commands.GroupCog, group_name="debug"):
             return
 
         # Reload all pre-existing modules from the utils folder
-        utils_modules = [mod for mod in sys.modules if mod.startswith("dynamo.utils.")]
+        utils_modules: set[str] = {mod for mod in sys.modules if mod.startswith("dynamo.utils.")}
         utils_reloads = 0
         for module in utils_modules:
             try:
@@ -157,7 +155,12 @@ class Debug(commands.GroupCog, group_name="debug"):
                 ext_reloads += 1
 
         log.info("Reloaded %d/%d extensions", ext_reloads, len(extensions))
-        await ctx.reply("\n".join(f"{status} `{ext}`" for status, ext in statuses))
+        await ctx.send("\n".join(f"{status} `{ext}`" for status, ext in statuses))
+
+    @commands.hybrid_group(name="cache")
+    async def cache(self, ctx: commands.Context) -> None:
+        """Peek into the cache"""
+        await ctx.send(cached_functions() or "No cached functions")
 
     @commands.hybrid_command(name="quit", aliases=("exit", "shutdown", "q"))
     @commands.is_owner()

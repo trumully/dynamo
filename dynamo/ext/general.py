@@ -1,3 +1,4 @@
+import logging
 import time
 from io import BytesIO
 
@@ -10,6 +11,8 @@ from dynamo.utils.helper import generate_seed
 from dynamo.utils.identicon import Identicon, get_colors, identicon_buffer
 from dynamo.utils.time import human_timedelta
 from dynamo.utils.transformer import MemberTransformer
+
+log = logging.getLogger(__name__)
 
 
 def embed_from_user(user: discord.Member | discord.User) -> discord.Embed:
@@ -66,13 +69,12 @@ class General(commands.GroupCog, group_name="general"):
         """
         await ctx.send(embed=embed_from_user(user or ctx.author), ephemeral=True)
 
-    @commands.hybrid_command(name="identicon")
+    @commands.hybrid_command(name="identicon", aliases=("i", "idt"))
     @app_commands.describe(seed="The seed to use for the identicon. This can be a user or a string.")
     async def identicon(
         self,
         ctx: commands.Context,
-        seed: str | None = None,
-        member: discord.User | discord.Member = commands.param(default=None, converter=MemberTransformer),
+        seed: str | discord.User | discord.Member = commands.param(default=None, converter=MemberTransformer),
     ) -> None:
         """Generate an identicon from a user or string
 
@@ -83,17 +85,17 @@ class General(commands.GroupCog, group_name="general"):
         member: discord.User | discord.Member | None
             The member the seed derives from. Random seed if empty.
         """
-        # If both or none are provided, generate a random seed
-        if seed and member or seed is None and member is None:
+        if not seed:
             seed = str(time.monotonic()).replace(".", "")
 
-        display_name = seed if member is None else str(member)
+        display_name = seed if isinstance(seed, str) else seed.display_name
 
-        fname = seed or member.id
-        seed = generate_seed(seed or member.id)
+        fname = seed if isinstance(seed, str) else seed.id
+        seed = generate_seed(fname)
         fg, bg = get_colors(seed=seed)
 
         idt_bytes = await identicon_buffer(Identicon(5, fg, bg, 0.4, seed))
+        log.info("Identicon generated for %s", fname)
         file = discord.File(BytesIO(idt_bytes), filename=f"{fname}.png")
 
         cmd_mention = await self.bot.tree.find_mention_for("general identicon", guild=ctx.guild)

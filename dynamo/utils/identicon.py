@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import math
 from dataclasses import dataclass, field
-from functools import cached_property
 from io import BytesIO
 from typing import Annotated, Self, TypeVar
 
@@ -41,7 +40,7 @@ def color_distance(x: RGB, /, y: RGB) -> float:
 
 def make_color(seed: int) -> RGB:
     rng = np.random.default_rng(seed=seed)
-    return RGB(rng.integers(0, 256), rng.integers(0, 256), rng.integers(0, 256))
+    return RGB(*(int(v) - 1 for v in rng.choice(256, size=3)))
 
 
 def get_colors(fg: RGB | None = None, bg: RGB | None = None, *, seed: int) -> tuple[RGB, RGB]:
@@ -89,7 +88,7 @@ class RGB:
         return self.r, self.g, self.b
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass
 class Identicon:
     size: int
     fg: RGB
@@ -102,7 +101,7 @@ class Identicon:
     def __post_init__(self) -> None:
         self.rng = np.random.default_rng(seed=self.seed)
 
-    @cached_property
+    @property
     def pattern(self) -> ArrayRGB:
         colors = np.array((self.fg, self.bg))
         size = (self.size * 2, self.size)
@@ -116,6 +115,9 @@ class Identicon:
     @staticmethod
     def reflect(matrix: np.ndarray) -> ArrayRGB:
         return np.hstack((matrix, np.fliplr(matrix)))
+
+    def __eq__(self, other: Identicon) -> bool:
+        return self.seed == other.seed
 
     def __hash__(self) -> int:
         # TODO: This is ok for now but should be more specific if we want user customisable identicons
