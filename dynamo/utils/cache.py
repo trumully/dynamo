@@ -67,7 +67,9 @@ def async_lru_cache(maxsize: int = 128) -> Callable[[Callable[..., Coroutine[Any
         def cache_info() -> CacheInfo:
             return info
 
-        def cache_clear(func, *args, **kwargs) -> bool:
+        def cache_clear(
+            func: Callable[..., Coroutine[Any, Any, R]], *args: tuple[Any, ...], **kwargs: dict[str, Any]
+        ) -> bool:
             try:
                 cache.pop(CacheKey(func, args, kwargs))
             except KeyError:
