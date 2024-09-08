@@ -183,10 +183,10 @@ def _store_token(token: str, /) -> None:
         fp.write(base2048.encode(token.encode()))
 
 
-def _get_token() -> str:
+def _get_token() -> str | None:
     if not (token := _load_token()):
-        msg = "Token not found. Please run `dynamo setup` before starting the bot."
-        raise RuntimeError(msg)
+        log.critical("Token not found. Please run `dynamo setup` before starting the bot.")
+        return None
     return token
 
 
