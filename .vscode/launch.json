@@ -10,6 +10,17 @@
             "request": "launch",
             "program": "${workspaceFolder}/dynamo/launcher.py",
             "console": "integratedTerminal"
+        },
+        {
+            "name": "Dynamo Tests",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": [
+                "tests",
+                "--asyncio-mode=strict",
+            ],
+            "console": "integratedTerminal"
         }
     ]
 }

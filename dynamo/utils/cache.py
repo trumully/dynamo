@@ -48,7 +48,7 @@ _cached: dict[asyncio.Task[R], CacheInfo] = {}
 def async_lru_cache(maxsize: int = 128) -> Callable[[A], asyncio.Task[R]]:
     def decorator(func: A) -> A:
         cache: OrderedDict[CacheKey, asyncio.Task[R]] = OrderedDict()
-        info: CacheInfo = CacheInfo(0, 0, maxsize, 0)
+        info: CacheInfo = CacheInfo(maxsize=maxsize)
 
         @wraps(func)
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> asyncio.Task[R]:
@@ -58,10 +58,10 @@ def async_lru_cache(maxsize: int = 128) -> Callable[[A], asyncio.Task[R]]:
                 return cache[key]
 
             info.misses += 1
-            info.currsize += 1
             cache[key] = task = asyncio.create_task(func(*args, **kwargs))
+            info.currsize = len(cache)
 
-            if len(cache) > maxsize:
+            if info.currsize >= maxsize:
                 cache.popitem(last=False)
 
             return task
@@ -77,8 +77,13 @@ def async_lru_cache(maxsize: int = 128) -> Callable[[A], asyncio.Task[R]]:
             info.currsize -= 1
             return True
 
+        def cache_clear_all() -> None:
+            cache.clear()
+            info.clear()
+
         wrapper.cache_info = cache_info
         wrapper.cache_clear = cache_clear
+        wrapper.cache_clear_all = cache_clear_all
 
         _cached[wrapper] = info
 
