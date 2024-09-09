@@ -2,9 +2,13 @@ import asyncio
 from collections import OrderedDict
 from dataclasses import dataclass
 from functools import wraps
-from typing import Any, Callable, Coroutine, TypeVar
+from typing import Awaitable, Callable, ParamSpec, TypeVar
 
+P = ParamSpec("P")
 R = TypeVar("R")
+
+# Awaitable[R] is essentially Coroutine[..., ..., R]
+A = TypeVar("A", bound=Callable[P, Awaitable[R]])
 
 
 @dataclass(slots=True)
@@ -17,9 +21,7 @@ class CacheInfo:
     currsize: int = 0
 
     def clear(self) -> None:
-        self.hits = 0
-        self.misses = 0
-        self.currsize = 0
+        self.hits = self.misses = self.currsize = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,19 +39,19 @@ class CacheKey:
         return hash((self.func, self.args, self.kwargs))
 
     def __repr__(self) -> str:
-        return f"CacheKey(func={self.func.__name__}, args={self.args}, kwargs={self.kwargs})"
+        return f"{self.__qualname__}(func={self.func.__name__}, args={self.args}, kwargs={self.kwargs})"
 
 
 _cached: dict[asyncio.Task[R], CacheInfo] = {}
 
 
-def async_lru_cache(maxsize: int = 128) -> Callable[[Callable[..., Coroutine[Any, Any, R]]], asyncio.Task[R]]:
-    def decorator(func: Callable[..., Coroutine[Any, Any, R]]) -> Callable[..., Coroutine[Any, Any, R]]:
+def async_lru_cache(maxsize: int = 128) -> Callable[[A], asyncio.Task[R]]:
+    def decorator(func: A) -> A:
         cache: OrderedDict[CacheKey, asyncio.Task[R]] = OrderedDict()
         info: CacheInfo = CacheInfo(0, 0, maxsize, 0)
 
         @wraps(func)
-        def wrapper(*args: tuple[Any, ...], **kwargs: dict[str, Any]) -> asyncio.Task[R]:
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> asyncio.Task[R]:
             if (key := CacheKey(func, args, kwargs)) in cache:
                 info.hits += 1
                 cache.move_to_end(key)
@@ -67,9 +69,7 @@ def async_lru_cache(maxsize: int = 128) -> Callable[[Callable[..., Coroutine[Any
         def cache_info() -> CacheInfo:
             return info
 
-        def cache_clear(
-            func: Callable[..., Coroutine[Any, Any, R]], *args: tuple[Any, ...], **kwargs: dict[str, Any]
-        ) -> bool:
+        def cache_clear(func: A, *args: P.args, **kwargs: P.kwargs) -> bool:
             try:
                 cache.pop(CacheKey(func, args, kwargs))
             except KeyError:

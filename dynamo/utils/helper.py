@@ -53,3 +53,7 @@ def generate_seed(seed: int | str | None = None) -> int:
     seed = seed.encode()
     hashed = int.from_bytes(seed + hashlib.sha256(seed).digest(), byteorder="big")
     return hashed  # noqa: RET504  needs to be assigned as a var to work properly
+
+
+def get_cog(name: str) -> str:
+    return f"dynamo.extensions.cogs.{name}"
