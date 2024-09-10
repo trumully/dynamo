@@ -3,18 +3,16 @@ name: Test
 
 on:
   push:
-      branches:
+    branches:
       - main
-      paths:
-      - |
-        dynamo/**/*.py
-        tests/**/*.py
+    paths:
+      - dynamo/**/*.py
+      - tests/**/*.py
   pull_request:
-      types: [opened, reopened, synchronize]
-      paths:
-      - |
-        dynamo/**/*.py
-        tests/**/*.py
+    types: [opened, reopened, synchronize]
+    paths:
+      - dynamo/**/*.py
+      - tests/**/*.py
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
