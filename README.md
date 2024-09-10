@@ -24,7 +24,7 @@ poetry install --with=dev
 ### Run tests
 #### CLI
 ```shell
-poetry run pytest tests --asyncio-mode=strict
+poetry run pytest tests --asyncio-mode=strict -n logical
 ```
 #### VSCode
 1. Open VSCode debugger `Ctrl+Shift+D`

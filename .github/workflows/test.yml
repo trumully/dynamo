@@ -6,11 +6,15 @@ on:
       branches:
       - main
       paths:
-      - 'dynamo/**/*.py'
+      - |
+        dynamo/**/*.py
+        tests/**/*.py
   pull_request:
       types: [opened, reopened, synchronize]
       paths:
-      - 'dynamo/**/*.py'
+      - |
+        dynamo/**/*.py
+        tests/**/*.py
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -30,4 +34,4 @@ jobs:
           python-version: '3.12'
           cache: 'poetry'
       - run: poetry install --with=dev
-      - run: poetry run pytest tests --asyncio-mode=strict
+      - run: poetry run pytest tests --asyncio-mode=strict -n logical

@@ -5,11 +5,15 @@ on:
     branches:
       - main
     paths:
-      - 'dynamo/**/*.py'
+      - |
+        dynamo/**/*.py
+        tests/**/*.py
   pull_request:
     types: [opened, reopened, synchronize]
     paths:
-      - 'dynamo/**/*.py'
+      - |
+        dynamo/**/*.py
+        tests/**/*.py
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

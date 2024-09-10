@@ -15,7 +15,10 @@
     "files.insertFinalNewline": true,
     "files.trimTrailingWhitespace": true,
     "python.testing.pytestArgs": [
-        "tests"
+        "tests",
+        "--asyncio-mode=strict",
+        "-n",
+        "logical",
     ],
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true

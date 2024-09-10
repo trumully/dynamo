@@ -61,7 +61,7 @@ def async_lru_cache(maxsize: int = 128) -> Callable[[A], asyncio.Task[R]]:
             cache[key] = task = asyncio.create_task(func(*args, **kwargs))
             info.currsize = len(cache)
 
-            if info.currsize >= maxsize:
+            if info.currsize > maxsize:
                 cache.popitem(last=False)
 
             return task
