@@ -22,7 +22,11 @@
                 "-n",
                 "logical",
             ],
-            "console": "integratedTerminal"
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                "PYDEVD_DISABLE_FILE_VALIDATION": "1",
+            }
         }
     ]
 }

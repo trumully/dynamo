@@ -76,3 +76,5 @@ def test_human_timedelta_properties(
             assert not brief
         elif short in split_result:
             assert brief
+
+        assert not (long in split_result and short in split_result)
