@@ -15,9 +15,9 @@ body:
       label: Implementation
       description: If you have ideas, suggest how this feature could be implemented.
       placeholder: |
-        1. Add this component
-        2. Modify that function
-        3. Update the UI here
+        - [ ] Add this component
+        - [ ] Modify that function
+        - [ ] Update the UI here
     validations:
       required: false
   - type: textarea
