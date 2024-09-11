@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import math
+import time
 from dataclasses import dataclass, field
 from io import BytesIO
 from typing import Annotated, Self, TypeVar
@@ -44,6 +45,9 @@ def make_color(seed: int) -> RGB:
 
 
 def get_colors(fg: RGB | None = None, bg: RGB | None = None, *, seed: int) -> tuple[RGB, RGB]:
+    if seed <= 0:
+        seed = seed_from_time()
+
     fg = fg or make_color(seed)
     bg = bg or make_color(int(str(seed)[::-1]))
 
@@ -76,7 +80,10 @@ class RGB:
         return self
 
     def __eq__(self, other: RGB) -> bool:
-        return color_distance(self, other) < COLOR_THRESHOLD
+        return color_distance(self, other) <= COLOR_THRESHOLD
+
+    def __ne__(self, other: RGB) -> bool:
+        return color_distance(self, other) > COLOR_THRESHOLD
 
     def flip(self) -> Self:
         self.r = 255 - self.r
@@ -122,6 +129,11 @@ class Identicon:
     def __hash__(self) -> int:
         # TODO: This is ok for now but should be more specific if we want user customisable identicons
         return hash(self.seed)
+
+
+def seed_from_time() -> int:
+    """Generate a seed from the current time"""
+    return int(str(time.monotonic()).replace(".", ""))
 
 
 @async_lru_cache()
