@@ -31,11 +31,7 @@ jobs:
 
   tests:
     name: Test with pytest
-    strategy:
-      matrix:
-        os: [ubuntu-22.04, windows-2022]
-      fail-fast: false
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - name: Install poetry

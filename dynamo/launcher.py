@@ -18,7 +18,6 @@ import discord
 import toml
 import truststore
 
-from dynamo._evt_policy import get_event_loop_policy
 from dynamo.bot import Dynamo
 from dynamo.utils.helper import platformdir, resolve_path_with_links, valid_token
 
@@ -74,11 +73,6 @@ def setup_logging(log_level: int = logging.INFO) -> Generator[None, Any, None]:
 
 
 def run_bot() -> None:
-    policy_type = get_event_loop_policy()
-    asyncio.set_event_loop_policy(policy_type())
-
-    log.debug("Event loop policy: %s", policy_type.__name__)
-
     loop = asyncio.new_event_loop()
     loop.set_task_factory(asyncio.eager_task_factory)
     asyncio.set_event_loop(loop)

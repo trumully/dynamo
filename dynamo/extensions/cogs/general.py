@@ -78,9 +78,9 @@ class General(commands.GroupCog, group_name="general"):
         if not seed:
             seed = seed_from_time()
 
-        display_name = seed if isinstance(seed, str) else seed.display_name
+        display_name = seed if (isinstance(seed, (str, int))) else seed.display_name
 
-        fname = seed if isinstance(seed, str) else seed.id
+        fname = seed if isinstance(seed, (str, int)) else seed.id
         seed = generate_seed(fname)
         fg, bg = get_colors(seed=seed)
 
