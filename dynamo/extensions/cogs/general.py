@@ -1,5 +1,4 @@
 import logging
-import time
 from io import BytesIO
 
 import discord
@@ -7,7 +6,7 @@ from discord.ext import commands
 
 from dynamo.bot import Dynamo
 from dynamo.utils.helper import generate_seed
-from dynamo.utils.identicon import Identicon, get_colors, identicon_buffer
+from dynamo.utils.identicon import Identicon, get_colors, identicon_buffer, seed_from_time
 from dynamo.utils.time import human_timedelta
 from dynamo.utils.transformer import MemberTransformer
 
@@ -77,7 +76,7 @@ class General(commands.GroupCog, group_name="general"):
             The seed to use. Random seed if empty.
         """
         if not seed:
-            seed = str(time.monotonic()).replace(".", "")
+            seed = seed_from_time()
 
         display_name = seed if isinstance(seed, str) else seed.display_name
 

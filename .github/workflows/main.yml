@@ -1,0 +1,48 @@
+name: Test and Lint
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - dynamo/**/*.py
+      - tests/**/*.py
+  pull_request:
+    types: [opened, reopened, synchronize]
+    paths:
+      - dynamo/**/*.py
+      - tests/**/*.py
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ruff:
+    name: Lint with ruff
+    runs-on: ubuntu-22.04
+    concurrency: lint
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jpetrucciani/ruff-check@main
+        with:
+          path: './dynamo/'
+          flags: '--config ./pyproject.toml'
+
+  tests:
+    name: Test with pytest
+    strategy:
+      matrix:
+        os: [ubuntu-22.04, windows-2022]
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install poetry
+        run: pipx install poetry
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'poetry'
+      - run: poetry install --with=dev
+      - run: poetry run pytest tests --asyncio-mode=strict -n logical

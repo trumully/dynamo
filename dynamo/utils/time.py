@@ -12,6 +12,9 @@ def human_timedelta(
     brief: bool = False,
     suffix: bool = True,
 ) -> str:
+    if accuracy is not None and accuracy < 1:
+        accuracy = 1
+
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=datetime.timezone.utc)
 

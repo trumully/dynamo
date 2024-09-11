@@ -10,6 +10,23 @@
             "request": "launch",
             "program": "${workspaceFolder}/dynamo/launcher.py",
             "console": "integratedTerminal"
+        },
+        {
+            "name": "Dynamo Tests",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": [
+                "tests",
+                "--asyncio-mode=strict",
+                "-n",
+                "logical",
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                "PYDEVD_DISABLE_FILE_VALIDATION": "1",
+            }
         }
     ]
 }
