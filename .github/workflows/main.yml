@@ -1,4 +1,4 @@
-name: Lint
+name: Test and Lint
 
 on:
   push:
@@ -28,3 +28,17 @@ jobs:
         with:
           path: './dynamo/'
           flags: '--config ./pyproject.toml'
+
+  tests:
+    name: Test with pytest
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install poetry
+        run: pipx install poetry
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'poetry'
+      - run: poetry install --with=dev
+      - run: poetry run pytest tests --asyncio-mode=strict -n logical
