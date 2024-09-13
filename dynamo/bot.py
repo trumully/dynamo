@@ -161,7 +161,8 @@ class Dynamo(commands.AutoShardedBot):
     bot_app_info: discord.AppInfo
     tree: VersionableTree
 
-    def __init__(self, *args: tuple[Any, ...], **kwargs: dict[str, Any]) -> None:
+    def __init__(self, session: aiohttp.ClientSession, *args: tuple[Any, ...], **kwargs: dict[str, Any]) -> None:
+        self.session = session
         allowed_mentions = discord.AllowedMentions(roles=False, everyone=False, users=True)
         intents = discord.Intents(
             guilds=True,
@@ -186,8 +187,6 @@ class Dynamo(commands.AutoShardedBot):
         )
 
     async def setup_hook(self) -> None:
-        self.session = aiohttp.ClientSession()
-
         self.prefixes: dict[int, list[str]] = {}
 
         self.bot_app_info = await self.application_info()
