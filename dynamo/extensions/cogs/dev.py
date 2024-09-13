@@ -1,6 +1,7 @@
 import importlib
 import logging
 import sys
+from pathlib import Path
 
 import discord
 from discord.ext import commands
@@ -8,7 +9,7 @@ from discord.ext import commands
 from dynamo.bot import Dynamo
 from dynamo.utils.cache import cached_functions
 from dynamo.utils.context import Status
-from dynamo.utils.helper import get_cog
+from dynamo.utils.helper import ROOT, get_cog
 
 log = logging.getLogger(__name__)
 
@@ -131,19 +132,16 @@ class Dev(commands.GroupCog, group_name="dev"):
 
         # Reload all pre-existing modules from the utils folder
         utils_modules: set[str] = {mod for mod in sys.modules if mod.startswith("dynamo.utils.")}
-        utils_reloads = 0
+        all_utils: set[str] = {u.stem for u in Path(ROOT, "utils").glob("**/*.py") if u.stem != "__init__"}
         for module in utils_modules:
             try:
                 importlib.reload(sys.modules[module])
             except (KeyError, ModuleNotFoundError):
                 log.exception("Failed to reload %s", module)
-            else:
-                utils_reloads += 1
-        log.debug("Reloaded %d/%d utilities", utils_reloads, len(utils_modules))
+        log.debug("Reloaded %d/%d utilities", len(utils_modules), len(all_utils))
 
         extensions = self.bot.extensions.copy()
-        statuses: list[tuple[Status, str]] = []
-        ext_reloads = 0
+        statuses: set[tuple[Status, str]] = []
         for ext in extensions:
             try:
                 await self.reload_or_load_extension(ext)
@@ -152,9 +150,9 @@ class Dev(commands.GroupCog, group_name="dev"):
                 statuses.append((Status.FAILURE, ext))
             else:
                 statuses.append((Status.SUCCESS, ext))
-                ext_reloads += 1
 
-        log.debug("Reloaded %d/%d extensions", ext_reloads, len(extensions))
+        success_count = sum(1 for status, _ in statuses if status == Status.SUCCESS)
+        log.debug("Reloaded %d/%d extensions", success_count, len(extensions))
         await ctx.send("\n".join(f"{status} `{ext}`" for status, ext in statuses))
 
     @commands.hybrid_group(name="cache", aliases=("c",))
@@ -163,7 +161,6 @@ class Dev(commands.GroupCog, group_name="dev"):
         await ctx.send(cached_functions() or "No cached functions")
 
     @commands.hybrid_command(name="quit", aliases=("exit", "shutdown", "q"))
-    @commands.is_owner()
     async def shutdown(self, ctx: commands.Context) -> None:
         """Shutdown the bot"""
         await ctx.send("Shutting down...")

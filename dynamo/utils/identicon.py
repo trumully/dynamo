@@ -23,15 +23,19 @@ ArrayRGB = Annotated[np.ndarray[D], tuple[int, int, int]]
 def color_distance(x: RGB, /, y: RGB) -> float:
     """Measure distance between two colors
 
-    See:
-        https://www.compuphase.com/cmetric.htm
+    .. [1] https://www.compuphase.com/cmetric.htm
 
-    Args:
-        x (RGB): The first color
-        y (RGB): The second color
+    Parameters
+    ----------
+    x : RGB
+        The first color
+    y : RGB
+        The second color
 
-    Returns:
-        float: The distance between the two colors
+    Returns
+    -------
+    float
+        The distance between the two colors
     """
     mean = red_mean(x, y)
     r, g, b = (x - y).as_tuple()
@@ -40,14 +44,39 @@ def color_distance(x: RGB, /, y: RGB) -> float:
 
 
 def make_color(seed: int) -> RGB:
+    """Make a color from a given seed
+
+    Parameters
+    ----------
+    seed : int
+        The seed to generate the color from
+
+    Returns
+    -------
+    RGB
+        The color generated from the seed
+    """
     rng = np.random.default_rng(seed=seed)
     return RGB(*(int(v) - 1 for v in rng.choice(256, size=3)))
 
 
 def get_colors(fg: RGB | None = None, bg: RGB | None = None, *, seed: int) -> tuple[RGB, RGB]:
-    if seed <= 0:
-        seed = seed_from_time()
+    """Get two colors from a given seed
 
+    Parameters
+    ----------
+    fg : RGB | None
+        The foreground color
+    bg : RGB | None
+        The background color
+    seed : int
+        The seed to generate the colors from
+
+    Returns
+    -------
+    tuple[RGB, RGB]
+        The foreground and background colors
+    """
     fg = fg or make_color(seed)
     bg = bg or make_color(int(str(seed)[::-1]))
 
@@ -69,11 +98,13 @@ class RGB:
     b: int
 
     def __post_init__(self):
+        """Clamp the RGB values to the range [0, 255]"""
         self.r = max(0, min(self.r, 255))
         self.g = max(0, min(self.g, 255))
         self.b = max(0, min(self.b, 255))
 
     def __sub__(self, other: RGB) -> Self:
+        """Subtract two colors, clamping the result to [0, 255]"""
         self.r = max(self.r - other.r, 0)
         self.g = max(self.g - other.g, 0)
         self.b = max(self.b - other.b, 0)
@@ -97,6 +128,8 @@ class RGB:
 
 @dataclass
 class Identicon:
+    """An identicon is a visual representation of a random seed."""
+
     size: int
     fg: RGB
     bg: RGB
@@ -138,7 +171,20 @@ def seed_from_time() -> int:
 
 @async_lru_cache()
 async def identicon_buffer(idt: Identicon, size: int = 256) -> bytes:
-    """Threadsafe identicon generation"""
+    """Generate a buffer for an identicon
+
+    Parameters
+    ----------
+    idt : Identicon
+        The identicon to generate a buffer for
+    size : int, optional
+        The size of the buffer to generate, by default 256
+
+    Returns
+    -------
+    bytes
+        The buffer for the identicon
+    """
 
     def _buffer(idt: Identicon, size: int) -> bytes:
         with BytesIO() as buffer:

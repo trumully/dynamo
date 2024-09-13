@@ -24,7 +24,7 @@ def timer(func: F | A) -> F | A:
         start = time.perf_counter()
         result = await func(*args, **kwargs)
         end = time.perf_counter()
-        log.debug("Function %s took %f seconds", func.__name__, end - start)
+        log.debug("Method %s took %f seconds", func.__name__, end - start)
         return result
 
     @wraps(func)
@@ -32,7 +32,7 @@ def timer(func: F | A) -> F | A:
         start = time.perf_counter()
         result = func(*args, **kwargs)
         end = time.perf_counter()
-        log.debug("Function %s took %f seconds", func.__name__, end - start)
+        log.debug("Method %s took %f seconds", func.__name__, end - start)
         return result
 
     return async_wrapper if asyncio.iscoroutinefunction(func) else sync_wrapper

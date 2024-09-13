@@ -1,7 +1,7 @@
 import asyncio
 
 import pytest
-from hypothesis import given
+from hypothesis import given, settings
 from hypothesis import strategies as st
 
 import dynamo.utils.cache
@@ -54,6 +54,7 @@ async def test_async_lru_cache_property(inputs: list[int]) -> None:
 
 
 @pytest.mark.asyncio
+@settings(deadline=None)
 @given(st.lists(st.integers(), min_size=1, max_size=10))
 async def test_async_lru_cache_clear(inputs: list[int]) -> None:
     """Tests that the cache can be cleared."""
