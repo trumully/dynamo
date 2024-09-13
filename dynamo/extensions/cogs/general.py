@@ -112,14 +112,17 @@ class General(commands.GroupCog, group_name="general"):
             return await ctx.send("User is not listening to Spotify.")
 
         card = SpotifyCard()
-        album_cover: bytes = await fetch_album_cover(activity.album_cover_url, self.bot.session)
+        album_cover: BytesIO | None = await fetch_album_cover(activity.album_cover_url, self.bot.session)
+        if album_cover is None:
+            return await ctx.send("Failed to fetch album cover.")
+
         color = activity.color.to_rgb()
 
         buffer = card.draw(
             name=activity.title,
             artists=activity.artists,
             color=color,
-            album=BytesIO(album_cover),
+            album=album_cover,
             duration=activity.duration,
             end=activity.end,
         )
