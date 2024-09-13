@@ -11,6 +11,8 @@ if TYPE_CHECKING:
 
 
 class Status(StrEnum):
+    """Status emojis for the bot"""
+
     SUCCESS = "\N{WHITE HEAVY CHECK MARK}"
     FAILURE = "\N{CROSS MARK}"
     WARNING = "\N{WARNING SIGN}"
@@ -18,7 +20,19 @@ class Status(StrEnum):
 
 
 class ConfirmationView(discord.ui.View):
+    """A view for confirming an action"""
+
     def __init__(self, *, timeout: float, author_id: int, delete_after: bool) -> None:
+        """
+        Parameters
+        ----------
+        timeout: float
+            The timeout for the view.
+        author_id: int
+            The ID of the author of the view.
+        delete_after: bool
+            Whether to delete the message after the view times out.
+        """
         super().__init__(timeout=timeout)
         self.value: bool | None = None
         self.author_id: int = author_id
@@ -26,10 +40,12 @@ class ConfirmationView(discord.ui.View):
         self.message: discord.Message | None = None
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        """Check if the interaction is from the author of the view"""
         return interaction.user and interaction.user.id == self.author_id
 
     @discord.ui.button(label="Confirm", style=discord.ButtonStyle.green)
     async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        """Confirm the action"""
         self.value = True
         await interaction.response.defer()
         if self.delete_after:
@@ -38,6 +54,7 @@ class ConfirmationView(discord.ui.View):
 
     @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red)
     async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        """Cancel the action"""
         self.value = False
         await interaction.response.defer()
         if self.delete_after:
@@ -62,6 +79,24 @@ class Context(commands.Context):
         delete_after: bool = True,
         author_id: int | None = None,
     ) -> bool | None:
+        """Prompt the user to confirm an action
+
+        Parameters
+        ----------
+        message: str
+            The message to send to the user.
+        timeout: float
+            The timeout for the view.
+        author_id: int | None
+            The ID of the author of the view. If not provided, the author of the context is used.
+        delete_after: bool
+            Whether to delete the message after the view times out.
+
+        Returns
+        -------
+        bool | None
+            Whether the user confirmed the action.
+        """
         author_id = author_id or self.author.id
         view = ConfirmationView(timeout=timeout, author_id=author_id, delete_after=delete_after)
         view.message = await self.send(message, view=view, ephemeral=delete_after)

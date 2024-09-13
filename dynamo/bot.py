@@ -33,7 +33,19 @@ class VersionableTree(app_commands.CommandTree["Dynamo"]):
         self.application_commands: dict[int | None, list[app_commands.AppCommand]] = {}
         self.cache: dict[int | None, dict[app_commands.AppCommand | commands.HybridCommand | str, str]] = {}
 
-    async def get_hash(self, tree: app_commands.CommandTree) -> bytes:
+    async def get_hash(self, tree: app_commands.CommandTree[Dynamo]) -> bytes:
+        """Get the hash of the command tree.
+
+        Parameters
+        ----------
+        tree : app_commands.CommandTree
+            The command tree to get the hash of.
+
+        Returns
+        -------
+        bytes
+            The hash of the command tree.
+        """
         commands = sorted(self._get_all_commands(guild=None), key=lambda c: c.qualified_name)
 
         if translator := self.translator:

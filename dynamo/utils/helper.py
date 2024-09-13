@@ -8,14 +8,19 @@ platformdir = platformdirs.PlatformDirs("dynamo", "trumully", roaming=False)
 
 
 def resolve_path_with_links(path: Path, /, folder: bool = False) -> Path:
-    """Resolve if path exists
+    """Resolve a path with links
 
-    Args:
-        path (Path): Path to resolve
-        folder (bool, optional): If the path is a folder. Defaults to False.
+    Parameters
+    ----------
+    path : Path
+        The path to resolve.
+    folder : bool, optional
+        Whether to create a folder if the path does not exist, by default False.
 
-    Returns:
-        Path: Resolved path
+    Returns
+    -------
+    Path
+        The resolved path.
     """
     try:
         return path.resolve(strict=True)
@@ -27,16 +32,26 @@ def resolve_path_with_links(path: Path, /, folder: bool = False) -> Path:
         return path.resolve(strict=True)
 
 
+ROOT = resolve_path_with_links(Path(__file__).parent.parent.parent, folder=True)
+
+
 def valid_token(token: str) -> bool:
     """Validate a discord bot token
 
-    Discord Bot Token ([M|N|O]XXXXXXXXXXXXXXXXXXXXXXX[XX].XXXXXX.XXXXXXXXXXXXXXXXXXXXXXXXXXX)
+    Parameters
+    ----------
+    token : str
+        The token to validate.
 
-    Args:
-        token (str): The token to validate
+    Returns
+    -------
+    bool
+        Whether the token is valid.
 
-    Returns:
-        bool: True if the token is valid, False otherwise
+    Notes
+    -----
+    A discord bot token is a string that matches the following pattern:
+    >>> "[M|N|O]XXXXXXXXXXXXXXXXXXXXXXX[XX].XXXXXX.XXXXXXXXXXXXXXXXXXXXXXXXXXX"
     """
     # refs:
     # https://discord.com/developers/docs/reference#authentication
@@ -46,12 +61,23 @@ def valid_token(token: str) -> bool:
     return bool(pattern.match(token))
 
 
-def generate_seed(seed: int | str | None = None) -> int:
-    """Generate a seed from integer, integer-like (i.e discord snowflake) or string"""
-    if isinstance(seed, int):
-        seed = str(seed)
-    seed = seed.encode()
-    hashed = int.from_bytes(seed + hashlib.sha256(seed).digest(), byteorder="big")
+def generate_seed(precursor: int | str | None = None) -> int:
+    """Generate a seed from integer, integer-like (i.e discord snowflake) or string
+
+    Parameters
+    ----------
+    precursor : int | str | None, optional
+        The precursor to generate the seed from.
+
+    Returns
+    -------
+    int
+        The generated seed.
+    """
+    if isinstance(precursor, int):
+        precursor = str(precursor)
+    precursor = precursor.encode()
+    hashed = int.from_bytes(precursor + hashlib.sha256(precursor).digest(), byteorder="big")
     return hashed  # noqa: RET504  needs to be assigned as a var to work properly
 
 

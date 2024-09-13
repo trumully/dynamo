@@ -23,11 +23,8 @@ format_spec_strategy = st.one_of(
 def test_shorten_string(string: str, max_len: int) -> None:
     """Test the shorten_string function"""
     text = dynamo.utils.format.shorten_string(string, max_len=max_len)
-    if len(string) > max_len:
-        assert text.endswith("...")
-    else:
-        assert not text.endswith("...")
     assert len(text) <= max_len + 3
+    assert text.endswith("...") if len(string) > max_len else not text.endswith("...")
 
 
 @given(string=text_block(50, 100), max_len=st.integers(min_value=50, max_value=100))
@@ -35,10 +32,7 @@ def test_shorten_string_long(string: str, max_len: int) -> None:
     """Test the shorten_string function with a long string"""
     text = dynamo.utils.format.shorten_string(string, max_len=max_len)
     assert len(text) <= max_len + 3
-    if len(string) > max_len:
-        assert text.endswith("...")
-    else:
-        assert not text.endswith("...")
+    assert text.endswith("...") if len(string) > max_len else not text.endswith("...")
 
 
 @given(string=text_block(0, 0), max_len=st.integers(min_value=1, max_value=100))
@@ -68,10 +62,7 @@ def test_plural_format(value: int, format_spec: str, skip_value: bool) -> None:
     singular, _, custom_plural = format_spec.rstrip("!").partition("|")
     plural_form = custom_plural or f"{singular}s"
 
-    if abs(value) == 1:
-        assert singular in result
-    else:
-        assert plural_form in result
+    assert singular in result if abs(value) == 1 else plural_form in result
 
 
 @given(value=st.integers())
