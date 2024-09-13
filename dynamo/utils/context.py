@@ -3,6 +3,7 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 
+import aiohttp
 import discord
 from discord.ext import commands
 
@@ -70,6 +71,10 @@ class Context(commands.Context):
 
     def __init__(self, **kwargs: dict[str, Any]) -> None:
         super().__init__(**kwargs)
+
+    @property
+    def session(self) -> aiohttp.ClientSession:
+        return self.bot.session
 
     async def prompt(
         self,

@@ -4,6 +4,7 @@ import logging
 from collections.abc import AsyncGenerator, Coroutine, Generator
 from typing import Any
 
+import aiohttp
 import discord
 import msgspec
 import xxhash
@@ -154,6 +155,7 @@ def _prefix_callable(bot: Dynamo, msg: discord.Message) -> list[str]:
 
 
 class Dynamo(commands.AutoShardedBot):
+    session: aiohttp.ClientSession
     user: discord.ClientUser
     logging_handler: Any
     bot_app_info: discord.AppInfo
@@ -166,6 +168,7 @@ class Dynamo(commands.AutoShardedBot):
             members=True,
             messages=True,
             message_content=True,
+            presences=True,
         )
         super().__init__(
             *args,
@@ -183,6 +186,8 @@ class Dynamo(commands.AutoShardedBot):
         )
 
     async def setup_hook(self) -> None:
+        self.session = aiohttp.ClientSession()
+
         self.prefixes: dict[int, list[str]] = {}
 
         self.bot_app_info = await self.application_info()
@@ -221,6 +226,7 @@ class Dynamo(commands.AutoShardedBot):
         return await super().start(token, reconnect=reconnect)
 
     async def close(self) -> None:
+        await self.session.close()
         return await super().close()
 
     async def on_ready(self) -> None:

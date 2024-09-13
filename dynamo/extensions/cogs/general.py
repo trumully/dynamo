@@ -5,8 +5,10 @@ import discord
 from discord.ext import commands
 
 from dynamo.bot import Dynamo
+from dynamo.utils.context import Context
 from dynamo.utils.helper import derive_seed
 from dynamo.utils.identicon import Identicon, get_colors, identicon_buffer, seed_from_time
+from dynamo.utils.spotify import SpotifyCard, fetch_album_cover
 from dynamo.utils.time import human_timedelta
 from dynamo.utils.transformer import MemberTransformer
 
@@ -95,6 +97,42 @@ class General(commands.GroupCog, group_name="general"):
         e = discord.Embed(title=display_name, description=description, color=discord.Color.from_rgb(*fg.as_tuple()))
         e.set_image(url=f"attachment://{fname}.png")
         await ctx.send(embed=e, file=file)
+
+    @commands.hybrid_command(name="spotify")
+    async def spotify(self, ctx: Context, user: discord.Member | None = None) -> None:
+        """Generate a spotify card for a track"""
+        if user is None:
+            user = ctx.author
+
+        if user.bot:
+            return None
+        activity: discord.Spotify | None = next((a for a in user.activities if isinstance(a, discord.Spotify)), None)
+
+        if activity is None:
+            return await ctx.send("User is not listening to Spotify.")
+
+        card = SpotifyCard()
+        album_cover: bytes = await fetch_album_cover(activity.album_cover_url, self.bot.session)
+        color = activity.color.to_rgb()
+
+        buffer = card.draw(
+            name=activity.title,
+            artists=activity.artists,
+            color=color,
+            album=BytesIO(album_cover),
+            duration=activity.duration,
+            end=activity.end,
+        )
+
+        embed = discord.Embed(
+            title="Now Playing",
+            description=f"{user.mention} is listening to [{activity.title}](<{activity.track_url}>)",
+            color=activity.color,
+        )
+        embed.set_footer(text=f"Requested by {ctx.author!s}", icon_url=ctx.author.display_avatar.url)
+        file = discord.File(buffer, filename="spotify.png")
+        embed.set_image(url="attachment://spotify.png")
+        return await ctx.send(embed=embed, file=file)
 
 
 async def setup(bot: Dynamo) -> None:
