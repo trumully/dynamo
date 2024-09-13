@@ -10,11 +10,13 @@ from typing import ClassVar
 import aiohttp
 from PIL import Image, ImageDraw, ImageFont
 
+from dynamo.utils.cache import async_lru_cache
 from dynamo.utils.helper import ROOT, resolve_path_with_links
 
 log = logging.getLogger(__name__)
 
 FONT_PATH = resolve_path_with_links(Path(ROOT / "assets" / "fonts" / "Roboto-Regular.ttf"))
+BOLD_FONT_PATH = resolve_path_with_links(Path(ROOT / "assets" / "fonts" / "Roboto-Bold.ttf"))
 SPOTIFY_LOGO_PATH = resolve_path_with_links(Path(ROOT / "assets" / "img" / "spotify.png"))
 
 
@@ -59,46 +61,60 @@ class SpotifyCard:
         duration: datetime.timedelta | None = None,
         end: datetime.datetime | None = None,
     ) -> BytesIO:
-        album_bytes = Image.open(album).resize(self.album_size)
-
+        # Create base image with the green border
         base = Image.new("RGBA", (self.width, self.height), color)
         base_draw = ImageDraw.Draw(base)
-        offset_x = offset_y = self.padding
-        width, height = self.width - offset_x, self.height - offset_y
 
-        font_size = min(self.max_size, self.width * self.percentage)
-        font = ImageFont.truetype(FONT_PATH, font_size)
-
-        # Background
-        base_draw.rectangle((offset_x, offset_y, width, height), fill=BACKGROUND_COLOR)
-        base_draw.text(
-            (self.height + self.padding, self.max_size - self.padding),
-            text=name,
-            fill=TEXT_COLOR,
-            font=font,
+        # Draw the background, leaving a 5px border
+        base_draw.rectangle(
+            (self.padding, self.padding, self.width - self.padding, self.height - self.padding), fill=BACKGROUND_COLOR
         )
+
+        # Resize and paste the album cover
+        album_size = self.height - 2 * self.padding
+        album_bytes = Image.open(album).resize((album_size, album_size))
+        base.paste(album_bytes, (self.padding, self.padding))
+
+        font_size = min(self.max_size, int(self.width * self.percentage))
+        font = ImageFont.truetype(FONT_PATH, int(font_size * 0.8))
+        bold = ImageFont.truetype(BOLD_FONT_PATH, font_size)
+
+        # Title
+        max_title_width = 437 - (album_size + 2 * self.padding)
+        title_lines = textwrap.wrap(name, width=int(max_title_width / (font_size * 0.6)))
+        title_height = 0
+        for i, line in enumerate(title_lines[:2]):  # Limit to 2 lines
+            base_draw.text(
+                (album_size + 2 * self.padding, self.max_size + i * (font_size + 2)),
+                text=line,
+                fill=TEXT_COLOR,
+                font=bold,
+            )
+            title_height += font_size + 2
 
         # Artists
-        artists_text = "\n".join(textwrap.wrap(", ".join(artists), width=35))
-        base_draw.text(
-            (self.height + self.padding, self.padding * 9),
-            text=artists_text,
-            fill=TEXT_COLOR,
-            font=font,
-        )
+        max_artists_width = 437 - (album_size + 2 * self.padding)
+        artists_text = ", ".join(artists)
+        artists_lines = textwrap.wrap(artists_text, width=int(max_artists_width / (font_size * 0.5)))
+        for i, line in enumerate(artists_lines[:2]):  # Limit to 2 lines
+            base_draw.text(
+                (album_size + 2 * self.padding, self.max_size + title_height + 5 + i * (int(font_size * 0.8) + 2)),
+                text=line,
+                fill=TEXT_COLOR,
+                font=font,
+            )
 
         # Progress bar
         if duration and end:
             progress = self.get_progress(end, duration)
-            base_draw.rectangle((175, 125, 375, 130), fill=LENGTH_BAR_COLOR)
-            base_draw.rectangle((175, 125, 175 + int(200 * progress), 130), fill=PROGRESS_BAR_COLOR)
+            base_draw.rectangle((175, 135, 375, 140), fill=LENGTH_BAR_COLOR)
+            base_draw.rectangle((175, 135, 175 + int(200 * progress), 140), fill=PROGRESS_BAR_COLOR)
 
             played = self.track_duration(int(duration.total_seconds() * progress))
             track_duration = self.track_duration(int(duration.total_seconds()))
             progress_text = f"{played} / {track_duration}"
-            base_draw.text((175, 130), text=progress_text, fill=TEXT_COLOR, font=font)
+            base_draw.text((175, 145), text=progress_text, fill=TEXT_COLOR, font=font)
 
-        base.paste(album_bytes, (self.padding, self.padding))
         spotify_logo = Image.open(SPOTIFY_LOGO_PATH).resize((48, 48))
         base.paste(spotify_logo, (437, 15), spotify_logo)
 
@@ -112,7 +128,8 @@ def valid_url(url: str) -> bool:
     return re.match(r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*(),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+", url) is not None
 
 
-async def fetch_album_cover(url: str, session: aiohttp.ClientSession) -> bytes | None:
+@async_lru_cache()
+async def fetch_album_cover(url: str, session: aiohttp.ClientSession) -> BytesIO | None:
     if not valid_url(url):
         log.exception("Invalid URL: %s", url)
         return None
@@ -122,8 +139,6 @@ async def fetch_album_cover(url: str, session: aiohttp.ClientSession) -> bytes |
             log.exception("Failed to fetch album cover: %s", response.status)
             return None
 
-        try:
-            return await response.read()
-        except Exception:
-            log.exception("Failed to fetch album cover: %s", url)
-            return None
+        buffer = BytesIO(await response.read())
+        buffer.seek(0)
+        return buffer
