@@ -61,7 +61,7 @@ def valid_token(token: str) -> bool:
     return bool(pattern.match(token))
 
 
-def generate_seed(precursor: int | str | None = None) -> int:
+def derive_seed(precursor: int | str | None = None) -> int:
     """Generate a seed from integer, integer-like (i.e discord snowflake) or string
 
     Parameters

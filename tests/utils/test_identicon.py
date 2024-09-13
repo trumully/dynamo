@@ -19,39 +19,20 @@ def test_rgb_class(color: dynamo.utils.identicon.RGB) -> None:
     assert 0 <= color.b <= 255
     assert color.as_tuple() == (color.r, color.g, color.b)
 
-
-@given(st.integers(min_value=1))
-def test_make_color(seed: int) -> None:
-    color = dynamo.utils.identicon.make_color(seed)
-    assert isinstance(color, dynamo.utils.identicon.RGB)
-    assert 0 <= color.r <= 255
-    assert 0 <= color.g <= 255
-    assert 0 <= color.b <= 255
+    assert color.is_similar(color)
 
 
-@given(st.integers(min_value=1))
+@given(seed=st.integers(min_value=1))
 def test_get_colors(seed: int) -> None:
-    fg, bg = dynamo.utils.identicon.get_colors(seed=seed)
-    assert isinstance(fg, dynamo.utils.identicon.RGB)
-    assert isinstance(bg, dynamo.utils.identicon.RGB)
-    assert fg.as_tuple() != bg.as_tuple()
+    fg, bg = dynamo.utils.identicon.get_colors(seed)
+    assert all(0 <= c <= 255 for c in fg.as_tuple())
+    assert all(0 <= c <= 255 for c in bg.as_tuple())
+    perception = dynamo.utils.identicon.perceived_distance_to_max(fg, bg)
+    euclidean = dynamo.utils.identicon.euclidean_distance_to_max(fg, bg)
+    assert not fg.is_similar(bg), f"fg and bg are too similar: {fg} and {bg}\np|e = {perception}|{euclidean}"
 
 
-@given(color=rgb())
-def test_rgb_as_hex(color: dynamo.utils.identicon.RGB) -> None:
-    hex_color = dynamo.utils.identicon.rgb_as_hex(color)
-    assert hex_color.startswith("#")
-    assert len(hex_color) == 7
-    assert all(c in "0123456789abcdef" for c in hex_color[1:])
-
-
-@given(
-    size=st.integers(min_value=1, max_value=100),
-    fg=rgb(),
-    bg=rgb(),
-    fg_weight=st.floats(min_value=0, max_value=1),
-    seed=st.integers(min_value=1),
-)
+@given(size=st.integers(1, 100), fg=rgb(), bg=rgb(), fg_weight=st.floats(0.0, 1.0), seed=st.integers(1))
 def test_identicon(
     size: int, fg: dynamo.utils.identicon.RGB, bg: dynamo.utils.identicon.RGB, fg_weight: float, seed: int
 ) -> None:
@@ -71,25 +52,24 @@ def test_identicon(
     assert isinstance(icon, np.ndarray)
     assert icon.shape == (size * 2, size * 2, 3)
 
+    # Assert immutability
+    with pytest.raises(AttributeError):
+        identicon.size = size + 1
+    with pytest.raises(AttributeError):
+        identicon.fg = dynamo.utils.identicon.RGB(0, 0, 0)
+    with pytest.raises(AttributeError):
+        identicon.bg = dynamo.utils.identicon.RGB(255, 255, 255)
+    with pytest.raises(AttributeError):
+        identicon.fg_weight = 0.5
+    with pytest.raises(AttributeError):
+        identicon.seed = seed + 1
+
 
 @given(
     color_a=rgb(),
     color_b=rgb(),
 )
 def test_color_distance(color_a: dynamo.utils.identicon.RGB, color_b: dynamo.utils.identicon.RGB) -> None:
-    distance = dynamo.utils.identicon.color_distance(color_a, color_b)
+    distance = dynamo.utils.identicon.perceived_color_distance(color_a, color_b)
     assert isinstance(distance, float)
     assert distance >= 0
-
-
-@pytest.mark.parametrize(
-    "r,g,b,expected",
-    [
-        (0, 0, 0, "#000000"),
-        (255, 255, 255, "#ffffff"),
-        (128, 128, 128, "#808080"),
-    ],
-)
-def test_rgb_as_hex_specific(r: int, g: int, b: int, expected: str) -> None:
-    rgb = dynamo.utils.identicon.RGB(r, g, b)
-    assert dynamo.utils.identicon.rgb_as_hex(rgb) == expected

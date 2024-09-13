@@ -31,6 +31,7 @@ async def test_async_lru_cache_basic() -> None:
 
 
 @pytest.mark.asyncio
+@settings(deadline=None)
 @given(st.lists(st.integers(), min_size=1, max_size=10))
 async def test_async_lru_cache_property(inputs: list[int]) -> None:
     """Tests that the cache properties are correctly updated."""

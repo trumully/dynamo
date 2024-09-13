@@ -5,7 +5,7 @@ import discord
 from discord.ext import commands
 
 from dynamo.bot import Dynamo
-from dynamo.utils.helper import generate_seed
+from dynamo.utils.helper import derive_seed
 from dynamo.utils.identicon import Identicon, get_colors, identicon_buffer, seed_from_time
 from dynamo.utils.time import human_timedelta
 from dynamo.utils.transformer import MemberTransformer
@@ -81,7 +81,7 @@ class General(commands.GroupCog, group_name="general"):
         display_name = seed if (isinstance(seed, (str, int))) else seed.display_name
 
         fname = seed if isinstance(seed, (str, int)) else seed.id
-        seed = generate_seed(fname)
+        seed = derive_seed(fname)
         fg, bg = get_colors(seed=seed)
 
         idt_bytes = await identicon_buffer(Identicon(5, fg, bg, 0.4, seed))

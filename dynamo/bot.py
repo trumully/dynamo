@@ -201,13 +201,13 @@ class Dynamo(commands.AutoShardedBot):
         tree_path = resolve_path_with_links(platformdir.user_cache_path / "tree.hash")
         tree_hash = await self.tree.get_hash(self.tree)
         with tree_path.open("r+b") as fp:
-            data = fp.read()
-            if data != tree_hash:
-                log.info("Syncing commands to dev guild (ID: %s)", self.dev_guild.id)
-                self.tree.copy_global_to(guild=self.dev_guild)
-                await self.tree.sync(guild=self.dev_guild)
-                fp.seek(0)
-                fp.write(tree_hash)
+            if fp.read() == tree_hash:
+                return
+            log.info("Syncing commands to dev guild (ID: %s)", self.dev_guild.id)
+            self.tree.copy_global_to(guild=self.dev_guild)
+            await self.tree.sync(guild=self.dev_guild)
+            fp.seek(0)
+            fp.write(tree_hash)
 
     @property
     def owner(self) -> discord.User:
