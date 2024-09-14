@@ -1,5 +1,6 @@
 import logging
 from io import BytesIO
+from urllib.parse import urlparse
 
 import discord
 from discord.ext import commands
@@ -16,14 +17,14 @@ log = logging.getLogger(__name__)
 
 
 def embed_from_user(user: discord.Member | discord.User) -> discord.Embed:
-    e = discord.Embed()
+    e = discord.Embed(color=user.color)
     e.set_footer(text=f"ID: {user.id}")
     avatar = user.display_avatar.with_static_format("png")
     e.set_author(name=str(user), icon_url=avatar.url)
     if not user.bot:
-        e.add_field(name="Account Created", value=f"`{human_timedelta(dt=user.created_at, suffix=True)}`")
+        e.add_field(name="Account Created", value=f"<t:{int(user.created_at.timestamp())}:R>")
     if not isinstance(user, discord.ClientUser):
-        e.add_field(name="Joined Server", value=f"`{human_timedelta(dt=user.joined_at, suffix=True)}`")
+        e.add_field(name="Joined Server", value=f"<t:{int(user.joined_at.timestamp())}:R>")
     e.set_image(url=avatar.url)
     return e
 
@@ -80,6 +81,9 @@ class General(commands.GroupCog, group_name="general"):
         if not seed:
             seed = seed_from_time()
 
+        if isinstance(seed, str) and (parsed := urlparse(seed)).scheme and parsed.netloc:
+            seed = (parsed.netloc + parsed.path).replace("/", "-")
+
         display_name = seed if (isinstance(seed, (str, int))) else seed.display_name
 
         fname = seed if isinstance(seed, (str, int)) else seed.id
@@ -98,7 +102,7 @@ class General(commands.GroupCog, group_name="general"):
         e.set_image(url=f"attachment://{fname}.png")
         await ctx.send(embed=e, file=file)
 
-    @commands.hybrid_command(name="spotify")
+    @commands.hybrid_command(name="spotify", aliases=("sp", "applemusic"))
     async def spotify(self, ctx: Context, user: discord.Member | None = None) -> None:
         """Generate a spotify card for a track"""
         if user is None:

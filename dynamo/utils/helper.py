@@ -7,6 +7,10 @@ import platformdirs
 platformdir = platformdirs.PlatformDirs("dynamo", "trumully", roaming=False)
 
 
+def valid_url(url: str) -> bool:
+    return re.match(r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*(),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+", url) is not None
+
+
 def resolve_path_with_links(path: Path, /, folder: bool = False) -> Path:
     """Resolve a path with links
 

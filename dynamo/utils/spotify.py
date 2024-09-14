@@ -1,6 +1,5 @@
 import datetime
 import logging
-import re
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
@@ -11,7 +10,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 from dynamo.utils.cache import async_lru_cache
 from dynamo.utils.format import CJK, is_cjk
-from dynamo.utils.helper import ROOT, resolve_path_with_links
+from dynamo.utils.helper import ROOT, resolve_path_with_links, valid_url
 
 log = logging.getLogger(__name__)
 
@@ -64,21 +63,21 @@ LENGTH_BAR_COLOR: tuple[int, int, int] = (64, 64, 64)
 @dataclass(frozen=True)
 class SpotifyCard:
     # Card dimensions
-    width: ClassVar[int] = 490
-    height: ClassVar[int] = 160
-    padding: ClassVar[int] = 10
-    border: ClassVar[int] = 5
+    width: ClassVar[int] = 800
+    height: ClassVar[int] = 250
+    padding: ClassVar[int] = 15
+    border: ClassVar[int] = 8
 
     # Album cover
     album_size: ClassVar[int] = height - (border * 2)  # Fits exactly within the blue box
 
     # Font settings
-    title_font_size: ClassVar[int] = 20
-    artist_font_size: ClassVar[int] = 16
-    progress_font_size: ClassVar[int] = 14
+    title_font_size: ClassVar[int] = 28
+    artist_font_size: ClassVar[int] = 22
+    progress_font_size: ClassVar[int] = 18
 
     # Spotify logo
-    logo_size: ClassVar[int] = 32
+    logo_size: ClassVar[int] = 48
     logo_x: ClassVar[int] = width - logo_size - padding - border
     logo_y: ClassVar[int] = padding + border
 
@@ -89,10 +88,10 @@ class SpotifyCard:
 
     # Progress bar
     progress_bar_start_x: ClassVar[int] = content_start_x
-    progress_bar_width: ClassVar[int] = width - content_start_x - padding - border - 50  # Account for Spotify logo
-    progress_bar_height: ClassVar[int] = 4
-    progress_bar_y: ClassVar[int] = height - padding - border - progress_bar_height - 20
-    progress_text_y: ClassVar[int] = height - padding - border - 16
+    progress_bar_width: ClassVar[int] = width - content_start_x - padding - border - 70  # Account for Spotify logo
+    progress_bar_height: ClassVar[int] = 6
+    progress_bar_y: ClassVar[int] = height - padding - border - progress_bar_height - 30
+    progress_text_y: ClassVar[int] = height - padding - border - 24
 
     @staticmethod
     def get_font(text: str, bold: bool = False, size: int = 22) -> ImageFont.FreeTypeFont:
@@ -199,10 +198,6 @@ class SpotifyCard:
         base.save(buffer, format="PNG")
         buffer.seek(0)
         return buffer
-
-
-def valid_url(url: str) -> bool:
-    return re.match(r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*(),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+", url) is not None
 
 
 @async_lru_cache()
