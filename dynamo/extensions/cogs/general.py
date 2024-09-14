@@ -7,6 +7,7 @@ from discord.ext import commands
 
 from dynamo.bot import Dynamo
 from dynamo.utils.context import Context
+from dynamo.utils.format import human_join
 from dynamo.utils.helper import derive_seed
 from dynamo.utils.identicon import Identicon, get_colors, identicon_buffer, seed_from_time
 from dynamo.utils.spotify import SpotifyCard, fetch_album_cover
@@ -122,7 +123,7 @@ class General(commands.GroupCog, group_name="general"):
 
         color = activity.color.to_rgb()
 
-        buffer = await card.draw(
+        buffer, ext = await card.draw(
             name=activity.title,
             artists=activity.artists,
             color=color,
@@ -130,15 +131,18 @@ class General(commands.GroupCog, group_name="general"):
             duration=activity.duration,
             end=activity.end,
         )
+        fname = f"spotify-card.{ext}"
 
-        file = discord.File(buffer, filename="spotify-card.png")
+        file = discord.File(buffer, filename=fname)
+        track = f"[{activity.title}](<{activity.track_url}>)"
         embed = discord.Embed(
             title="Now Playing",
-            description=f"{user.mention} is listening to [{activity.title}](<{activity.track_url}>)",
+            description=f"{user.mention} is listening to **{track}** by"
+            f" **{human_join(activity.artists, conjunction="and")}**",
             color=activity.color,
         )
         embed.set_footer(text=f"Requested by {ctx.author!s}", icon_url=ctx.author.display_avatar.url)
-        embed.set_image(url="attachment://spotify-card.png")
+        embed.set_image(url=f"attachment://{fname}")
         return await ctx.send(embed=embed, file=file)
 
 

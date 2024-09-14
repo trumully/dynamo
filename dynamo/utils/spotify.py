@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import logging
+from collections.abc import Generator
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
@@ -37,7 +38,7 @@ class SpotifyCard:
     border: ClassVar[int] = 8
 
     # Album cover
-    album_size: ClassVar[int] = height - (border * 2)  # Fits exactly within the blue box
+    album_size: ClassVar[int] = height - (border * 2) + 1  # Fits exactly within the blue box
 
     # Font settings
     title_font_size: ClassVar[int] = 28
@@ -61,7 +62,7 @@ class SpotifyCard:
     progress_bar_y: ClassVar[int] = height - padding - border - progress_bar_height - 30
     progress_text_y: ClassVar[int] = height - padding - border - 24
 
-    sliding_speed: ClassVar[int] = 2  # pixels per frame
+    sliding_speed: ClassVar[int] = 6  # pixels per frame
     max_frames: ClassVar[int] = 480  # number of frames for sliding animation
     frame_duration: ClassVar[int] = 50  # duration of each frame in milliseconds
 
@@ -121,6 +122,46 @@ class SpotifyCard:
         title_font = self.get_font(name, bold=True, size=self.title_font_size)
         artist_font = self.get_font(", ".join(artists), bold=False, size=self.artist_font_size)
 
+        # Calculate the available width for the title
+        available_width = self.width - self.content_start_x - self.logo_size - self.padding * 2 - self.border
+
+        # Spotify logo
+        spotify_logo = Image.open(SPOTIFY_LOGO_PATH).resize((self.logo_size, self.logo_size))
+
+        # Check if the title is too long
+        title_width = title_font.getbbox(name)[2]
+        if title_width > available_width:
+            # Generate scrolling frames for the title
+            title_frames = list(self._draw_text_scroll(title_font, name, available_width))
+            num_frames = len(title_frames)
+
+            frames = []
+            for i in range(num_frames):
+                frame = base.copy()
+                frame_draw = ImageDraw.Draw(frame)
+
+                # Paste the scrolling title
+                frame.paste(title_frames[i], (self.content_start_x, self.title_start_y), title_frames[i])
+
+                # Draw static elements
+                self._draw_static_elements(frame_draw, frame, artists, artist_font, duration, end, spotify_logo)
+
+                frames.append(frame)
+
+            # Save as animated GIF
+            buffer = BytesIO()
+            frames[0].save(
+                buffer,
+                format="GIF",
+                save_all=True,
+                append_images=frames[1:],
+                duration=self.frame_duration,
+                loop=0,
+            )
+            buffer.seek(0)
+            return buffer, "gif"
+
+        # Draw static image with non-scrolling title
         base_draw.text(
             (self.content_start_x, self.title_start_y),
             text=name,
@@ -128,26 +169,40 @@ class SpotifyCard:
             font=title_font,
         )
 
-        base_draw.text(
-            (self.content_start_x, self.title_start_y + self.title_font_size + 5),
-            text=", ".join(artists),
-            fill=TEXT_COLOR,
-            font=artist_font,
-        )
-
-        if duration and end:
-            progress = self.get_progress(end, duration)
-            self._draw_progress_bar(base_draw, progress, duration)
-
-        # Draw Spotify logo
-        spotify_logo = Image.open(SPOTIFY_LOGO_PATH).resize((self.logo_size, self.logo_size))
-        base.paste(spotify_logo, (self.logo_x, self.logo_y), spotify_logo)
+        # Draw static elements
+        self._draw_static_elements(base_draw, base, artists, artist_font, duration, end, spotify_logo)
 
         # Save as static PNG
         buffer = BytesIO()
         base.save(buffer, format="PNG")
         buffer.seek(0)
         return buffer, "png"
+
+    def _draw_static_elements(
+        self,
+        draw: ImageDraw.Draw,
+        image: Image.Image,
+        artists: list[str],
+        artist_font: ImageFont.FreeTypeFont,
+        duration: datetime.timedelta | None,
+        end: datetime.datetime | None,
+        spotify_logo: Image.Image,
+    ) -> None:
+        # Draw artist name
+        draw.text(
+            (self.content_start_x, self.title_start_y + self.title_font_size + 5),
+            text=", ".join(artists),
+            fill=TEXT_COLOR,
+            font=artist_font,
+        )
+
+        # Draw progress bar if duration and end are provided
+        if duration and end:
+            progress = self.get_progress(end, duration)
+            self._draw_progress_bar(draw, progress, duration)
+
+        # Draw Spotify logo
+        image.paste(spotify_logo, (self.logo_x, self.logo_y), spotify_logo)
 
     def _draw_progress_bar(self, draw: ImageDraw.Draw, progress: float, duration: datetime.timedelta):
         draw.rectangle(
@@ -181,6 +236,45 @@ class SpotifyCard:
             fill=TEXT_COLOR,
             font=progress_font,
         )
+
+    def _draw_text_scroll(
+        self, font: ImageFont.FreeTypeFont, text: str, width: int
+    ) -> Generator[Image.Image, None, None]:
+        text_width, text_height = font.getbbox(text)[2:]
+
+        if text_width <= width:
+            # If text fits, yield a single frame with the full text
+            frame = Image.new("RGBA", (width, text_height))
+            frame_draw = ImageDraw.Draw(frame)
+            frame_draw.text((0, 0), text, fill=TEXT_COLOR, font=font)
+            yield frame
+            return
+
+        # Calculate how much text needs to scroll
+        overflow_width = text_width - width
+
+        # Number of frames for the pause at the beginning and end
+        pause_frames = 30
+
+        # Total frames including pause at start, scrolling, and pause at end
+        total_frames = pause_frames * 2 + (overflow_width // self.sliding_speed)
+
+        for i in range(total_frames):
+            frame = Image.new("RGBA", (width, text_height))
+            frame_draw = ImageDraw.Draw(frame)
+
+            if i < pause_frames:
+                # Initial pause: text stays at the beginning
+                x_pos = 0
+            elif i >= total_frames - pause_frames:
+                # End pause: text stays at the end
+                x_pos = -overflow_width
+            else:
+                # Scrolling: text moves from right to left
+                x_pos = -((i - pause_frames) * self.sliding_speed)
+
+            frame_draw.text((x_pos, 0), text, fill=TEXT_COLOR, font=font)
+            yield frame
 
 
 @async_lru_cache()
