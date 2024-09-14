@@ -116,6 +116,7 @@ def run_bot() -> None:
     except KeyboardInterrupt:
         log.info("Shutdown via keyboard interrupt")
     finally:
+        log.info("Shutting down")
         fut.remove_done_callback(stop_when_done)
         if not bot.is_closed():
             _close_task = loop.create_task(bot.close())  # noqa: RUF006

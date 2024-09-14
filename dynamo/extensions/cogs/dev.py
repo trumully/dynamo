@@ -164,7 +164,6 @@ class Dev(commands.GroupCog, group_name="dev"):
     async def shutdown(self, ctx: commands.Context) -> None:
         """Shutdown the bot"""
         await ctx.send("Shutting down...")
-        log.debug("Shutting down...")
         await self.bot.close()
 
 

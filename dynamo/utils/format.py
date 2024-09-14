@@ -1,4 +1,6 @@
+import re
 from dataclasses import dataclass
+from enum import StrEnum, auto
 from typing import Sequence
 
 
@@ -114,3 +116,39 @@ def human_join(seq: Sequence[str], sep: str = ", ", conjunction: str = "or", *, 
         return f"{seq[0]} {conjunction} {seq[1]}"
 
     return f"{sep.join(seq[:-1])}{sep if oxford_comma else " "}{conjunction} {seq[-1]}"
+
+
+class CJK(StrEnum):
+    CHINESE = auto()
+    JAPANESE = auto()
+    KOREAN = auto()
+    NONE = auto()
+
+
+def is_cjk(text: str) -> CJK:
+    """
+    Check if a string contains any CJK characters.
+
+    Parameters
+    ----------
+    text : str
+        The string to check.
+
+    Returns
+    -------
+    CJK
+        The CJK language of the string.
+    """
+    # Chinese characters (including traditional and simplified)
+    if re.search(r"[\u4e00-\u9fff\u3400-\u4dbf]", text):
+        return CJK.CHINESE
+
+    # Hiragana and Katakana (Japanese-specific characters)
+    if re.search(r"[\u3040-\u309f\u30a0-\u30ff]", text):
+        return CJK.JAPANESE
+
+    # Hangul (Korean characters)
+    if re.search(r"[\uac00-\ud7af\u1100-\u11ff]", text):
+        return CJK.KOREAN
+
+    return CJK.NONE
