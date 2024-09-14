@@ -116,29 +116,29 @@ class General(commands.GroupCog, group_name="general"):
             return await ctx.send("User is not listening to Spotify.")
 
         card = SpotifyCard()
-        album_cover: BytesIO | None = await fetch_album_cover(activity.album_cover_url, self.bot.session)
+        album_cover: bytes | None = await fetch_album_cover(activity.album_cover_url, self.bot.session)
         if album_cover is None:
             return await ctx.send("Failed to fetch album cover.")
 
         color = activity.color.to_rgb()
 
-        buffer = card.draw(
+        buffer = await card.draw(
             name=activity.title,
             artists=activity.artists,
             color=color,
-            album=album_cover,
+            album=BytesIO(album_cover),
             duration=activity.duration,
             end=activity.end,
         )
 
+        file = discord.File(buffer, filename="spotify-card.png")
         embed = discord.Embed(
             title="Now Playing",
             description=f"{user.mention} is listening to [{activity.title}](<{activity.track_url}>)",
             color=activity.color,
         )
         embed.set_footer(text=f"Requested by {ctx.author!s}", icon_url=ctx.author.display_avatar.url)
-        file = discord.File(buffer, filename="spotify.png")
-        embed.set_image(url="attachment://spotify.png")
+        embed.set_image(url="attachment://spotify-card.png")
         return await ctx.send(embed=embed, file=file)
 
 

@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import logging
 from dataclasses import dataclass
@@ -60,6 +61,10 @@ class SpotifyCard:
     progress_bar_y: ClassVar[int] = height - padding - border - progress_bar_height - 30
     progress_text_y: ClassVar[int] = height - padding - border - 24
 
+    sliding_speed: ClassVar[int] = 2  # pixels per frame
+    max_frames: ClassVar[int] = 480  # number of frames for sliding animation
+    frame_duration: ClassVar[int] = 50  # duration of each frame in milliseconds
+
     @staticmethod
     def get_font(text: str, bold: bool = False, size: int = 22) -> ImageFont.FreeTypeFont:
         font_family = FONTS[is_cjk(text)]
@@ -77,7 +82,7 @@ class SpotifyCard:
         now = datetime.datetime.now(tz=datetime.timezone.utc)
         return 1 - (end - now).total_seconds() / duration.total_seconds()
 
-    def draw(
+    async def draw(
         self,
         name: str,
         artists: list[str],
@@ -85,12 +90,23 @@ class SpotifyCard:
         album: BytesIO,
         duration: datetime.timedelta | None = None,
         end: datetime.datetime | None = None,
-    ) -> BytesIO:
+    ) -> tuple[BytesIO, str]:
+        return await asyncio.to_thread(self._draw, name, artists, color, album, duration, end)
+
+    def _draw(
+        self,
+        name: str,
+        artists: list[str],
+        color: tuple[int, int, int],
+        album: BytesIO,
+        duration: datetime.timedelta | None = None,
+        end: datetime.datetime | None = None,
+    ) -> tuple[BytesIO, str]:
         # Create base image with the colored border
         base = Image.new("RGBA", (self.width, self.height), color)
         base_draw = ImageDraw.Draw(base)
 
-        # Draw the background, leaving a 5px border
+        # Draw the background, leaving a border
         base_draw.rectangle(
             (self.border, self.border, self.width - self.border, self.height - self.border),
             fill=BACKGROUND_COLOR,
@@ -119,63 +135,85 @@ class SpotifyCard:
             font=artist_font,
         )
 
-        # Progress bar and duration
         if duration and end:
             progress = self.get_progress(end, duration)
+            self._draw_progress_bar(base_draw, progress, duration)
 
-            base_draw.rectangle(
-                (
-                    self.progress_bar_start_x,
-                    self.progress_bar_y,
-                    self.progress_bar_start_x + self.progress_bar_width,
-                    self.progress_bar_y + self.progress_bar_height,
-                ),
-                fill=LENGTH_BAR_COLOR,
-            )
-
-            base_draw.rectangle(
-                (
-                    self.progress_bar_start_x,
-                    self.progress_bar_y,
-                    self.progress_bar_start_x + int(self.progress_bar_width * progress),
-                    self.progress_bar_y + self.progress_bar_height,
-                ),
-                fill=PROGRESS_BAR_COLOR,
-            )
-
-            played = self.track_duration(int(duration.total_seconds() * progress))
-            track_duration = self.track_duration(int(duration.total_seconds()))
-            progress_text = f"{played} / {track_duration}"
-            progress_font = self.get_font(progress_text, bold=False, size=self.progress_font_size)
-
-            base_draw.text(
-                (self.progress_bar_start_x, self.progress_text_y),
-                text=progress_text,
-                fill=TEXT_COLOR,
-                font=progress_font,
-            )
-
-        # Spotify logo
+        # Draw Spotify logo
         spotify_logo = Image.open(SPOTIFY_LOGO_PATH).resize((self.logo_size, self.logo_size))
         base.paste(spotify_logo, (self.logo_x, self.logo_y), spotify_logo)
 
+        # Save as static PNG
         buffer = BytesIO()
         base.save(buffer, format="PNG")
         buffer.seek(0)
-        return buffer
+        return buffer, "png"
+
+    def _draw_progress_bar(self, draw: ImageDraw.Draw, progress: float, duration: datetime.timedelta):
+        draw.rectangle(
+            (
+                self.progress_bar_start_x,
+                self.progress_bar_y,
+                self.progress_bar_start_x + self.progress_bar_width,
+                self.progress_bar_y + self.progress_bar_height,
+            ),
+            fill=LENGTH_BAR_COLOR,
+        )
+
+        draw.rectangle(
+            (
+                self.progress_bar_start_x,
+                self.progress_bar_y,
+                self.progress_bar_start_x + int(self.progress_bar_width * progress),
+                self.progress_bar_y + self.progress_bar_height,
+            ),
+            fill=PROGRESS_BAR_COLOR,
+        )
+
+        played = self.track_duration(int(duration.total_seconds() * progress))
+        track_duration = self.track_duration(int(duration.total_seconds()))
+        progress_text = f"{played} / {track_duration}"
+        progress_font = self.get_font(progress_text, bold=False, size=self.progress_font_size)
+
+        draw.text(
+            (self.progress_bar_start_x, self.progress_text_y),
+            text=progress_text,
+            fill=TEXT_COLOR,
+            font=progress_font,
+        )
 
 
 @async_lru_cache()
-async def fetch_album_cover(url: str, session: aiohttp.ClientSession) -> BytesIO | None:
-    if not valid_url(url):
-        log.exception("Invalid URL: %s", url)
-        return None
+async def fetch_album_cover(url: str, session: aiohttp.ClientSession) -> bytes | None:
+    """Fetch album cover from a URL
 
-    async with session.get(url) as response:
-        if response.status != 200:
-            log.exception("Failed to fetch album cover: %s", response.status)
+    Parameters
+    ----------
+    url : str
+        The URL of the album cover
+    session : aiohttp.ClientSession
+        The aiohttp session to use for the request
+
+    Returns
+    -------
+    bytes | None
+        The album cover as bytes, or None if the fetch failed
+    """
+
+    async def _fetch(url: str, session: aiohttp.ClientSession) -> bytes | None:
+        if not valid_url(url):
+            log.exception("Invalid URL: %s", url)
             return None
 
-        buffer = BytesIO(await response.read())
-        buffer.seek(0)
-        return buffer
+        try:
+            async with session.get(url) as response:
+                if response.status != 200:
+                    log.exception("Failed to fetch album cover: %s", response.status)
+                    return None
+
+                return await response.read()
+        except Exception:
+            log.exception("Error fetching album cover: %s", url)
+            return None
+
+    return await _fetch(url, session)
