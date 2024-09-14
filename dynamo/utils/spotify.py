@@ -9,46 +9,10 @@ import aiohttp
 from PIL import Image, ImageDraw, ImageFont
 
 from dynamo.utils.cache import async_lru_cache
-from dynamo.utils.format import CJK, is_cjk
+from dynamo.utils.format import FONTS, is_cjk
 from dynamo.utils.helper import ROOT, resolve_path_with_links, valid_url
 
 log = logging.getLogger(__name__)
-
-
-@dataclass(slots=True, frozen=True)
-class FontFamily:
-    regular: Path
-    bold: Path
-
-
-latin: FontFamily = FontFamily(
-    regular=resolve_path_with_links(Path(ROOT / "assets" / "fonts" / "static" / "NotoSans-Regular.ttf")),
-    bold=resolve_path_with_links(Path(ROOT / "assets" / "fonts" / "static" / "NotoSans-Bold.ttf")),
-)
-
-chinese: FontFamily = FontFamily(
-    regular=resolve_path_with_links(Path(ROOT / "assets" / "fonts" / "static" / "NotoSansTC-Regular.ttf")),
-    bold=resolve_path_with_links(Path(ROOT / "assets" / "fonts" / "static" / "NotoSansTC-Bold.ttf")),
-)
-
-japanese: FontFamily = FontFamily(
-    regular=resolve_path_with_links(Path(ROOT / "assets" / "fonts" / "static" / "NotoSansJP-Regular.ttf")),
-    bold=resolve_path_with_links(Path(ROOT / "assets" / "fonts" / "static" / "NotoSansJP-Bold.ttf")),
-)
-
-korean: FontFamily = FontFamily(
-    regular=resolve_path_with_links(Path(ROOT / "assets" / "fonts" / "static" / "NotoSansKR-Regular.ttf")),
-    bold=resolve_path_with_links(Path(ROOT / "assets" / "fonts" / "static" / "NotoSansKR-Bold.ttf")),
-)
-
-SPOTIFY_LOGO_PATH = resolve_path_with_links(Path(ROOT / "assets" / "images" / "spotify.png"))
-
-FONTS: dict[CJK, FontFamily] = {
-    CJK.NONE: latin,
-    CJK.CHINESE: chinese,
-    CJK.JAPANESE: japanese,
-    CJK.KOREAN: korean,
-}
 
 # Dark blue
 BACKGROUND_COLOR: tuple[int, int, int] = (5, 5, 25)
@@ -58,6 +22,9 @@ TEXT_COLOR = PROGRESS_BAR_COLOR = (255, 255, 255)
 
 # Light gray
 LENGTH_BAR_COLOR: tuple[int, int, int] = (64, 64, 64)
+
+
+SPOTIFY_LOGO_PATH = resolve_path_with_links(Path(ROOT / "assets" / "images" / "spotify.png"))
 
 
 @dataclass(frozen=True)
@@ -103,9 +70,7 @@ class SpotifyCard:
     def track_duration(seconds: int) -> str:
         minutes, seconds = divmod(seconds, 60)
         hours, minutes = divmod(minutes, 60)
-        if hours:
-            return f"{hours}:{minutes:02d}:{seconds:02d}"
-        return f"{minutes:02d}:{seconds:02d}"
+        return f"{hours}:{minutes:02d}:{seconds:02d}" if hours else f"{minutes:02d}:{seconds:02d}"
 
     @staticmethod
     def get_progress(end: datetime.datetime, duration: datetime.timedelta) -> float:

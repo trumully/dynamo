@@ -13,6 +13,11 @@ from dynamo.utils.helper import ROOT, get_cog
 
 log = logging.getLogger(__name__)
 
+# Don't unload these
+BLACKLIST_UTILS: set[str] = {
+    "dynamo.utils.cache",
+}
+
 
 class Dev(commands.GroupCog, group_name="dev"):
     """Dev-only commands"""
@@ -57,8 +62,7 @@ class Dev(commands.GroupCog, group_name="dev"):
         guild_id: int | None
             The ID of the guild to clear commands from. Current guild by default.
         """
-        confirm = await ctx.prompt("Are you sure you want to clear all commands?")
-        if not confirm:
+        if not await ctx.prompt("Are you sure you want to clear all commands?"):
             return
 
         guild: discord.Guild | None = discord.Object(id=guild_id, type=discord.Guild) if guild_id else None
@@ -75,9 +79,8 @@ class Dev(commands.GroupCog, group_name="dev"):
         module: str
             The name of the cog to load.
         """
-        m = get_cog(module)
         try:
-            await self.bot.load_extension(m)
+            await self.bot.load_extension(m := get_cog(module))
         except commands.ExtensionError:
             log.exception("Failed to load %s", m)
         else:
@@ -92,9 +95,8 @@ class Dev(commands.GroupCog, group_name="dev"):
         module: str
             The name of the cog to unload.
         """
-        m = get_cog(module)
         try:
-            await self.bot.unload_extension(m)
+            await self.bot.unload_extension(m := get_cog(module))
         except commands.ExtensionError:
             log.exception("Failed to unload %s", m)
         else:
@@ -109,9 +111,8 @@ class Dev(commands.GroupCog, group_name="dev"):
         module: str
             The name of the cog to reload.
         """
-        m = get_cog(module)
         try:
-            await self.bot.reload_extension(m)
+            await self.bot.reload_extension(m := get_cog(module))
         except commands.ExtensionError:
             log.exception("Failed to reload %s", m)
         else:
@@ -131,7 +132,9 @@ class Dev(commands.GroupCog, group_name="dev"):
             return
 
         # Reload all pre-existing modules from the utils folder
-        utils_modules: set[str] = {mod for mod in sys.modules if mod.startswith("dynamo.utils.")}
+        utils_modules: set[str] = {
+            mod for mod in sys.modules if mod.startswith("dynamo.utils.") and mod not in BLACKLIST_UTILS
+        }
         all_utils: set[str] = {u.stem for u in Path(ROOT, "utils").glob("**/*.py") if u.stem != "__init__"}
         for module in utils_modules:
             try:

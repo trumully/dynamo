@@ -1,7 +1,10 @@
 import re
 from dataclasses import dataclass
 from enum import StrEnum, auto
+from pathlib import Path
 from typing import Sequence
+
+from dynamo.utils.helper import ROOT, resolve_path_with_links
 
 
 def shorten_string(string: str, max_len: int = 50, placeholder: str = "Nothing provided") -> str:
@@ -152,3 +155,37 @@ def is_cjk(text: str) -> CJK:
         return CJK.KOREAN
 
     return CJK.NONE
+
+
+@dataclass(slots=True, frozen=True)
+class FontFamily:
+    regular: Path
+    bold: Path
+
+
+latin: FontFamily = FontFamily(
+    regular=resolve_path_with_links(Path(ROOT / "assets" / "fonts" / "static" / "NotoSans-Regular.ttf")),
+    bold=resolve_path_with_links(Path(ROOT / "assets" / "fonts" / "static" / "NotoSans-Bold.ttf")),
+)
+
+chinese: FontFamily = FontFamily(
+    regular=resolve_path_with_links(Path(ROOT / "assets" / "fonts" / "static" / "NotoSansTC-Regular.ttf")),
+    bold=resolve_path_with_links(Path(ROOT / "assets" / "fonts" / "static" / "NotoSansTC-Bold.ttf")),
+)
+
+japanese: FontFamily = FontFamily(
+    regular=resolve_path_with_links(Path(ROOT / "assets" / "fonts" / "static" / "NotoSansJP-Regular.ttf")),
+    bold=resolve_path_with_links(Path(ROOT / "assets" / "fonts" / "static" / "NotoSansJP-Bold.ttf")),
+)
+
+korean: FontFamily = FontFamily(
+    regular=resolve_path_with_links(Path(ROOT / "assets" / "fonts" / "static" / "NotoSansKR-Regular.ttf")),
+    bold=resolve_path_with_links(Path(ROOT / "assets" / "fonts" / "static" / "NotoSansKR-Bold.ttf")),
+)
+
+FONTS: dict[CJK, FontFamily] = {
+    CJK.NONE: latin,
+    CJK.CHINESE: chinese,
+    CJK.JAPANESE: japanese,
+    CJK.KOREAN: korean,
+}
