@@ -68,18 +68,65 @@ class SpotifyCard:
 
     @staticmethod
     def get_font(text: str, bold: bool = False, size: int = 22) -> ImageFont.FreeTypeFont:
+        """Get a font for the given text based on the text's language.
+
+        Parameters
+        ----------
+        text : str
+            The text to get the font for
+        bold : bool, optional
+            Whether the font should be bold, by default False
+        size : int, optional
+            The size of the font, by default 22
+
+        Returns
+        -------
+        ImageFont.FreeTypeFont
+            The font for the given text
+
+        See
+        ---
+        :func:`dynamo.utils.format.is_cjk`
+        :const:`dynamo.utils.format.FONTS`
+        """
         font_family = FONTS[is_cjk(text)]
         font_path = font_family.bold if bold else font_family.regular
         return ImageFont.truetype(font_path, size)
 
     @staticmethod
     def track_duration(seconds: int) -> str:
+        """Convert a track duration in seconds to a string
+
+        Parameters
+        ----------
+        seconds : int
+            The duration of the track in seconds
+
+        Returns
+        -------
+        str
+            The duration of the track in (hours):minutes:seconds
+        """
         minutes, seconds = divmod(seconds, 60)
         hours, minutes = divmod(minutes, 60)
         return f"{hours}:{minutes:02d}:{seconds:02d}" if hours else f"{minutes:02d}:{seconds:02d}"
 
     @staticmethod
     def get_progress(end: datetime.datetime, duration: datetime.timedelta) -> float:
+        """Get the progress of the track as a percentage
+
+        Parameters
+        ----------
+        end : datetime.datetime
+            The end time of the track
+        duration : datetime.timedelta
+            The duration of the track
+
+        Returns
+        -------
+        float
+            The progress of the track as a percentage
+        """
         now = datetime.datetime.now(tz=datetime.timezone.utc)
         return 1 - (end - now).total_seconds() / duration.total_seconds()
 
@@ -92,6 +139,35 @@ class SpotifyCard:
         duration: datetime.timedelta | None = None,
         end: datetime.datetime | None = None,
     ) -> tuple[BytesIO, str]:
+        """Draw a Spotify card based on what the user is currently listening to. If the track's title is too long to fit
+        on the card, the title will scroll instead.
+
+
+        Parameters
+        ----------
+        name : str
+            The name of the track
+        artists : list[str]
+            The artists of the track
+        color : tuple[int, int, int]
+            The background color of the card
+        album : BytesIO
+            The album cover of the track
+        duration : datetime.timedelta | None, optional
+            The duration of the track, by default None
+        end : datetime.datetime | None, optional
+            The end time of the track, by default None
+
+        Returns
+        -------
+        tuple[BytesIO, str]
+            The Spotify card buffer and the output format
+
+        See
+        ----
+        :func:`fetch_album_cover`
+        :func:`_draw`
+        """
         return await asyncio.to_thread(self._draw, name, artists, color, album, duration, end)
 
     def _draw(
@@ -199,12 +275,23 @@ class SpotifyCard:
         # Draw progress bar if duration and end are provided
         if duration and end:
             progress = self.get_progress(end, duration)
-            self._draw_progress_bar(draw, progress, duration)
+            self._draw_track_bar(draw, progress, duration)
 
         # Draw Spotify logo
         image.paste(spotify_logo, (self.logo_x, self.logo_y), spotify_logo)
 
-    def _draw_progress_bar(self, draw: ImageDraw.Draw, progress: float, duration: datetime.timedelta):
+    def _draw_track_bar(self, draw: ImageDraw.Draw, progress: float, duration: datetime.timedelta):
+        """Draw the duration and progress bar of a given track.
+
+        Parameters
+        ----------
+        draw : ImageDraw.Draw
+            The draw object to use for drawing the progress bar
+        progress : float
+            The progress of the track as a percentage
+        duration : datetime.timedelta
+            The duration of the track
+        """
         draw.rectangle(
             (
                 self.progress_bar_start_x,
@@ -240,6 +327,22 @@ class SpotifyCard:
     def _draw_text_scroll(
         self, font: ImageFont.FreeTypeFont, text: str, width: int
     ) -> Generator[Image.Image, None, None]:
+        """Draw the text of a given track. If the text is too long to fit on the card, the text will scroll instead.
+
+        Parameters
+        ----------
+        font : ImageFont.FreeTypeFont
+            The font to use for the text
+        text : str
+            The text to draw
+        width : int
+            The width of the card
+
+        Yields
+        -------
+        Image.Image
+            A frame of the text scrolling
+        """
         text_width, text_height = font.getbbox(text)[2:]
 
         if text_width <= width:
@@ -279,7 +382,7 @@ class SpotifyCard:
 
 @async_lru_cache()
 async def fetch_album_cover(url: str, session: aiohttp.ClientSession) -> bytes | None:
-    """Fetch album cover from a URL
+    """Fetch album cover from a URL.
 
     Parameters
     ----------
@@ -293,21 +396,17 @@ async def fetch_album_cover(url: str, session: aiohttp.ClientSession) -> bytes |
     bytes | None
         The album cover as bytes, or None if the fetch failed
     """
+    if not valid_url(url):
+        log.exception("Invalid URL: %s", url)
+        return None
 
-    async def _fetch(url: str, session: aiohttp.ClientSession) -> bytes | None:
-        if not valid_url(url):
-            log.exception("Invalid URL: %s", url)
-            return None
+    try:
+        async with session.get(url) as response:
+            if response.status != 200:
+                log.exception("Failed to fetch album cover: %s", response.status)
+                return None
 
-        try:
-            async with session.get(url) as response:
-                if response.status != 200:
-                    log.exception("Failed to fetch album cover: %s", response.status)
-                    return None
-
-                return await response.read()
-        except Exception:
-            log.exception("Error fetching album cover: %s", url)
-            return None
-
-    return await _fetch(url, session)
+            return await response.read()
+    except Exception:
+        log.exception("Error fetching album cover: %s", url)
+        return None
