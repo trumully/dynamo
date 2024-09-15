@@ -107,6 +107,10 @@ def async_lru_cache(maxsize: int = 128) -> Callable[[A], asyncio.Task[R]]:
     - cache_info(): Returns a CacheInfo object with current cache statistics.
     - cache_clear(func, *args, **kwargs): Clears a specific cache entry.
     - cache_clear_all(): Clears all cache entries.
+
+    See
+    ---
+        :func:`functools.lru_cache`
     """
 
     def decorator(func: A) -> A:

@@ -164,9 +164,9 @@ class SpotifyCard:
             The Spotify card buffer and the output format
 
         See
-        ----
-        :func:`fetch_album_cover`
-        :func:`_draw`
+        ---
+            :func:`fetch_album_cover`
+            :func:`_draw`
         """
         return await asyncio.to_thread(self._draw, name, artists, color, album, duration, end)
 
@@ -339,7 +339,7 @@ class SpotifyCard:
             The width of the card
 
         Yields
-        -------
+        ------
         Image.Image
             A frame of the text scrolling
         """

@@ -53,7 +53,7 @@ class DynamoHelp(commands.HelpCommand):
                     continue
                 amount_commands = len(filtered_commands)
                 usable += amount_commands
-                description = (cog.description or "No description") if cog else "Commands with no category"
+                description = f"```{(cog.description or 'No description') if cog else 'Commands with no category'}```"
 
                 embed.add_field(name=f"{name} Category ({amount_commands})", value=description)
 
@@ -108,11 +108,13 @@ class DynamoHelp(commands.HelpCommand):
 
     async def send_group_help(self, group: commands.Group) -> None:
         title = self.get_command_signature(group)
-        await self.send_help_embed(title, group.help, group.commands, group.aliases, group.cog_name)
+        await self.send_help_embed(title, f"```{group.help}```", group.commands, group.aliases, group.cog_name)
 
     async def send_cog_help(self, cog: commands.Cog) -> None:
         title = cog.qualified_name or "No"
-        await self.send_help_embed(f"{title} Category", cog.description, cog.get_commands())
+        await self.send_help_embed(
+            f"{title} Category", f"```{cog.description or 'No description'}```", cog.get_commands()
+        )
 
 
 class Help(commands.Cog, name="help_command"):

@@ -38,7 +38,7 @@ def human_timedelta(
     >>> human_timedelta(datetime.datetime(2024, 1, 1), accuracy=2)
     '1 year and 2 months ago'
     >>> human_timedelta(datetime.datetime(2024, 1, 1), accuracy=2, brief=True)
-    '1y 2mo'
+    '1y 2mo ago'
     >>> human_timedelta(datetime.datetime(2024, 1, 1), accuracy=2, suffix=False)
     '1 year and 2 months'
     """

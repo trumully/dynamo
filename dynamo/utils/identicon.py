@@ -96,9 +96,6 @@ def perceived_color_distance(x: RGB, y: RGB) -> float:
 def euclidean_color_distance(x: RGB, y: RGB) -> float:
     """Measure euclidean distance between two colors
 
-    See
-    ---
-    :func:`perceived_color_distance`
 
     Parameters
     ----------
@@ -111,6 +108,10 @@ def euclidean_color_distance(x: RGB, y: RGB) -> float:
     -------
     float
         The distance between the two colors
+
+    See
+    ---
+        :func:`perceived_color_distance`
     """
     r, g, b = x.difference(y)
     return math.sqrt(r**2 + g**2 + b**2)
