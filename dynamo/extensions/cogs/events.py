@@ -5,6 +5,7 @@ import discord
 from discord.ext import commands
 
 from dynamo.bot import Dynamo
+from dynamo.utils.base_cog import DynamoCog
 from dynamo.utils.cache import async_lru_cache
 
 log = logging.getLogger(__name__)
@@ -47,11 +48,11 @@ async def get_interested(event: discord.ScheduledEvent) -> str:
     return f"`[{event.name}]({event.url}) {' '.join(f'<@{u.id}>' for u in users) or "No users found"}`"
 
 
-class Events(commands.Cog, name="Events"):
+class Events(DynamoCog):
     """Scheduled event related commands"""
 
     def __init__(self, bot: Dynamo) -> None:
-        self.bot: Dynamo = bot
+        super().__init__(bot)
 
     def cog_check(self, ctx: commands.Context) -> bool:
         return ctx.guild is not None
@@ -84,3 +85,7 @@ class Events(commands.Cog, name="Events"):
 
 async def setup(bot: Dynamo) -> None:
     await bot.add_cog(Events(bot))
+
+
+async def teardown(bot: Dynamo) -> None:
+    await bot.remove_cog(Events.__name__)

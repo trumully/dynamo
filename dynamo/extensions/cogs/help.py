@@ -5,6 +5,7 @@ import discord
 from discord.ext import commands
 
 from dynamo.bot import Dynamo
+from dynamo.utils.base_cog import DynamoCog
 from dynamo.utils.format import human_join
 
 CogT = TypeVar("CogT", bound=commands.Cog)
@@ -36,7 +37,7 @@ class DynamoHelp(commands.HelpCommand):
                 "aliases": ["commands", "h"],
             }
         )
-        self.blacklisted = ["help_command"]
+        self.blacklisted = [Help.__name__]
 
     async def send(self, **kwargs: Any) -> None:
         await self.get_destination().send(**kwargs)
@@ -118,18 +119,24 @@ class DynamoHelp(commands.HelpCommand):
         )
 
 
-class Help(commands.Cog, name="help_command"):
+class Help(DynamoCog):
     def __init__(self, bot: Dynamo) -> None:
-        self.bot: Dynamo = bot
-        self._original_help_command = bot.help_command
+        super().__init__(bot)
+        self._original_help_command = self.bot.help_command
         help_command = DynamoHelp()
         help_command.cog = self
-        bot.help_command = help_command
+        self.bot.help_command = help_command
+        self.log.debug("Using custom help command")
 
     async def cog_unload(self) -> None:
         self.bot.help_command = self._original_help_command
+        self.log.debug("Restoring original help command")
         await super().cog_unload()
 
 
 async def setup(bot: Dynamo) -> None:
     await bot.add_cog(Help(bot))
+
+
+async def teardown(bot: Dynamo) -> None:
+    await bot.remove_cog(Help.__name__)

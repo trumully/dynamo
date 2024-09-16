@@ -17,6 +17,7 @@ from dynamo.utils.helper import get_cog, platformdir, resolve_path_with_links
 log = logging.getLogger(__name__)
 
 initial_extensions = (
+    get_cog("errors"),
     get_cog("help"),
     get_cog("events"),
     get_cog("general"),

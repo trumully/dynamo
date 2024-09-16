@@ -51,6 +51,8 @@ warn_unused_ignores = true
 ignore_missing_imports = true
 disable_error_code = [
     "arg-type", # Annoying false positive for command decorators
+    "method-assign", # Needed
+    "union-attr",
 ]
 
 [tool.pytest.ini_options]
