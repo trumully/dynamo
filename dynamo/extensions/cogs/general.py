@@ -98,7 +98,7 @@ class General(commands.GroupCog, group_name="general"):
         log.debug("Identicon generated for %s", fname)
         file = discord.File(BytesIO(idt_bytes), filename=f"{fname}.png")
 
-        cmd_mention = await self.bot.tree.find_mention_for("general identicon", guild=ctx.guild)
+        cmd_mention = await self.bot.tree.find_mention_for("general identicon", guild=ctx.guild)  # type: ignore[attr-defined]
         prefix = self.bot.prefixes.get(ctx.guild.id, ["d!", "d?"])[0]  # type: ignore[union-attr]
         description = f"**Command:**\n{cmd_mention} {display_name}\n{prefix}identicon {display_name}"
 

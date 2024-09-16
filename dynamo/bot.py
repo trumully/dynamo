@@ -43,7 +43,7 @@ class VersionableTree(app_commands.CommandTree["Dynamo"], Generic[CommandT]):
         self.application_commands = {}
         self.cache = {}
 
-    async def get_hash(self, tree: app_commands.CommandTree[Dynamo]) -> bytes:
+    async def get_hash(self, tree: app_commands.CommandTree) -> bytes:
         """Get the hash of the command tree.
 
         Parameters
@@ -206,7 +206,7 @@ class Dynamo(commands.AutoShardedBot):
                 log.exception("Failed to load extension %s", ext)
 
         tree_path = resolve_path_with_links(platformdir.user_cache_path / "tree.hash")
-        tree_hash = await self.tree.get_hash(self.tree)
+        tree_hash = await self.tree.get_hash(self.tree)  # type: ignore[attr-defined]
         with tree_path.open("r+b") as fp:
             if fp.read() == tree_hash:
                 return
@@ -215,10 +215,6 @@ class Dynamo(commands.AutoShardedBot):
             await self.tree.sync(guild=self.dev_guild)
             fp.seek(0)
             fp.write(tree_hash)
-
-    @property
-    def tree(self) -> VersionableTree:
-        return self.tree
 
     @property
     def owner(self) -> discord.User:
