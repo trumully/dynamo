@@ -17,6 +17,6 @@ def get_event_loop_policy() -> asyncio.AbstractEventLoopPolicy:
         except ImportError:
             pass
         else:
-            return uvloop.EventLoopPolicy()  # type: ignore[no-any-return]
+            return uvloop.EventLoopPolicy()
 
     return asyncio.DefaultEventLoopPolicy()

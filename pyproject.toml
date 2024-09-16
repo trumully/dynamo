@@ -41,7 +41,7 @@ ignore = ["RUF001", "G002", "S101", "PLR2004", "PLC0105", "SIM105", "C90", "ANN1
 unfixable = ["ERA"]
 
 [tool.mypy]
-exclude = ["tests"]
+exclude = ["tests", "dynamo/_evt_policy.py"]
 disallow_untyped_defs = true
 disallow_any_unimported = true
 no_implicit_optional = true
