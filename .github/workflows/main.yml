@@ -55,4 +55,4 @@ jobs:
           python-version: '3.12'
           cache: 'poetry'
       - run: poetry install --with=dev
-      - run: poetry run mypy dynamo --config-file ./pyproject.toml --verbose
+      - run: poetry run mypy --pretty --config-file ./pyproject.toml dynamo
