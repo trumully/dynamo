@@ -5,7 +5,7 @@ import math
 import time
 from dataclasses import dataclass, field
 from io import BytesIO
-from typing import Annotated, Self, TypeVar
+from typing import Annotated, Self
 
 import numpy as np
 from PIL import Image
@@ -15,8 +15,7 @@ from dynamo.utils.cache import async_lru_cache
 # 0.0 = same color
 COLOR_THRESHOLD = 0.4
 
-D = TypeVar("D", bound=np.generic)
-ArrayRGB = Annotated[np.ndarray[D], tuple[int, int, int]]
+ArrayRGB = Annotated[np.ndarray, tuple[int, int, int]]
 
 
 def _clamp(value: int, upper: int) -> int:
@@ -29,7 +28,7 @@ class RGB:
     g: int
     b: int
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Clamp the RGB values to the range [0, 255]"""
         self.r = _clamp(self.r, 255)
         self.g = _clamp(self.g, 255)
@@ -144,7 +143,7 @@ def make_color(rng: np.random.Generator) -> RGB:
     RGB
         The color generated from the seed
     """
-    colors: tuple[int, int, int] = tuple(int(x) for x in rng.integers(low=0, high=256, size=3))
+    colors: tuple[int, ...] = tuple(int(x) for x in rng.integers(low=0, high=256, size=3))
     return RGB(*colors)
 
 
@@ -181,7 +180,7 @@ class Identicon:
     fg_weight: float
     seed: int
 
-    rng: np.random.Generator | None = field(default=None, init=False, repr=False)
+    rng: np.random.Generator = field(default_factory=np.random.default_rng, init=False, repr=False)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "rng", np.random.default_rng(seed=self.seed))
@@ -201,8 +200,8 @@ class Identicon:
     def reflect(matrix: np.ndarray) -> ArrayRGB:
         return np.hstack((matrix, np.fliplr(matrix)))
 
-    def __eq__(self, other: Identicon) -> bool:
-        return self.__hash__() == other.__hash__()
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, Identicon) and self.__hash__() == other.__hash__()
 
     def __hash__(self) -> int:
         return hash(frozenset((self.size, self.fg.as_tuple(), self.bg.as_tuple(), self.fg_weight, self.seed)))

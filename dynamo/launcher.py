@@ -29,7 +29,8 @@ def get_version() -> str:
     parent_dir = resolve_path_with_links(Path(__file__).parent.parent, True)
     with Path.open(parent_dir / "pyproject.toml") as f:
         data = toml.load(f)
-    return data["tool"]["poetry"]["version"]
+    version: str = data["tool"]["poetry"]["version"]
+    return version
 
 
 class RemoveNoise(logging.Filter):
@@ -94,8 +95,10 @@ def run_bot() -> None:
 
     async def entrypoint() -> None:
         try:
+            if not (token := _get_token()):
+                return
             async with bot:
-                await bot.start(_get_token())
+                await bot.start(token)
         finally:
             if not bot.is_closed():
                 await bot.close()

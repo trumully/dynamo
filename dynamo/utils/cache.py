@@ -1,14 +1,12 @@
+from __future__ import annotations
+
 import asyncio
 from collections import OrderedDict
 from dataclasses import dataclass
-from functools import wraps
-from typing import Awaitable, Callable, ParamSpec, TypeVar
+from typing import Any, Awaitable, Callable, Coroutine, Generic, ParamSpec, Protocol, TypeVar, cast
 
 P = ParamSpec("P")
 R = TypeVar("R")
-
-# Awaitable[R] is essentially Coroutine[..., ..., R]
-A = TypeVar("A", bound=Callable[P, Awaitable[R]])
 
 
 @dataclass(slots=True)
@@ -71,23 +69,67 @@ class CacheKey:
     args: tuple
     kwargs: frozenset
 
-    def __post_init__(self) -> None:
-        """Convert kwargs to a frozenset for hashing."""
-        object.__setattr__(self, "kwargs", frozenset(self.kwargs.items()))
-
     def __hash__(self) -> int:
         """Compute a hash value for the cache key."""
         return hash((self.func, self.args, self.kwargs))
 
     def __repr__(self) -> str:
         """Return a string representation of the cache key."""
-        return f"{self.__qualname__}(func={self.func.__name__}, args={self.args}, kwargs={self.kwargs})"
+        return f"func={self.func.__name__}, args={self.args}, kwargs={self.kwargs}"
 
 
-_cached: dict[asyncio.Task[R], CacheInfo] = {}
+_cached: dict[Callable[..., Awaitable[Any]], AsyncCacheable] = {}
 
 
-def async_lru_cache(maxsize: int = 128) -> Callable[[A], asyncio.Task[R]]:
+class Cacheable(Protocol[P]):
+    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> Awaitable[R]: ...
+    def cache_info(self) -> CacheInfo: ...
+    def cache_clear(self, *args: P.args, **kwargs: P.kwargs) -> bool: ...
+    def cache_clear_all(self) -> None: ...
+
+
+class AsyncCacheable(Generic[P, R]):
+    def __init__(self, func: Callable[P, Awaitable[R]], maxsize: int = 128) -> None:
+        self.func = func
+        self.cache: OrderedDict[CacheKey, asyncio.Task[Any]] = OrderedDict()
+        self.info = CacheInfo(maxsize=maxsize)
+
+    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> Awaitable[R]:
+        key = CacheKey(self.func, args, frozenset(kwargs.items()))
+
+        if key in self.cache:
+            self.info.hits += 1
+            self.cache.move_to_end(key)
+            return self.cache[key]
+
+        self.info.misses += 1
+        task: asyncio.Task[Any] = asyncio.create_task(cast(Coroutine[Any, Any, Any], self.func(*args, **kwargs)))
+        self.cache[key] = task
+        self.info.currsize = len(self.cache)
+
+        if self.info.currsize > self.info.maxsize:
+            self.cache.popitem(last=False)
+
+        return task
+
+    def cache_info(self) -> CacheInfo:
+        return self.info
+
+    def cache_clear(self, *args: P.args, **kwargs: P.kwargs) -> bool:
+        key = CacheKey(self.func, args, frozenset(kwargs.items()))
+        try:
+            self.cache.pop(key)
+            self.info.currsize -= 1
+        except KeyError:
+            return False
+        return True
+
+    def cache_clear_all(self) -> None:
+        self.cache.clear()
+        self.info.clear()
+
+
+def async_lru_cache(maxsize: int = 128) -> Callable[[Callable[P, Awaitable[R]]], AsyncCacheable[P, R]]:
     """
     Decorator to create an async LRU cache of results.
 
@@ -113,67 +155,10 @@ def async_lru_cache(maxsize: int = 128) -> Callable[[A], asyncio.Task[R]]:
         :func:`functools.lru_cache`
     """
 
-    def decorator(func: A) -> A:
-        cache: OrderedDict[CacheKey, asyncio.Task[R]] = OrderedDict()
-        info: CacheInfo = CacheInfo(maxsize=maxsize)
-
-        @wraps(func)
-        def wrapper(*args: P.args, **kwargs: P.kwargs) -> asyncio.Task[R]:
-            if (key := CacheKey(func, args, kwargs)) in cache:
-                info.hits += 1
-                cache.move_to_end(key)
-                return cache[key]
-
-            info.misses += 1
-            cache[key] = task = asyncio.create_task(func(*args, **kwargs))
-            info.currsize = len(cache)
-
-            if info.currsize > maxsize:
-                cache.popitem(last=False)
-
-            return task
-
-        def cache_info() -> CacheInfo:
-            """Return the current cache statistics."""
-            return info
-
-        def cache_clear(func: A, *args: P.args, **kwargs: P.kwargs) -> bool:
-            """
-            Clear a specific cache entry.
-
-            Parameters
-            ----------
-            func : A
-                The function associated with the cache entry.
-            *args : P.args
-                Positional arguments of the cache entry.
-            **kwargs : P.kwargs
-                Keyword arguments of the cache entry.
-
-            Returns
-            -------
-            bool
-                True if the entry was found and cleared, False otherwise.
-            """
-            try:
-                cache.pop(CacheKey(func, args, kwargs))
-            except KeyError:
-                return False
-            info.currsize -= 1
-            return True
-
-        def cache_clear_all() -> None:
-            """Clear all cache entries and reset statistics."""
-            cache.clear()
-            info.clear()
-
-        wrapper.cache_info = cache_info
-        wrapper.cache_clear = cache_clear
-        wrapper.cache_clear_all = cache_clear_all
-
-        _cached[wrapper] = info
-
-        return wrapper
+    def decorator(func: Callable[P, Awaitable[R]]) -> AsyncCacheable[P, R]:
+        cached = AsyncCacheable(func, maxsize)
+        _cached[func] = cached
+        return cached
 
     return decorator
 
@@ -187,4 +172,4 @@ def cached_functions() -> str:
     str
         A string containing the names of all cached functions and their cache info.
     """
-    return "\n".join([f"{func.__name__}: {info}" for func, info in _cached.items()])
+    return "\n".join([f"{func.__name__}: {cacheable.cache_info()}" for func, cacheable in _cached.items()])

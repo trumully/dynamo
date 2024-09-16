@@ -42,7 +42,7 @@ class ConfirmationView(discord.ui.View):
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         """Check if the interaction is from the author of the view"""
-        return interaction.user and interaction.user.id == self.author_id
+        return bool(interaction.user and interaction.user.id == self.author_id)
 
     @discord.ui.button(label="Confirm", style=discord.ButtonStyle.green)
     async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
@@ -69,7 +69,7 @@ class Context(commands.Context):
     command: commands.Command[Any, ..., Any]
     bot: Dynamo
 
-    def __init__(self, **kwargs: dict[str, Any]) -> None:
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
 
     @property

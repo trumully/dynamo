@@ -2,25 +2,24 @@ import asyncio
 import logging
 import time
 from functools import wraps
-from typing import Awaitable, Callable, ParamSpec, TypeVar, overload
+from typing import Any, Awaitable, Callable, ParamSpec, TypeVar, overload
 
 log = logging.getLogger(__name__)
 
-R = TypeVar("R")
 P = ParamSpec("P")
-F = TypeVar("F", bound=Callable[P, R])
-A = TypeVar("A", bound=Callable[P, Awaitable[R]])
+F = TypeVar("F", bound=Callable[P, Any])
+A = TypeVar("A", bound=Callable[P, Awaitable[Any]])
 
 
 @overload
-def timer(func: F) -> F: ...
+def timer(func: F) -> F: ...  # Sync
 @overload
-def timer(func: A) -> A: ...
-def timer(func: F | A) -> F | A:
+def timer(func: A) -> A: ...  # Async
+def timer(func: Callable[P, Any]) -> Callable[P, Any]:
     """Timer wrapper for functions"""
 
     @wraps(func)
-    async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+    async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> Any:
         start = time.perf_counter()
         result = await func(*args, **kwargs)
         end = time.perf_counter()
@@ -28,7 +27,7 @@ def timer(func: F | A) -> F | A:
         return result
 
     @wraps(func)
-    def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+    def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> Any:
         start = time.perf_counter()
         result = func(*args, **kwargs)
         end = time.perf_counter()

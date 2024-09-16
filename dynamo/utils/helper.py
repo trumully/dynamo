@@ -65,7 +65,7 @@ def valid_token(token: str) -> bool:
     return bool(pattern.match(token))
 
 
-def derive_seed(precursor: int | str | None = None) -> int:
+def derive_seed(precursor: int | str) -> int:
     """Generate a seed from integer, integer-like (i.e discord snowflake) or string
 
     Parameters
@@ -80,8 +80,7 @@ def derive_seed(precursor: int | str | None = None) -> int:
     """
     if isinstance(precursor, int):
         precursor = str(precursor)
-    precursor = precursor.encode()
-    hashed = int.from_bytes(precursor + hashlib.sha256(precursor).digest(), byteorder="big")
+    hashed = int.from_bytes(precursor.encode() + hashlib.sha256(precursor.encode()).digest(), byteorder="big")
     return hashed  # noqa: RET504  needs to be assigned as a var to work properly
 
 

@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 import discord
 from discord.ext import commands
@@ -10,12 +11,12 @@ log = logging.getLogger(__name__)
 
 
 class Dropdown(discord.ui.Select):
-    def __init__(self, events: list[discord.ScheduledEvent]) -> None:
+    def __init__(self, events: list[discord.ScheduledEvent], *args: Any, **kwargs: Any) -> None:
         self.events: list[discord.ScheduledEvent] = events
 
         options = [discord.SelectOption(label=e.name, value=str(e.id), description="An event") for e in events]
 
-        super().__init__(placeholder="Select an event", min_values=1, max_values=1, options=options)
+        super().__init__(*args, placeholder="Select an event", min_values=1, max_values=1, options=options, **kwargs)
 
     async def callback(self, interaction: discord.Interaction) -> None:
         if (event := next((e for e in self.events if str(e.id) == self.values[0]), None)) is None:
@@ -26,9 +27,9 @@ class Dropdown(discord.ui.Select):
 
 
 class DropdownView(discord.ui.View):
-    def __init__(self, events: list[discord.ScheduledEvent]) -> None:
+    def __init__(self, events: list[discord.ScheduledEvent], *args: Any, **kwargs: Any) -> None:
         super().__init__()
-        self.add_item(Dropdown(events))
+        self.add_item(Dropdown(events, *args, **kwargs))
 
 
 @async_lru_cache()
@@ -52,7 +53,7 @@ class Events(commands.Cog, name="Events"):
     def __init__(self, bot: Dynamo) -> None:
         self.bot: Dynamo = bot
 
-    async def cog_check(self, ctx: commands.Context) -> bool:
+    def cog_check(self, ctx: commands.Context) -> bool:
         return ctx.guild is not None
 
     @commands.hybrid_command(name="event")
@@ -66,7 +67,7 @@ class Events(commands.Cog, name="Events"):
         """
         if event is not None:
             try:
-                ev = await ctx.guild.fetch_scheduled_event(event)
+                ev = await ctx.guild.fetch_scheduled_event(event)  # type: ignore
             except discord.NotFound:
                 await ctx.send(f"No event with id: {event}", ephemeral=True)
                 return
@@ -74,12 +75,11 @@ class Events(commands.Cog, name="Events"):
             await ctx.send(interested, ephemeral=True)
             return
 
-        if not (events := await fetch_events(ctx.guild)):
+        if not (events := await fetch_events(ctx.guild)):  # type: ignore
             await ctx.send("No events found!", ephemeral=True)
             return
         view = DropdownView(events)
-        view.message = await ctx.send("Select an event", ephemeral=True, view=view)
-        await view.wait()
+        await ctx.send("Select an event", ephemeral=True, view=view)
 
 
 async def setup(bot: Dynamo) -> None:

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import AsyncGenerator, Coroutine, Generator
-from typing import Any
+from collections.abc import AsyncGenerator, Generator
+from typing import Any, Generic, TypeVar, cast
 
 import aiohttp
 import discord
@@ -27,12 +27,21 @@ description = """
 Quantum entanglement.
 """
 
+CogT = TypeVar("CogT", bound=commands.Cog)
+CommandT = TypeVar(
+    "CommandT",
+    bound=commands.Command[Any, ..., Any] | app_commands.AppCommand | commands.HybridCommand,
+)
 
-class VersionableTree(app_commands.CommandTree["Dynamo"]):
-    def __init__(self, *args: tuple[Any, ...], **kwargs: dict[str, Any]) -> None:
+
+class VersionableTree(app_commands.CommandTree["Dynamo"], Generic[CommandT]):
+    application_commands: dict[int | None, list[app_commands.AppCommand]]
+    cache: dict[int | None, dict[CommandT | str, str]]
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        self.application_commands: dict[int | None, list[app_commands.AppCommand]] = {}
-        self.cache: dict[int | None, dict[app_commands.AppCommand | commands.HybridCommand | str, str]] = {}
+        self.application_commands = {}
+        self.cache = {}
 
     async def get_hash(self, tree: app_commands.CommandTree[Dynamo]) -> bytes:
         """Get the hash of the command tree.
@@ -57,9 +66,7 @@ class VersionableTree(app_commands.CommandTree["Dynamo"]):
         return xxhash.xxh64_digest(msgspec.msgpack.encode(payload), seed=0)
 
     # See: https://gist.github.com/LeoCx1000/021dc52981299b95ea7790416e4f5ca4#file-mentionable_tree-py
-    async def sync(
-        self, *, guild: discord.abc.Snowflake | None = None
-    ) -> Coroutine[Any, Any, list[app_commands.AppCommand]]:
+    async def sync(self, *, guild: discord.abc.Snowflake | None = None) -> list[app_commands.AppCommand]:
         result = await super().sync(guild=guild)
         guild_id = guild.id if guild else None
         self.application_commands[guild_id] = result
@@ -80,10 +87,7 @@ class VersionableTree(app_commands.CommandTree["Dynamo"]):
             return await self.fetch_commands(guild=guild)
 
     async def find_mention_for(
-        self,
-        command: app_commands.AppCommand | commands.HybridCommand | str,
-        *,
-        guild: discord.abc.Snowflake | None = None,
+        self, command: CommandT | str, *, guild: discord.abc.Snowflake | None = None
     ) -> str | None:
         guild_id = guild.id if guild else None
         try:
@@ -99,7 +103,7 @@ class VersionableTree(app_commands.CommandTree["Dynamo"]):
             if check_global and not _command:
                 _command = discord.utils.get(self.walk_commands(), qualified_name=command)
         else:
-            _command = command
+            _command = cast(app_commands.Command, command)
 
         if not _command:
             return None
@@ -130,14 +134,14 @@ class VersionableTree(app_commands.CommandTree["Dynamo"]):
 
     async def walk_mentions(
         self, *, guild: discord.abc.Snowflake | None = None
-    ) -> AsyncGenerator[tuple[app_commands.Command, str], None, None]:
+    ) -> AsyncGenerator[tuple[app_commands.Command, str], None]:
         for command in self._walk_children(self.get_commands(guild=guild, type=discord.AppCommandType.chat_input)):
-            mention = await self.find_mention_for(command, guild=guild)
+            mention = await self.find_mention_for(cast(CommandT, command), guild=guild)
             if mention:
                 yield command, mention
         if guild and self.fallback_to_global is True:
             for command in self._walk_children(self.get_commands(guild=None, type=discord.AppCommandType.chat_input)):
-                mention = await self.find_mention_for(command, guild=guild)
+                mention = await self.find_mention_for(cast(CommandT, command), guild=guild)
                 if mention:
                     yield command, mention
                 else:
@@ -157,11 +161,11 @@ def _prefix_callable(bot: Dynamo, msg: discord.Message) -> list[str]:
 class Dynamo(commands.AutoShardedBot):
     session: aiohttp.ClientSession
     user: discord.ClientUser
+    context: Context
     logging_handler: Any
     bot_app_info: discord.AppInfo
-    tree: VersionableTree
 
-    def __init__(self, session: aiohttp.ClientSession, *args: tuple[Any, ...], **kwargs: dict[str, Any]) -> None:
+    def __init__(self, connector: aiohttp.TCPConnector, session: aiohttp.ClientSession) -> None:
         self.session = session
         allowed_mentions = discord.AllowedMentions(roles=False, everyone=False, users=True)
         intents = discord.Intents(
@@ -172,7 +176,7 @@ class Dynamo(commands.AutoShardedBot):
             presences=True,
         )
         super().__init__(
-            *args,
+            connector=connector,
             command_prefix=_prefix_callable,
             description=description,
             pm_help=None,
@@ -183,7 +187,6 @@ class Dynamo(commands.AutoShardedBot):
             intents=intents,
             enable_debug_events=True,
             tree_cls=VersionableTree,
-            **kwargs,
         )
 
     async def setup_hook(self) -> None:
@@ -214,12 +217,16 @@ class Dynamo(commands.AutoShardedBot):
             fp.write(tree_hash)
 
     @property
+    def tree(self) -> VersionableTree:
+        return self.tree
+
+    @property
     def owner(self) -> discord.User:
         return self.bot_app_info.owner
 
     @property
     def dev_guild(self) -> discord.Guild:
-        return discord.Object(id=681408104495448088, type=discord.Guild)
+        return cast(discord.Guild, discord.Object(id=681408104495448088, type=discord.Guild))
 
     async def start(self, token: str, *, reconnect: bool = True) -> None:
         return await super().start(token, reconnect=reconnect)
@@ -234,7 +241,11 @@ class Dynamo(commands.AutoShardedBot):
 
         log.info("Ready: %s (ID: %s)", self.user, self.user.id)
 
-    async def get_context(
-        self, origin: discord.Interaction | discord.Message, /, *, cls: type[Context] = Context
+    async def get_context(  # type: ignore
+        self,
+        origin: discord.Message | discord.Interaction[Dynamo],
+        /,
+        *,
+        cls: type[Context] = Context,
     ) -> Context:
         return await super().get_context(origin, cls=cls)
