@@ -7,10 +7,11 @@ Personal use bot.
 ### Installing
 #### Clone the repository:
 ```shell
-git clone https://github.com/trumully/Dynamo
+git clone https://github.com/trumully/dynamo.git
 ```
 #### Install and run:
 ```shell
+cd dynamo
 poetry install
 poetry run dynamo setup
 poetry run dynamo
@@ -21,8 +22,17 @@ poetry run dynamo
 ```shell
 poetry install --with=dev
 ```
+
+### Run bot in debug mode
+```shell
+poetry run dynamo --debug
+```
+
 ### Run tests
-#### CLI
+> [!INFO]
+> Running tests from the CLI is recommended
+
+#### CLI (recommended)
 ```shell
 poetry run pytest tests --asyncio-mode=strict -n logical
 ```
