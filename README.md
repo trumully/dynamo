@@ -29,7 +29,7 @@ poetry run dynamo --debug
 ```
 
 ### Run tests
-> [!INFO]
+> [!NOTE]
 > Running tests from the CLI is recommended
 
 #### CLI (recommended)
