@@ -135,7 +135,7 @@ class SpotifyCard:
         name: str,
         artists: list[str],
         color: tuple[int, int, int],
-        album: BytesIO,
+        album: bytes,
         duration: datetime.timedelta | None = None,
         end: datetime.datetime | None = None,
     ) -> tuple[BytesIO, str]:
@@ -175,7 +175,7 @@ class SpotifyCard:
         name: str,
         artists: list[str],
         color: tuple[int, int, int],
-        album: BytesIO,
+        album: bytes,
         duration: datetime.timedelta | None = None,
         end: datetime.datetime | None = None,
     ) -> tuple[BytesIO, str]:
@@ -256,7 +256,7 @@ class SpotifyCard:
 
     def _draw_static_elements(
         self,
-        draw: ImageDraw.Draw,
+        draw: ImageDraw.ImageDraw,
         image: Image.Image,
         artists: list[str],
         artist_font: ImageFont.FreeTypeFont,
@@ -280,7 +280,7 @@ class SpotifyCard:
         # Draw Spotify logo
         image.paste(spotify_logo, (self.logo_x, self.logo_y), spotify_logo)
 
-    def _draw_track_bar(self, draw: ImageDraw.Draw, progress: float, duration: datetime.timedelta):
+    def _draw_track_bar(self, draw: ImageDraw.ImageDraw, progress: float, duration: datetime.timedelta) -> None:
         """Draw the duration and progress bar of a given track.
 
         Parameters
@@ -343,7 +343,7 @@ class SpotifyCard:
         Image.Image
             A frame of the text scrolling
         """
-        text_width, text_height = font.getbbox(text)[2:]
+        text_width, text_height = (round(x) for x in font.getbbox(text)[2:])
 
         if text_width <= width:
             # If text fits, yield a single frame with the full text

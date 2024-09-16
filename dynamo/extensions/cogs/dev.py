@@ -8,7 +8,8 @@ from discord.ext import commands
 
 from dynamo.bot import Dynamo
 from dynamo.utils.cache import cached_functions
-from dynamo.utils.context import Status
+from dynamo.utils.context import Context, Status
+from dynamo.utils.converter import GuildConverter
 from dynamo.utils.helper import ROOT, get_cog
 
 log = logging.getLogger(__name__)
@@ -25,11 +26,16 @@ class Dev(commands.GroupCog, group_name="dev"):
     def __init__(self, bot: Dynamo) -> None:
         self.bot: Dynamo = bot
 
-    async def cog_check(self, ctx: commands.Context) -> bool:
+    async def cog_check(self, ctx: commands.Context) -> bool:  # type: ignore[override]
         return await self.bot.is_owner(ctx.author)
 
     @commands.hybrid_group(invoke_without_command=True, name="sync", aliases=("s",))
-    async def sync(self, ctx: commands.Context, guild_id: int | None, copy: bool = False) -> None:
+    async def sync(
+        self,
+        ctx: commands.Context,
+        guild: discord.Guild = commands.param(converter=GuildConverter, default=None, displayed_name="guild_id"),
+        copy: bool = False,
+    ) -> None:
         """Sync slash commands
 
         Parameters
@@ -39,8 +45,6 @@ class Dev(commands.GroupCog, group_name="dev"):
         copy: bool
             Copy global commands to the specified guild. (Default: False)
         """
-        guild: discord.Guild = discord.Object(id=guild_id, type=discord.Guild) if guild_id else ctx.guild
-
         if copy:
             self.bot.tree.copy_global_to(guild=guild)
 
@@ -54,7 +58,11 @@ class Dev(commands.GroupCog, group_name="dev"):
         await ctx.send(f"Successfully synced {len(commands)} commands")
 
     @sync.command(name="clear", aliases=("c",))
-    async def clear_commands(self, ctx: commands.Context, guild_id: int | None) -> None:
+    async def clear_commands(
+        self,
+        ctx: Context,
+        guild: discord.Guild = commands.param(converter=GuildConverter, default=None, displayed_name="guild_id"),
+    ) -> None:
         """Clear all slash commands
 
         Parameters
@@ -64,8 +72,6 @@ class Dev(commands.GroupCog, group_name="dev"):
         """
         if not await ctx.prompt("Are you sure you want to clear all commands?"):
             return
-
-        guild: discord.Guild | None = discord.Object(id=guild_id, type=discord.Guild) if guild_id else None
 
         self.bot.tree.clear_commands(guild=guild)
         await ctx.send("Successfully cleared all commands")
@@ -125,7 +131,7 @@ class Dev(commands.GroupCog, group_name="dev"):
             await self.bot.load_extension(module)
 
     @_reload.command(name="all")
-    async def _reload_all(self, ctx: commands.Context) -> None:
+    async def _reload_all(self, ctx: Context) -> None:
         """Reload all cogs"""
         confirm = await ctx.prompt("Are you sure you want to reload all cogs?")
         if not confirm:
@@ -143,16 +149,16 @@ class Dev(commands.GroupCog, group_name="dev"):
                 log.exception("Failed to reload %s", module)
         log.debug("Reloaded %d/%d utilities", len(utils_modules), len(all_utils))
 
-        extensions = self.bot.extensions.copy()
-        statuses: set[tuple[Status, str]] = []
+        extensions = set(self.bot.extensions)
+        statuses: set[tuple[Status, str]] = set()
         for ext in extensions:
             try:
                 await self.reload_or_load_extension(ext)
             except commands.ExtensionError:
                 log.exception("Failed to reload extension %s", ext)
-                statuses.append((Status.FAILURE, ext))
+                statuses.add((Status.FAILURE, ext))
             else:
-                statuses.append((Status.SUCCESS, ext))
+                statuses.add((Status.SUCCESS, ext))
 
         success_count = sum(1 for status, _ in statuses if status == Status.SUCCESS)
         log.debug("Reloaded %d/%d extensions", success_count, len(extensions))

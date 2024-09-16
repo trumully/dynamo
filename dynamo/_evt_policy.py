@@ -3,15 +3,13 @@ import sys
 
 
 def get_event_loop_policy() -> asyncio.AbstractEventLoopPolicy:
-    policy = asyncio.DefaultEventLoopPolicy
-
     if sys.platform in ("win32", "cygwin", "cli"):
         try:
             import winloop
         except ImportError:
-            policy = asyncio.WindowsSelectorEventLoopPolicy
+            return asyncio.WindowsSelectorEventLoopPolicy()
         else:
-            policy = winloop.EventLoopPolicy
+            return winloop.EventLoopPolicy()
 
     else:
         try:
@@ -19,6 +17,6 @@ def get_event_loop_policy() -> asyncio.AbstractEventLoopPolicy:
         except ImportError:
             pass
         else:
-            policy = uvloop.EventLoopPolicy
+            return uvloop.EventLoopPolicy()
 
-    return policy()
+    return asyncio.DefaultEventLoopPolicy()

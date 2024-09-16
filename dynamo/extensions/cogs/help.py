@@ -17,18 +17,19 @@ log = logging.getLogger(__name__)
 
 
 class HelpEmbed(discord.Embed):
-    def __init__(self, color: discord.Color = discord.Color.dark_embed(), **kwargs: dict[str, Any]):
+    def __init__(self, color: discord.Color = discord.Color.dark_embed(), **kwargs: Any):
         super().__init__(**kwargs)
         text = (
             "Use help [command] or help [category] for more information"
             "\nRequired parameters: <required> | Optional parameters: [optional]"
         )
         self.set_footer(text=text)
-        self.color = color
+        # Assign to self.colour which aliases to self.color
+        self.colour = color
 
 
 class DynamoHelp(commands.HelpCommand):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             command_attrs={
                 "help": "The help command for the bot",
@@ -37,10 +38,10 @@ class DynamoHelp(commands.HelpCommand):
         )
         self.blacklisted = ["help_command"]
 
-    async def send(self, **kwargs: dict[str, Any]) -> None:
+    async def send(self, **kwargs: Any) -> None:
         await self.get_destination().send(**kwargs)
 
-    async def send_bot_help(self, mapping: Mapping[CogT, list[commands.Command[CogT, T, P]]]) -> None:
+    async def send_bot_help(self, mapping: Mapping[CogT, list[commands.Command[CogT, P, T]]]) -> None:
         ctx = self.context
         embed = HelpEmbed(title=f"{ctx.me.display_name} Help")
         embed.set_thumbnail(url=ctx.me.display_avatar)
@@ -61,7 +62,7 @@ class DynamoHelp(commands.HelpCommand):
 
         await self.send(embed=embed)
 
-    async def send_command_help(self, command: commands.Command[CogT, T, P]) -> None:
+    async def send_command_help(self, command: commands.Command[CogT, P, T]) -> None:
         signature = self.get_command_signature(command)
 
         embed = HelpEmbed(title=signature, description=f"```{command.help or "No help found..."}```")
@@ -84,8 +85,8 @@ class DynamoHelp(commands.HelpCommand):
         self,
         title: str,
         description: str,
-        commands: list[commands.Command],
-        aliases: list[str] | None = None,
+        commands: set[commands.Command[CogT, P, T]],
+        aliases: list[str] | tuple[str] | None = None,
         category: str | None = None,
     ) -> None:
         embed = HelpEmbed(title=title, description=description or "No help found...")
@@ -113,7 +114,7 @@ class DynamoHelp(commands.HelpCommand):
     async def send_cog_help(self, cog: commands.Cog) -> None:
         title = cog.qualified_name or "No"
         await self.send_help_embed(
-            f"{title} Category", f"```{cog.description or 'No description'}```", cog.get_commands()
+            f"{title} Category", f"```{cog.description or 'No description'}```", set(cog.get_commands())
         )
 
 
@@ -125,8 +126,9 @@ class Help(commands.Cog, name="help_command"):
         help_command.cog = self
         bot.help_command = help_command
 
-    def cog_unload(self) -> None:
+    async def cog_unload(self) -> None:
         self.bot.help_command = self._original_help_command
+        await super().cog_unload()
 
 
 async def setup(bot: Dynamo) -> None:
