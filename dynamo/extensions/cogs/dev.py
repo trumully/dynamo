@@ -1,21 +1,17 @@
 import importlib
 import sys
-from pathlib import Path
 
 import discord
 from discord.ext import commands
 
 from dynamo.bot import Dynamo
 from dynamo.utils.base_cog import DynamoCog
-from dynamo.utils.cache import cached_functions
 from dynamo.utils.context import Context, Status
 from dynamo.utils.converter import GuildConverter
-from dynamo.utils.helper import ROOT, get_cog
+from dynamo.utils.helper import get_cog
 
 # Don't unload these
-BLACKLIST_UTILS: set[str] = {
-    "dynamo.utils.cache",
-}
+BLACKLIST_UTILS: set[str] = {}
 
 
 class Dev(DynamoCog):
@@ -139,13 +135,14 @@ class Dev(DynamoCog):
         utils_modules: set[str] = {
             mod for mod in sys.modules if mod.startswith("dynamo.utils.") and mod not in BLACKLIST_UTILS
         }
-        all_utils: set[str] = {u.stem for u in Path(ROOT, "utils").glob("**/*.py") if u.stem != "__init__"}
+        fail = 0
         for module in utils_modules:
             try:
                 importlib.reload(sys.modules[module])
             except (KeyError, ModuleNotFoundError):
+                fail += 1
                 self.log.exception("Failed to reload %s", module)
-        self.log.debug("Reloaded %d/%d utilities", len(utils_modules), len(all_utils))
+        self.log.debug("Reloaded %d/%d utilities", len(utils_modules) - fail, len(utils_modules))
 
         extensions = set(self.bot.extensions)
         statuses: set[tuple[Status, str]] = set()
@@ -161,11 +158,6 @@ class Dev(DynamoCog):
         success_count = sum(1 for status, _ in statuses if status == Status.SUCCESS)
         self.log.debug("Reloaded %d/%d extensions", success_count, len(extensions))
         await ctx.send("\n".join(f"{status} `{ext}`" for status, ext in statuses))
-
-    @commands.hybrid_group(name="cache", aliases=("c",))
-    async def cache(self, ctx: commands.Context) -> None:
-        """Peek into the cache"""
-        await ctx.send(cached_functions() or "No cached functions")
 
     @commands.hybrid_command(name="quit", aliases=("exit", "shutdown", "q"))
     async def shutdown(self, ctx: commands.Context) -> None:

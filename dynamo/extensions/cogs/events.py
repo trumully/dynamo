@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 
 import discord
@@ -6,9 +5,7 @@ from discord.ext import commands
 
 from dynamo.bot import Dynamo
 from dynamo.utils.base_cog import DynamoCog
-from dynamo.utils.cache import async_lru_cache
-
-log = logging.getLogger(__name__)
+from dynamo.utils.cache import future_lru_cache
 
 
 class Dropdown(discord.ui.Select):
@@ -23,7 +20,7 @@ class Dropdown(discord.ui.Select):
         if (event := next((e for e in self.events if str(e.id) == self.values[0]), None)) is None:
             await interaction.response.send_message("Something went wrong, please try again.", ephemeral=True)
             return
-        interested = await get_interested(event)
+        interested = await Events.get_interested(event)
         await interaction.response.send_message(interested, ephemeral=True)
 
 
@@ -31,21 +28,6 @@ class DropdownView(discord.ui.View):
     def __init__(self, events: list[discord.ScheduledEvent], *args: Any, **kwargs: Any) -> None:
         super().__init__()
         self.add_item(Dropdown(events, *args, **kwargs))
-
-
-@async_lru_cache()
-async def fetch_events(guild: discord.Guild) -> list[discord.ScheduledEvent]:
-    try:
-        events = await guild.fetch_scheduled_events()
-    except discord.HTTPException:
-        log.exception("Failed to fetch events for guild %s", guild.id)
-    return sorted(events, key=lambda e: e.start_time)
-
-
-@async_lru_cache()
-async def get_interested(event: discord.ScheduledEvent) -> str:
-    users: list[discord.User] = [user async for user in event.users()]
-    return f"`[{event.name}]({event.url}) {' '.join(f'<@{u.id}>' for u in users) or "No users found"}`"
 
 
 class Events(DynamoCog):
@@ -56,6 +38,22 @@ class Events(DynamoCog):
 
     def cog_check(self, ctx: commands.Context) -> bool:
         return ctx.guild is not None
+
+    @staticmethod
+    @future_lru_cache
+    async def fetch_events(guild: discord.Guild) -> list[discord.ScheduledEvent]:
+        try:
+            events = await guild.fetch_scheduled_events()
+        except discord.HTTPException as e:
+            error = "Failed to fetch events for this guild."
+            raise commands.CommandError(error) from e
+        return sorted(events, key=lambda e: e.start_time)
+
+    @staticmethod
+    @future_lru_cache
+    async def get_interested(event: discord.ScheduledEvent) -> str:
+        users: list[discord.User] = [user async for user in event.users()]
+        return f"`[{event.name}]({event.url}) {' '.join(f'<@{u.id}>' for u in users) or "No users found"}`"
 
     @commands.hybrid_command(name="event")
     async def event(self, ctx: commands.Context, event: int | None) -> None:
@@ -72,11 +70,11 @@ class Events(DynamoCog):
             except discord.NotFound:
                 await ctx.send(f"No event with id: {event}", ephemeral=True)
                 return
-            interested = await get_interested(ev)
+            interested = await self.get_interested(ev)
             await ctx.send(interested, ephemeral=True)
             return
 
-        if not (events := await fetch_events(ctx.guild)):  # type: ignore
+        if not (events := await self.fetch_events(ctx.guild)):  # type: ignore
             await ctx.send("No events found!", ephemeral=True)
             return
         view = DropdownView(events)

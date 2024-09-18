@@ -96,7 +96,6 @@ class General(DynamoCog):
         fg, bg = get_colors(seed=seed_to_use)
 
         idt_bytes = await identicon_buffer(Identicon(5, fg, bg, 0.4, seed_to_use))
-        log.debug("Identicon generated for %s", fname)
         file = discord.File(BytesIO(idt_bytes), filename=f"{fname}.png")
 
         cmd_mention = await self.bot.tree.find_mention_for("general identicon", guild=ctx.guild)  # type: ignore[attr-defined]

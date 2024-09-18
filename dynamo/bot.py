@@ -202,7 +202,6 @@ class Dynamo(commands.AutoShardedBot):
         for ext in initial_extensions:
             try:
                 await self.load_extension(ext)
-                log.debug("Loaded ext %s", ext)
             except commands.ExtensionError:
                 log.exception("Failed to load extension %s", ext)
 
