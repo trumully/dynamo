@@ -212,7 +212,7 @@ def seed_from_time() -> int:
     return int(str(time.monotonic()).replace(".", ""))
 
 
-@future_lru_cache(maxsize=256)
+@future_lru_cache(maxsize=20)
 async def identicon_buffer(idt: Identicon, size: int = 256) -> bytes:
     """Generate a buffer for an identicon
 

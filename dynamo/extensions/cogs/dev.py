@@ -10,9 +10,6 @@ from dynamo.utils.context import Context, Status
 from dynamo.utils.converter import GuildConverter
 from dynamo.utils.helper import get_cog
 
-# Don't unload these
-BLACKLIST_UTILS: set[str] = {}
-
 
 class Dev(DynamoCog):
     """Dev-only commands"""
@@ -20,7 +17,7 @@ class Dev(DynamoCog):
     def __init__(self, bot: Dynamo) -> None:
         super().__init__(bot)
 
-    async def cog_check(self, ctx: commands.Context) -> bool:  # type: ignore[override]
+    async def cog_check(self, ctx: commands.Context) -> bool:
         return await self.bot.is_owner(ctx.author)
 
     @commands.hybrid_group(invoke_without_command=True, name="sync", aliases=("s",))
@@ -127,14 +124,11 @@ class Dev(DynamoCog):
     @_reload.command(name="all")
     async def _reload_all(self, ctx: Context) -> None:
         """Reload all cogs"""
-        confirm = await ctx.prompt("Are you sure you want to reload all cogs?")
-        if not confirm:
+        if not await ctx.prompt("Are you sure you want to reload all cogs?"):
             return
 
         # Reload all pre-existing modules from the utils folder
-        utils_modules: set[str] = {
-            mod for mod in sys.modules if mod.startswith("dynamo.utils.") and mod not in BLACKLIST_UTILS
-        }
+        utils_modules: frozenset[str] = frozenset(mod for mod in sys.modules if mod.startswith("dynamo.utils."))
         fail = 0
         for module in utils_modules:
             try:
@@ -144,7 +138,7 @@ class Dev(DynamoCog):
                 self.log.exception("Failed to reload %s", module)
         self.log.debug("Reloaded %d/%d utilities", len(utils_modules) - fail, len(utils_modules))
 
-        extensions = set(self.bot.extensions)
+        extensions = frozenset(self.bot.extensions)
         statuses: set[tuple[Status, str]] = set()
         for ext in extensions:
             try:

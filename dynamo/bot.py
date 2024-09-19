@@ -206,7 +206,7 @@ class Dynamo(commands.AutoShardedBot):
                 log.exception("Failed to load extension %s", ext)
 
         tree_path = resolve_path_with_links(platformdir.user_cache_path / "tree.hash")
-        tree_hash = await self.tree.get_hash(self.tree)  # type: ignore[attr-defined]
+        tree_hash = await self.tree.get_hash(self.tree)
         with tree_path.open("r+b") as fp:
             if fp.read() == tree_hash:
                 return
@@ -237,7 +237,7 @@ class Dynamo(commands.AutoShardedBot):
 
         log.info("Ready: %s (ID: %s)", self.user, self.user.id)
 
-    async def get_context(  # type: ignore
+    async def get_context(
         self,
         origin: discord.Message | discord.Interaction[Dynamo],
         /,

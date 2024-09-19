@@ -98,7 +98,7 @@ class General(DynamoCog):
         idt_bytes = await identicon_buffer(Identicon(5, fg, bg, 0.4, seed_to_use))
         file = discord.File(BytesIO(idt_bytes), filename=f"{fname}.png")
 
-        cmd_mention = await self.bot.tree.find_mention_for("general identicon", guild=ctx.guild)  # type: ignore[attr-defined]
+        cmd_mention = await self.bot.tree.find_mention_for("general identicon", guild=ctx.guild)
         prefix = self.bot.prefixes.get(ctx.guild.id, ["d!", "d?"])[0]
         description = f"**Command:**\n{cmd_mention} {display_name}\n{prefix}identicon {display_name}"
 

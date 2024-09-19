@@ -122,10 +122,8 @@ class DynamoHelp(commands.HelpCommand):
 class Help(DynamoCog):
     def __init__(self, bot: Dynamo) -> None:
         super().__init__(bot)
-        self._original_help_command = self.bot.help_command
-        help_command = DynamoHelp()
-        help_command.cog = self
-        self.bot.help_command = help_command
+        self._original_help_command, self.bot.help_command = self.bot.help_command, DynamoHelp()
+        self.bot.help_command.cog = self
         self.log.debug("Using custom help command")
 
     async def cog_unload(self) -> None:

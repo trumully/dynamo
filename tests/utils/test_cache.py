@@ -14,7 +14,7 @@ async def test_future_lru_cache_basic(first: int, second: int) -> None:
     """Tests that functions are cached and hits/misses are counted correctly."""
     assume(first != second)
 
-    @dynamo.utils.cache.future_lru_cache()
+    @dynamo.utils.cache.future_lru_cache
     async def async_cacheable(x: int) -> int:
         await asyncio.sleep(0.1)
         return x * 2
@@ -87,7 +87,7 @@ async def test_future_lru_cache_stampede_resistance(inputs: list[int]) -> None:
 
     call_count = 0
 
-    @dynamo.utils.cache.future_lru_cache()
+    @dynamo.utils.cache.future_lru_cache
     async def slow_function(x: int) -> int:
         nonlocal call_count
         call_count += 1

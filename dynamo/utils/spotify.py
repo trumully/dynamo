@@ -380,7 +380,7 @@ class SpotifyCard:
             yield frame
 
 
-@future_lru_cache
+@future_lru_cache(ttl=1800)
 async def fetch_album_cover(url: str, session: aiohttp.ClientSession) -> bytes | None:
     """Fetch album cover from a URL.
 

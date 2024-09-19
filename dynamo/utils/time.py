@@ -32,7 +32,6 @@ def human_timedelta(
     str
         A human-readable string representing the time delta.
 
-
     Examples
     --------
     >>> human_timedelta(datetime.datetime(2024, 1, 1), accuracy=2)
@@ -82,3 +81,24 @@ def human_timedelta(
         return "now"
 
     return (human_join(output, conjunction="and") if not brief else " ".join(output)) + output_suffix
+
+
+def inferred_conversion(elapsed: float, factor: float, units: str) -> str:
+    """
+    Convert an elapsed time to a human-readable string.
+
+    Parameters
+    ----------
+    elapsed : float
+        The elapsed time in seconds.
+    factor : float
+        The conversion factor to use.
+    units : str
+        The units to use.
+
+    Returns
+    -------
+    str
+        A human-readable string representing the elapsed time.
+    """
+    return f"{elapsed * factor:.2f}{units}"

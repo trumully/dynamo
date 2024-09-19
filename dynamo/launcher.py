@@ -82,7 +82,7 @@ def run_bot() -> None:
     asyncio.set_event_loop(loop)
 
     # https://github.com/aio-libs/aiohttp/issues/8599
-    # https://github.com/mikeshardmind/discord.py/tree/salamander-reloaded
+    # https://github.com/mikeshardmind/salamander-reloaded
     connector = aiohttp.TCPConnector(
         happy_eyeballs_delay=None,
         family=socket.AddressFamily.AF_INET,
@@ -186,7 +186,7 @@ def _store_token(token: str, /) -> None:
 
 def _get_token() -> str | None:
     if not (token := _load_token()):
-        log.critical("Token not found. Please run `dynamo setup` before starting the bot.")
+        log.critical("\nToken not found. Please run `dynamo setup` before starting the bot.\n")
         return None
     return token
 
