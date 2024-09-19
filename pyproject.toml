@@ -30,7 +30,6 @@ pytest = "^8.3.2"
 hypothesis = "^6.112.0"
 pytest-asyncio = "^0.24.0"
 pytest-xdist = { extras = ["psutil"], version = "^3.6.1" }
-mypy = "^1.11.2"
 
 [tool.ruff]
 line-length = 120
@@ -39,19 +38,6 @@ line-length = 120
 select = ["F", "E", "I", "UP", "YTT", "ANN", "S", "BLE", "B", "A", "COM", "C4", "DTZ", "EM", "ISC", "G", "INP", "PIE", "T20", "Q003", "RSE", "RET", "SIM", "TID", "PTH", "ERA", "PD", "PLC", "PLE", "PLR", "PLW", "TRY", "NPY", "RUF", "ASYNC"]
 ignore = ["RUF001", "G002", "S101", "PLR2004", "PLC0105", "SIM105", "C90", "ANN101", "ANN202", "ANN204", "ANN401", "PLR0912", "PLR0913", "PLR0915", "UP007", "COM812", "ISC001", "B008", "ASYNC109"]
 unfixable = ["ERA"]
-
-[tool.mypy]
-exclude = ["tests", "dynamo/_evt_policy.py"]
-disallow_untyped_defs = true
-disallow_any_unimported = true
-no_implicit_optional = true
-check_untyped_defs = true
-warn_return_any = true
-warn_unused_ignores = true
-ignore_missing_imports = true
-disable_error_code = [
-    "arg-type", # Annoying false positive for command decorators
-]
 
 [tool.pytest.ini_options]
 asyncio_mode = "strict"

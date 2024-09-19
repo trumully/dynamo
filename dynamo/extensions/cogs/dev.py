@@ -1,32 +1,23 @@
 import importlib
-import logging
 import sys
-from pathlib import Path
 
 import discord
 from discord.ext import commands
 
 from dynamo.bot import Dynamo
-from dynamo.utils.cache import cached_functions
+from dynamo.utils.base_cog import DynamoCog
 from dynamo.utils.context import Context, Status
 from dynamo.utils.converter import GuildConverter
-from dynamo.utils.helper import ROOT, get_cog
-
-log = logging.getLogger(__name__)
-
-# Don't unload these
-BLACKLIST_UTILS: set[str] = {
-    "dynamo.utils.cache",
-}
+from dynamo.utils.helper import get_cog
 
 
-class Dev(commands.GroupCog, group_name="dev"):
+class Dev(DynamoCog):
     """Dev-only commands"""
 
     def __init__(self, bot: Dynamo) -> None:
-        self.bot: Dynamo = bot
+        super().__init__(bot)
 
-    async def cog_check(self, ctx: commands.Context) -> bool:  # type: ignore[override]
+    async def cog_check(self, ctx: commands.Context) -> bool:
         return await self.bot.is_owner(ctx.author)
 
     @commands.hybrid_group(invoke_without_command=True, name="sync", aliases=("s",))
@@ -88,7 +79,7 @@ class Dev(commands.GroupCog, group_name="dev"):
         try:
             await self.bot.load_extension(m := get_cog(module))
         except commands.ExtensionError:
-            log.exception("Failed to load %s", m)
+            self.log.exception("Failed to load %s", m)
         else:
             await ctx.send(Status.OK)
 
@@ -104,7 +95,7 @@ class Dev(commands.GroupCog, group_name="dev"):
         try:
             await self.bot.unload_extension(m := get_cog(module))
         except commands.ExtensionError:
-            log.exception("Failed to unload %s", m)
+            self.log.exception("Failed to unload %s", m)
         else:
             await ctx.send(Status.OK)
 
@@ -120,7 +111,7 @@ class Dev(commands.GroupCog, group_name="dev"):
         try:
             await self.bot.reload_extension(m := get_cog(module))
         except commands.ExtensionError:
-            log.exception("Failed to reload %s", m)
+            self.log.exception("Failed to reload %s", m)
         else:
             await ctx.send(Status.OK)
 
@@ -133,41 +124,34 @@ class Dev(commands.GroupCog, group_name="dev"):
     @_reload.command(name="all")
     async def _reload_all(self, ctx: Context) -> None:
         """Reload all cogs"""
-        confirm = await ctx.prompt("Are you sure you want to reload all cogs?")
-        if not confirm:
+        if not await ctx.prompt("Are you sure you want to reload all cogs?"):
             return
 
         # Reload all pre-existing modules from the utils folder
-        utils_modules: set[str] = {
-            mod for mod in sys.modules if mod.startswith("dynamo.utils.") and mod not in BLACKLIST_UTILS
-        }
-        all_utils: set[str] = {u.stem for u in Path(ROOT, "utils").glob("**/*.py") if u.stem != "__init__"}
+        utils_modules: frozenset[str] = frozenset(mod for mod in sys.modules if mod.startswith("dynamo.utils."))
+        fail = 0
         for module in utils_modules:
             try:
                 importlib.reload(sys.modules[module])
             except (KeyError, ModuleNotFoundError):
-                log.exception("Failed to reload %s", module)
-        log.debug("Reloaded %d/%d utilities", len(utils_modules), len(all_utils))
+                fail += 1
+                self.log.exception("Failed to reload %s", module)
+        self.log.debug("Reloaded %d/%d utilities", len(utils_modules) - fail, len(utils_modules))
 
-        extensions = set(self.bot.extensions)
+        extensions = frozenset(self.bot.extensions)
         statuses: set[tuple[Status, str]] = set()
         for ext in extensions:
             try:
                 await self.reload_or_load_extension(ext)
             except commands.ExtensionError:
-                log.exception("Failed to reload extension %s", ext)
+                self.log.exception("Failed to reload extension %s", ext)
                 statuses.add((Status.FAILURE, ext))
             else:
                 statuses.add((Status.SUCCESS, ext))
 
         success_count = sum(1 for status, _ in statuses if status == Status.SUCCESS)
-        log.debug("Reloaded %d/%d extensions", success_count, len(extensions))
+        self.log.debug("Reloaded %d/%d extensions", success_count, len(extensions))
         await ctx.send("\n".join(f"{status} `{ext}`" for status, ext in statuses))
-
-    @commands.hybrid_group(name="cache", aliases=("c",))
-    async def cache(self, ctx: commands.Context) -> None:
-        """Peek into the cache"""
-        await ctx.send(cached_functions() or "No cached functions")
 
     @commands.hybrid_command(name="quit", aliases=("exit", "shutdown", "q"))
     async def shutdown(self, ctx: commands.Context) -> None:
@@ -178,3 +162,7 @@ class Dev(commands.GroupCog, group_name="dev"):
 
 async def setup(bot: Dynamo) -> None:
     await bot.add_cog(Dev(bot))
+
+
+async def teardown(bot: Dynamo) -> None:
+    await bot.remove_cog(Dev.__name__)

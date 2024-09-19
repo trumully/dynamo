@@ -7,6 +7,7 @@ import discord
 from discord.ext import commands
 
 from dynamo.bot import Dynamo
+from dynamo.utils.base_cog import DynamoCog
 from dynamo.utils.context import Context
 from dynamo.utils.converter import MemberTransformer
 from dynamo.utils.format import human_join
@@ -31,11 +32,11 @@ def embed_from_user(user: discord.Member | discord.User | discord.ClientUser) ->
     return e
 
 
-class General(commands.GroupCog, group_name="general"):
+class General(DynamoCog):
     """Generic commands"""
 
     def __init__(self, bot: Dynamo) -> None:
-        self.bot: Dynamo = bot
+        super().__init__(bot)
 
     @commands.hybrid_command(name="ping")
     async def ping(self, ctx: commands.Context) -> None:
@@ -95,11 +96,10 @@ class General(commands.GroupCog, group_name="general"):
         fg, bg = get_colors(seed=seed_to_use)
 
         idt_bytes = await identicon_buffer(Identicon(5, fg, bg, 0.4, seed_to_use))
-        log.debug("Identicon generated for %s", fname)
         file = discord.File(BytesIO(idt_bytes), filename=f"{fname}.png")
 
-        cmd_mention = await self.bot.tree.find_mention_for("general identicon", guild=ctx.guild)  # type: ignore[attr-defined]
-        prefix = self.bot.prefixes.get(ctx.guild.id, ["d!", "d?"])[0]  # type: ignore[union-attr]
+        cmd_mention = await self.bot.tree.find_mention_for("general identicon", guild=ctx.guild)
+        prefix = self.bot.prefixes.get(ctx.guild.id, ["d!", "d?"])[0]
         description = f"**Command:**\n{cmd_mention} {display_name}\n{prefix}identicon {display_name}"
 
         e = discord.Embed(title=display_name, description=description, color=discord.Color.from_rgb(*fg.as_tuple()))
@@ -155,3 +155,7 @@ class General(commands.GroupCog, group_name="general"):
 
 async def setup(bot: Dynamo) -> None:
     await bot.add_cog(General(bot))
+
+
+async def teardown(bot: Dynamo) -> None:
+    await bot.remove_cog(General.__name__)

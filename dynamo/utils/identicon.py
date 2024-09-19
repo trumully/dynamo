@@ -10,7 +10,7 @@ from typing import Annotated, Self
 import numpy as np
 from PIL import Image
 
-from dynamo.utils.cache import async_lru_cache
+from dynamo.utils.cache import future_lru_cache
 
 # 0.0 = same color
 COLOR_THRESHOLD = 0.4
@@ -212,7 +212,7 @@ def seed_from_time() -> int:
     return int(str(time.monotonic()).replace(".", ""))
 
 
-@async_lru_cache()
+@future_lru_cache(maxsize=20)
 async def identicon_buffer(idt: Identicon, size: int = 256) -> bytes:
     """Generate a buffer for an identicon
 

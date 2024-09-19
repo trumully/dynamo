@@ -85,4 +85,4 @@ def derive_seed(precursor: int | str) -> int:
 
 
 def get_cog(name: str) -> str:
-    return f"dynamo.extensions.cogs.{name}"
+    return f"dynamo.extensions.cogs.{name.lower()}"

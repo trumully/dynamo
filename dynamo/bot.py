@@ -17,6 +17,7 @@ from dynamo.utils.helper import get_cog, platformdir, resolve_path_with_links
 log = logging.getLogger(__name__)
 
 initial_extensions = (
+    get_cog("errors"),
     get_cog("help"),
     get_cog("events"),
     get_cog("general"),
@@ -201,12 +202,11 @@ class Dynamo(commands.AutoShardedBot):
         for ext in initial_extensions:
             try:
                 await self.load_extension(ext)
-                log.debug("Loaded ext %s", ext)
             except commands.ExtensionError:
                 log.exception("Failed to load extension %s", ext)
 
         tree_path = resolve_path_with_links(platformdir.user_cache_path / "tree.hash")
-        tree_hash = await self.tree.get_hash(self.tree)  # type: ignore[attr-defined]
+        tree_hash = await self.tree.get_hash(self.tree)
         with tree_path.open("r+b") as fp:
             if fp.read() == tree_hash:
                 return
@@ -237,7 +237,7 @@ class Dynamo(commands.AutoShardedBot):
 
         log.info("Ready: %s (ID: %s)", self.user, self.user.id)
 
-    async def get_context(  # type: ignore
+    async def get_context(
         self,
         origin: discord.Message | discord.Interaction[Dynamo],
         /,

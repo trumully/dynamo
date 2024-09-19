@@ -82,7 +82,7 @@ def run_bot() -> None:
     asyncio.set_event_loop(loop)
 
     # https://github.com/aio-libs/aiohttp/issues/8599
-    # https://github.com/mikeshardmind/discord.py/tree/salamander-reloaded
+    # https://github.com/mikeshardmind/salamander-reloaded
     connector = aiohttp.TCPConnector(
         happy_eyeballs_delay=None,
         family=socket.AddressFamily.AF_INET,
@@ -186,7 +186,7 @@ def _store_token(token: str, /) -> None:
 
 def _get_token() -> str | None:
     if not (token := _load_token()):
-        log.critical("Token not found. Please run `dynamo setup` before starting the bot.")
+        log.critical("\nToken not found. Please run `dynamo setup` before starting the bot.\n")
         return None
     return token
 
@@ -197,13 +197,22 @@ def _get_token() -> str | None:
     prog_name="Dynamo",
     message=click.style("%(prog)s - %(version)s", bold=True, fg="bright_cyan"),
 )
+@click.option("--debug", is_flag=True, help="Set log level to debug")
 @click.pass_context
-def main(ctx: click.Context) -> None:
+def main(ctx: click.Context, debug: bool) -> None:
     """Launch the bot"""
     os.umask(0o077)
     if ctx.invoked_subcommand is None:
-        with setup_logging():
+        log_level = logging.DEBUG if debug else logging.INFO
+        with setup_logging(log_level=log_level):
             run_bot()
+
+
+@main.command(name="help")
+@click.pass_context
+def _help(ctx: click.Context) -> None:
+    """Show this message and exit."""
+    click.echo(ctx.parent.get_help())
 
 
 @main.command()

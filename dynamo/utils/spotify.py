@@ -10,7 +10,7 @@ from typing import ClassVar
 import aiohttp
 from PIL import Image, ImageDraw, ImageFont
 
-from dynamo.utils.cache import async_lru_cache
+from dynamo.utils.cache import future_lru_cache
 from dynamo.utils.format import FONTS, is_cjk
 from dynamo.utils.helper import ROOT, resolve_path_with_links, valid_url
 
@@ -380,7 +380,7 @@ class SpotifyCard:
             yield frame
 
 
-@async_lru_cache()
+@future_lru_cache(ttl=1800)
 async def fetch_album_cover(url: str, session: aiohttp.ClientSession) -> bytes | None:
     """Fetch album cover from a URL.
 
