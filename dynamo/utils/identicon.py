@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import math
 import time
 from dataclasses import dataclass, field
@@ -16,6 +17,25 @@ from dynamo.utils.cache import future_lru_cache
 COLOR_THRESHOLD = 0.4
 
 ArrayRGB = Annotated[np.ndarray, tuple[int, int, int]]
+
+
+def derive_seed(precursor: int | str) -> int:
+    """Generate a seed from integer, integer-like (i.e discord snowflake) or string
+
+    Parameters
+    ----------
+    precursor : int | str | None, optional
+        The precursor to generate the seed from.
+
+    Returns
+    -------
+    int
+        The generated seed.
+    """
+    if isinstance(precursor, int):
+        precursor = str(precursor)
+    hashed = int.from_bytes(precursor.encode() + hashlib.sha256(precursor.encode()).digest(), byteorder="big")
+    return hashed  # noqa: RET504  needs to be assigned as a var to work properly
 
 
 def _clamp(value: int, upper: int) -> int:

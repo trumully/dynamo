@@ -104,12 +104,12 @@ def future_lru_cache(
 
     Parameters
     ----------
-    `f : Callable[P, Awaitable[R]] | None, optional
+    f : Callable[P, Awaitable[R]] | None, optional
         The function to cache.
     maxsize : int | None, optional
-        The maximum number of items to cache.
+        The maximum number of items to cache. If set to None, the cache will have no maximum size.
     ttl : int | None, optional
-        The time to live for cached items in seconds.
+        The time to live for cached items in seconds. If set to None, the cache will not expire.
     """
 
     def decorator(func: Awaitable[Any]) -> Awaitable[R]:
@@ -132,13 +132,13 @@ def future_lru_cache(
             for key in expired_keys:
                 _cache.pop(key)
                 _info.currsize -= 1
-                log.debug("Cache eviction (expired): %s\n%s\nMaxsize: %s TTL: %s", key, _info, maxsize, ttl)
+                log.debug("Cache eviction (EXPIRED): %s\n%s\nMaxsize: %s TTL: %s", key, _info, maxsize, ttl)
 
             if maxsize is not None:
                 while _cache and _info.currsize > maxsize:
                     key, _ = _cache.popitem(last=False)
                     _info.currsize -= 1
-                    log.debug("Cache eviction (maxsize): %s\n%s\nMaxsize: %s TTL: %s", key, _info, maxsize, ttl)
+                    log.debug("Cache eviction (MAXSIZE): %s\n%s\nMaxsize: %s TTL: %s", key, _info, maxsize, ttl)
 
         def evict_containing(func_name: str) -> None:
             to_evict = [k for k in _cache if k.func.__name__ == func_name]
@@ -146,7 +146,7 @@ def future_lru_cache(
                 try:
                     del _cache[key]
                     _info.currsize -= 1
-                    log.debug("Cache eviction (explicit): %s\n%s\nMaxsize: %s TTL: %s", key, _info, maxsize, ttl)
+                    log.debug("Cache eviction (EXPLICIT): %s\n%s\nMaxsize: %s TTL: %s", key, _info, maxsize, ttl)
                 except KeyError:
                     pass
 
@@ -164,7 +164,7 @@ def future_lru_cache(
             key = _make_key(func, *args, **kwargs)
             if key in _cache:
                 _info.hits += 1
-                log.debug("Cache hit: %s\n%s\nMaxsize: %s TTL: %s", key, _info, maxsize, ttl)
+                log.debug("Cache HIT: %s\n%s\nMaxsize: %s TTL: %s", key, _info, maxsize, ttl)
                 if isinstance(_cache[key].value, asyncio.Future):
                     return _cache[key].value
                 f = asyncio.Future()
@@ -172,7 +172,7 @@ def future_lru_cache(
                 return f
             _info.misses += 1
             _info.currsize += 1
-            log.debug("Cache miss: %s\n%s\nMaxsize: %s TTL: %s", key, _info, maxsize, ttl)
+            log.debug("Cache MISS: %s\n%s\nMaxsize: %s TTL: %s", key, _info, maxsize, ttl)
             task: asyncio.Task[R] = asyncio.create_task(run_and_cache(func, *args, **kwargs))
             _cache[key] = CacheEntry(task, now + ttl if ttl else None)
             return task

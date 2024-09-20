@@ -6,28 +6,34 @@ from discord.ext import commands
 from dynamo.bot import Dynamo
 from dynamo.utils.base_cog import DynamoCog
 from dynamo.utils.cache import future_lru_cache
+from dynamo.utils.format import shorten_string
 
 
 class EventsDropdown(discord.ui.Select):
     def __init__(self, events: list[discord.ScheduledEvent], *args: Any, **kwargs: Any) -> None:
         self.events: list[discord.ScheduledEvent] = events
 
-        options = [discord.SelectOption(label=e.name, value=str(e.id), description="An event") for e in events]
+        options = [
+            discord.SelectOption(label=e.name, value=str(e.id), description=shorten_string(e.description))
+            for e in events
+        ]
 
         super().__init__(*args, placeholder="Select an event", min_values=1, max_values=1, options=options, **kwargs)
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        if (event := next((e for e in self.events if str(e.id) == self.values[0]), None)) is None:
-            await interaction.response.send_message("Something went wrong, please try again.", ephemeral=True)
-            return
-        interested = await get_interested(event)
-        await interaction.response.send_message(interested, ephemeral=True)
+        event = next((e for e in self.events if e.id == int(self.values[0])), None)
+        await interaction.response.send_message(await get_interested(event) or "No users found", ephemeral=True)
 
 
 class EventsDropdownView(discord.ui.View):
     def __init__(self, events: list[discord.ScheduledEvent], *args: Any, **kwargs: Any) -> None:
-        super().__init__()
-        self.add_item(EventsDropdown(events, *args, **kwargs))
+        super().__init__(*args, **kwargs)
+        self.add_item(EventsDropdown(events))
+
+    async def on_timeout(self) -> None:
+        for item in self.children:
+            item.disabled = True
+        await self.message.edit(view=self)
 
 
 @future_lru_cache(maxsize=10, ttl=1800)
@@ -42,6 +48,8 @@ class Events(DynamoCog):
     def __init__(self, bot: Dynamo) -> None:
         super().__init__(bot)
 
+        self.active_users: set[int] = set()
+
     def cog_check(self, ctx: commands.Context) -> bool:
         return ctx.guild is not None
 
@@ -55,14 +63,17 @@ class Events(DynamoCog):
         return sorted(events, key=lambda e: e.start_time)
 
     @commands.hybrid_command(name="event")
-    async def event(self, ctx: commands.Context, event: int | None) -> None:
+    async def event(self, ctx: commands.Context, event: int | None = None) -> None:
         """Get a list of members subscribed to an event
 
         Parameters
         ----------
-        event: int | None
-            The event ID to get attendees of (optional)
+        event: int | None, optional
+            The event ID to get attendees of
         """
+        if ctx.author.id in self.active_users:
+            return
+
         if event is not None:
             try:
                 ev = await ctx.guild.fetch_scheduled_event(event)
@@ -76,8 +87,14 @@ class Events(DynamoCog):
         if not (events := await self.fetch_events(ctx.guild)):
             await ctx.send("No events found!", ephemeral=True)
             return
-        view = EventsDropdownView(events)
-        await ctx.send("Select an event", ephemeral=True, view=view)
+
+        self.active_users.add(ctx.author.id)
+        view = EventsDropdownView(events, timeout=25)
+        view.message = await ctx.send("Select an event", view=view)
+
+        await view.wait()
+
+        self.active_users.remove(ctx.author.id)
 
 
 async def setup(bot: Dynamo) -> None:

@@ -32,9 +32,8 @@ def shorten_string(string: str, max_len: int = 50, placeholder: str = "Nothing p
     """
     if not string:
         return placeholder
-    if len(string) <= max_len:
-        return string
-    return string[:max_len] + "..."
+
+    return string if len(string) <= max_len else string[:max_len] + "..."
 
 
 @dataclass(frozen=True)
@@ -142,15 +141,12 @@ def is_cjk(text: str) -> CJK:
     CJK
         The CJK language of the string.
     """
-    # Chinese characters (including traditional and simplified)
     if re.search(r"[\u4e00-\u9fff\u3400-\u4dbf]", text):
         return CJK.CHINESE
 
-    # Hiragana and Katakana (Japanese-specific characters)
     if re.search(r"[\u3040-\u309f\u30a0-\u30ff]", text):
         return CJK.JAPANESE
 
-    # Hangul (Korean characters)
     if re.search(r"[\uac00-\ud7af\u1100-\u11ff]", text):
         return CJK.KOREAN
 

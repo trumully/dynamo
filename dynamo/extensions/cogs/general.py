@@ -7,13 +7,13 @@ import discord
 from discord.ext import commands
 
 from dynamo.bot import Dynamo
+from dynamo.utils import spotify
 from dynamo.utils.base_cog import DynamoCog
 from dynamo.utils.context import Context
 from dynamo.utils.converter import MemberTransformer
 from dynamo.utils.format import human_join
 from dynamo.utils.helper import derive_seed
 from dynamo.utils.identicon import Identicon, get_colors, identicon_buffer, seed_from_time
-from dynamo.utils.spotify import SpotifyCard, fetch_album_cover
 from dynamo.utils.time import human_timedelta
 
 log = logging.getLogger(__name__)
@@ -122,15 +122,14 @@ class General(DynamoCog):
             await ctx.send("User is not listening to Spotify.")
             return
 
-        card = SpotifyCard()
-        album_cover: bytes | None = await fetch_album_cover(activity.album_cover_url, self.bot.session)
+        album_cover: bytes | None = await spotify.fetch_album_cover(activity.album_cover_url, self.bot.session)
         if album_cover is None:
             await ctx.send("Failed to fetch album cover.")
             return
 
         color = activity.color.to_rgb()
 
-        buffer, ext = await card.draw(
+        buffer, ext = await spotify.draw(
             name=activity.title,
             artists=activity.artists,
             color=color,

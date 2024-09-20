@@ -44,23 +44,23 @@ class ConfirmationView(discord.ui.View):
         """Check if the interaction is from the author of the view"""
         return bool(interaction.user and interaction.user.id == self.author_id)
 
-    @discord.ui.button(label="Confirm", style=discord.ButtonStyle.green)
-    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        """Confirm the action"""
-        self.value = True
+    async def _defer_and_stop(self, interaction: discord.Interaction) -> None:
         await interaction.response.defer()
         if self.delete_after:
             await interaction.delete_original_response()
         self.stop()
 
+    @discord.ui.button(label="Confirm", style=discord.ButtonStyle.green)
+    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        """Confirm the action"""
+        self.value = True
+        await self._defer_and_stop(interaction)
+
     @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red)
     async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         """Cancel the action"""
         self.value = False
-        await interaction.response.defer()
-        if self.delete_after:
-            await interaction.delete_original_response()
-        self.stop()
+        await self._defer_and_stop(interaction)
 
 
 class Context(commands.Context):

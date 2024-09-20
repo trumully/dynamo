@@ -1,4 +1,3 @@
-import hashlib
 import re
 from pathlib import Path
 
@@ -56,32 +55,14 @@ def valid_token(token: str) -> bool:
     -----
     A discord bot token is a string that matches the following pattern:
     >>> "[M|N|O]XXXXXXXXXXXXXXXXXXXXXXX[XX].XXXXXX.XXXXXXXXXXXXXXXXXXXXXXXXXXX"
+
+    See
+    ---
+    - https://discord.com/developers/docs/reference#authentication
+    - https://github.com/Yelp/detect-secrets/blob/master/detect_secrets/plugins/discord.py
     """
-    # refs:
-    # https://discord.com/developers/docs/reference#authentication
-    # https://github.com/Yelp/detect-secrets/blob/master/detect_secrets/plugins/discord.py
-    # https://github.com/Yelp/detect-secrets/issues/627
     pattern = re.compile(r"[MNO][a-zA-Z\d_-]{23,25}\.[a-zA-Z\d_-]{6}\.[a-zA-Z\d_-]{27}")
     return bool(pattern.match(token))
-
-
-def derive_seed(precursor: int | str) -> int:
-    """Generate a seed from integer, integer-like (i.e discord snowflake) or string
-
-    Parameters
-    ----------
-    precursor : int | str | None, optional
-        The precursor to generate the seed from.
-
-    Returns
-    -------
-    int
-        The generated seed.
-    """
-    if isinstance(precursor, int):
-        precursor = str(precursor)
-    hashed = int.from_bytes(precursor.encode() + hashlib.sha256(precursor.encode()).digest(), byteorder="big")
-    return hashed  # noqa: RET504  needs to be assigned as a var to work properly
 
 
 def get_cog(name: str) -> str:
