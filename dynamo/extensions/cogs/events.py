@@ -6,6 +6,7 @@ from discord.ext import commands
 from dynamo.bot import Dynamo
 from dynamo.utils.base_cog import DynamoCog
 from dynamo.utils.cache import future_lru_cache
+from dynamo.utils.context import Context
 from dynamo.utils.format import shorten_string
 
 
@@ -63,7 +64,7 @@ class Events(DynamoCog):
         return sorted(events, key=lambda e: e.start_time)
 
     @commands.hybrid_command(name="event")
-    async def event(self, ctx: commands.Context, event: int | None = None) -> None:
+    async def event(self, ctx: Context, event: int | None = None) -> None:
         """Get a list of members subscribed to an event
 
         Parameters
@@ -84,17 +85,23 @@ class Events(DynamoCog):
             await ctx.send(interested, ephemeral=True)
             return
 
-        if not (events := await self.fetch_events(ctx.guild)):
-            await ctx.send("No events found!", ephemeral=True)
+        message = await ctx.send(f"{self.bot._emojis['loading2']} Fetching events...")
+
+        events = await self.fetch_events(ctx.guild)
+
+        if not events:
+            await message.edit(content=f"{ctx.Status.FAILURE} No events found!")
             return
 
         self.active_users.add(ctx.author.id)
         view = EventsDropdownView(events, timeout=25)
-        view.message = await ctx.send("Select an event", view=view)
+        await message.edit(content="Select an event", view=view)
 
         await view.wait()
 
+        await message.edit(content="Expired!", view=None)
         self.active_users.remove(ctx.author.id)
+        await message.delete(delay=10)
 
 
 async def setup(bot: Dynamo) -> None:

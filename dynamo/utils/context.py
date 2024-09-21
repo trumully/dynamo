@@ -11,15 +11,6 @@ if TYPE_CHECKING:
     from dynamo.bot import Dynamo
 
 
-class Status(StrEnum):
-    """Status emojis for the bot"""
-
-    SUCCESS = "\N{WHITE HEAVY CHECK MARK}"
-    FAILURE = "\N{CROSS MARK}"
-    WARNING = "\N{WARNING SIGN}"
-    OK = "\N{OK HAND SIGN}"
-
-
 class ConfirmationView(discord.ui.View):
     """A view for confirming an action"""
 
@@ -68,6 +59,14 @@ class Context(commands.Context):
     prefix: str
     command: commands.Command[Any, ..., Any]
     bot: Dynamo
+
+    class Status(StrEnum):
+        """Status emojis for the bot"""
+
+        SUCCESS = "\N{WHITE HEAVY CHECK MARK}"
+        FAILURE = "\N{CROSS MARK}"
+        WARNING = "\N{WARNING SIGN}"
+        OK = "\N{OK HAND SIGN}"
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)

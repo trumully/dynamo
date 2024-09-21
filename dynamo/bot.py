@@ -12,6 +12,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from dynamo.utils.context import Context
+from dynamo.utils.emoji import Emojis
 from dynamo.utils.helper import get_cog, platformdir, resolve_path_with_links
 
 log = logging.getLogger(__name__)
@@ -198,6 +199,9 @@ class Dynamo(commands.AutoShardedBot):
 
         # Case insensitive cogs for help commands.
         self._BotBase__cogs = commands.core._CaseInsensitiveDict()
+
+        self._emojis = Emojis(await self.fetch_application_emojis())
+        log.debug("Emojis: %s", self._emojis)
 
         for ext in initial_extensions:
             try:

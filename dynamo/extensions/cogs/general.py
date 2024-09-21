@@ -12,8 +12,7 @@ from dynamo.utils.base_cog import DynamoCog
 from dynamo.utils.context import Context
 from dynamo.utils.converter import MemberTransformer
 from dynamo.utils.format import human_join
-from dynamo.utils.helper import derive_seed
-from dynamo.utils.identicon import Identicon, get_colors, identicon_buffer, seed_from_time
+from dynamo.utils.identicon import Identicon, derive_seed, get_colors, identicon_buffer, seed_from_time
 from dynamo.utils.time import human_timedelta
 
 log = logging.getLogger(__name__)

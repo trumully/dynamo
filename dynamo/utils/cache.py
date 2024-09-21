@@ -87,6 +87,7 @@ class Cacheable(Protocol[R]):
     def __call__(self, *args: Any, **kwargs: Any) -> Awaitable[R]: ...
     def cache_info(self) -> CacheInfo: ...
     def cache_clear_all(self) -> None: ...
+    def get(self, *args: Any, **kwargs: Any) -> CacheEntry | None: ...
     def evict_containing(self, func_name: str) -> None: ...
 
 
@@ -157,6 +158,16 @@ def future_lru_cache(
             _cache.clear()
             _info.clear()
 
+        def get(*args: Any, **kwargs: Any) -> CacheEntry | None:
+            """Get a cache entry by key
+
+            Returns
+            -------
+            CacheEntry | None
+                The cache entry if it exists, otherwise None.
+            """
+            return _cache.get(_make_key(func, *args, **kwargs), None)
+
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> asyncio.Future[R] | asyncio.Task[R]:
             _evict()
@@ -180,6 +191,7 @@ def future_lru_cache(
         wrapper.cache_info = cache_info
         wrapper.cache_clear_all = cache_clear_all
         wrapper.evict_containing = evict_containing
+        wrapper.get = get
         return wrapper
 
     return decorator if f is None else decorator(f)
