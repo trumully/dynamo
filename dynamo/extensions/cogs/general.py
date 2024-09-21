@@ -12,13 +12,13 @@ from dynamo.utils.base_cog import DynamoCog
 from dynamo.utils.context import Context
 from dynamo.utils.converter import MemberTransformer
 from dynamo.utils.format import human_join
-from dynamo.utils.identicon import Identicon, derive_seed, get_colors, identicon_buffer, seed_from_time
+from dynamo.utils.identicon import Identicon, derive_seed, get_colors, get_identicon, seed_from_time
 from dynamo.utils.time import human_timedelta
 
 log = logging.getLogger(__name__)
 
 
-def embed_from_user(user: discord.Member | discord.User | discord.ClientUser) -> discord.Embed:
+def user_embed(user: discord.Member | discord.User | discord.ClientUser) -> discord.Embed:
     e = discord.Embed(color=user.color)
     e.set_footer(text=f"ID: {user.id}")
     avatar = user.display_avatar.with_static_format("png")
@@ -53,7 +53,7 @@ class General(DynamoCog):
     @commands.hybrid_command(name="about")
     async def about(self, ctx: commands.Context) -> None:
         """Get information about the bot"""
-        e = embed_from_user(self.bot.user)
+        e = user_embed(self.bot.user)
         bot_name = self.bot.user.display_name
         e.title = f"About {bot_name}"
         e.description = f"{bot_name} is a bot that does stuff."
@@ -69,7 +69,7 @@ class General(DynamoCog):
         user: discord.Member | discord.User | None
             The user to check. If nothing is provided, check author instead.
         """
-        await ctx.send(embed=embed_from_user(user or ctx.author), ephemeral=True)
+        await ctx.send(embed=user_embed(user or ctx.author), ephemeral=True)
 
     @commands.hybrid_command(name="identicon", aliases=("i", "idt"))
     async def identicon(
@@ -90,11 +90,12 @@ class General(DynamoCog):
 
         display_name = seed_to_use if (isinstance(seed_to_use, (str, int))) else seed_to_use.display_name
 
+        # use user id if seed is a user
         fname: str | int = seed_to_use if isinstance(seed_to_use, (str, int)) else seed_to_use.id
         seed_to_use = derive_seed(fname)
         fg, bg = get_colors(seed=seed_to_use)
 
-        idt_bytes = await identicon_buffer(Identicon(5, fg, bg, 0.4, seed_to_use))
+        idt_bytes = await get_identicon(Identicon(5, fg, bg, 0.4, seed_to_use))
         file = discord.File(BytesIO(idt_bytes), filename=f"{fname}.png")
 
         cmd_mention = await self.bot.tree.find_mention_for("general identicon", guild=ctx.guild)
@@ -107,7 +108,13 @@ class General(DynamoCog):
 
     @commands.hybrid_command(name="spotify", aliases=("sp", "applemusic"))
     async def spotify(self, ctx: Context, user: discord.Member | discord.User | None = None) -> None:
-        """Generate a spotify card for a track"""
+        """Get the currently playing Spotify track for a user.
+
+        Parameters
+        ----------
+        user : discord.Member | discord.User | None, optional
+            The user to check. If nothing is provided, check author instead.
+        """
         if user is None:
             user = ctx.author
 
@@ -141,9 +148,9 @@ class General(DynamoCog):
         file = discord.File(buffer, filename=fname)
         track = f"[{activity.title}](<{activity.track_url}>)"
         embed = discord.Embed(
-            title="Now Playing",
+            title=f"{self.bot._emojis['spotify']} Now Playing",
             description=f"{user.mention} is listening to **{track}** by"
-            f" **{human_join(activity.artists, conjunction="and")}**",
+            f" **{human_join(activity.artists, conjunction='and')}**",
             color=activity.color,
         )
         embed.set_footer(text=f"Requested by {ctx.author!s}", icon_url=ctx.author.display_avatar.url)

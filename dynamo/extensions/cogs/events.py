@@ -1,3 +1,4 @@
+import contextlib
 from typing import Any
 
 import discord
@@ -39,7 +40,9 @@ class EventsDropdownView(discord.ui.View):
 
 @future_lru_cache(maxsize=10, ttl=1800)
 async def get_interested(event: discord.ScheduledEvent) -> str:
-    users: list[discord.User] = [user async for user in event.users()]
+    # https://peps.python.org/pep-0533/
+    async with contextlib.aclosing(event.users()) as gen:
+        users = [u async for u in gen]
     return f"`[{event.name}]({event.url}) {' '.join(f'<@{u.id}>' for u in users) or "No users found"}`"
 
 
@@ -60,7 +63,6 @@ class Events(DynamoCog):
             events = await guild.fetch_scheduled_events()
         except discord.HTTPException:
             self.log.exception("Failed to fetch events for guild %s", guild.id)
-            return []
         return sorted(events, key=lambda e: e.start_time)
 
     @commands.hybrid_command(name="event")

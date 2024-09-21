@@ -3,16 +3,18 @@ from typing import Any, Callable, Coroutine, Mapping
 import discord
 from discord import Interaction, app_commands
 from discord.ext import commands
+from rapidfuzz import fuzz
 
 from dynamo.bot import Dynamo
 from dynamo.utils.base_cog import DynamoCog
+from dynamo.utils.context import Context
 
 
 class Errors(DynamoCog):
     """Handles errors for the bot."""
 
     command_error_messages: Mapping[type[commands.CommandError], str] = {
-        commands.CommandNotFound: "Command not found: `{}`.",
+        commands.CommandNotFound: "Command not found: **`{}`**{}",
         commands.MissingRequiredArgument: "Missing required argument: `{}`.",
         commands.BadArgument: "Bad argument.",
         commands.CommandOnCooldown: "You are on cooldown. Try again in `{:.2f}` seconds.",
@@ -26,7 +28,7 @@ class Errors(DynamoCog):
     }
 
     app_command_error_messages: Mapping[type[app_commands.AppCommandError], str] = {
-        app_commands.CommandNotFound: "Command not found: `{}`.",
+        app_commands.CommandNotFound: "Command not found: **`{}`**{}",
         app_commands.CommandOnCooldown: "You are on cooldown. Try again in `{:.2f}` seconds.",
         app_commands.MissingPermissions: "You are not allowed to use this command.",
         app_commands.BotMissingPermissions: "I am not allowed to use this command.",
@@ -79,7 +81,7 @@ class Errors(DynamoCog):
         return self.app_command_error_messages.get(type(error), "An unknown error occurred.")
 
     @commands.Cog.listener()
-    async def on_command_error(self, ctx: commands.Context, error: commands.CommandError) -> None:
+    async def on_command_error(self, ctx: Context, error: commands.CommandError) -> None:
         """
         Event that triggers when a command fails.
 
@@ -90,12 +92,24 @@ class Errors(DynamoCog):
         error : commands.CommandError
             The error.
         """
-        self.log.error("%s called by %s raised an exception: %s. (%s)", ctx.command, ctx.author, error, ctx.message)
+        self.log.exception(
+            "%s called by %s raised an exception: %s. (%s)",
+            ctx.command,
+            ctx.author,
+            ctx.message,
+            exc_info=error.__traceback__,
+        )
 
         error_message = self.get_command_error_message(error)
 
         if isinstance(error, commands.CommandNotFound):
-            error_message = error_message.format(ctx.invoked_with)
+            matches = [
+                f"**{command.qualified_name}** - {command.short_doc or 'No description provided'}"
+                for command in self.bot.commands
+                if fuzz.partial_ratio(ctx.invoked_with, command.name) > 80
+            ]
+            matches_string = f"\n\n{f'Did you mean\n>>> {'\n'.join(matches)}' if matches else ''}"
+            error_message = error_message.format(ctx.invoked_with, matches_string)
 
         elif isinstance(error, commands.MissingRequiredArgument):
             error_message = error_message.format(error.param.name)
@@ -104,10 +118,6 @@ class Errors(DynamoCog):
             error_message = error_message.format(error.retry_after)
 
         await ctx.reply(error_message)
-
-        if await self.bot.is_owner(ctx.author):
-            command_name = ctx.command.name if ctx.command else "Unknown Command"
-            await ctx.author.send(f"An error occurred while running the command `{command_name}`: {error}")
 
     @commands.Cog.listener()
     async def on_app_command_error(self, interaction: Interaction, error: app_commands.AppCommandError) -> None:
@@ -124,7 +134,18 @@ class Errors(DynamoCog):
         if interaction.command is None:
             self.log.error("Command not found: %s.", interaction.data)
             command_name = interaction.data.get("name", "")
-            await interaction.response.send_message(f"Command not found: `{command_name}`.", ephemeral=True)
+            matches = [
+                command
+                for command in self.bot.tree.get_commands()
+                if fuzz.partial_ratio(command_name, command.name) > 80
+            ]
+            msg = (
+                f"Command not found: '{command_name}'\n\n{f'Did you mean\n>>> {'\n'.join(matches)}' if matches else ''}"
+            )
+            await interaction.response.send_message(
+                ephemeral=True,
+                content=msg,
+            )
             return
 
         self.log.error("%s called by %s raised an exception: %s.", interaction.command.name, interaction.user, error)
@@ -141,11 +162,6 @@ class Errors(DynamoCog):
             await interaction.response.send_message(error_message, ephemeral=True)
         except (discord.HTTPException, discord.InteractionResponded, TypeError, ValueError):
             await interaction.followup.send(error_message, ephemeral=True)
-
-        if await self.bot.is_owner(interaction.user):
-            await interaction.user.send(
-                f"An error occurred while running the command `{interaction.command.name}`: {error}"
-            )
 
 
 async def setup(bot: Dynamo) -> None:

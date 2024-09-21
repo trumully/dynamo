@@ -233,7 +233,7 @@ def seed_from_time() -> int:
 
 
 @future_lru_cache(maxsize=20)
-async def identicon_buffer(idt: Identicon, size: int = 256) -> bytes:
+async def get_identicon(idt: Identicon, size: int = 256) -> bytes:
     """Generate a buffer for an identicon
 
     Parameters

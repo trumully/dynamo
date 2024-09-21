@@ -263,19 +263,26 @@ def _draw_track_bar(draw: ImageDraw.ImageDraw, progress: float, duration: dateti
         The duration of the track
     """
     duration_width = PROGRESS_BAR_START_X + PROGRESS_BAR_WIDTH
-    progress_width = duration_width * progress
+    progress_width = max(
+        PROGRESS_BAR_START_X, min(duration_width, PROGRESS_BAR_START_X + (PROGRESS_BAR_WIDTH * progress))
+    )
     height = PROGRESS_BAR_Y + PROGRESS_BAR_HEIGHT
     x, y = PROGRESS_BAR_START_X, PROGRESS_BAR_Y
 
+    # Draw background bar
     draw.rectangle((x, y, duration_width, height), fill=LENGTH_BAR_COLOR)
-    draw.rectangle((x, y, progress_width, height), fill=PROGRESS_BAR_COLOR)
 
-    played = track_duration(int(duration.total_seconds() * progress))
+    # Draw progress bar only if it has a positive width
+    if progress_width > x:
+        draw.rectangle((x, y, progress_width, height), fill=PROGRESS_BAR_COLOR)
+
+    played_seconds = min(int(duration.total_seconds()), int(duration.total_seconds() * progress))
+    played = track_duration(played_seconds)
     track_duration_str = track_duration(int(duration.total_seconds()))
     progress_text = f"{played} / {track_duration_str}"
     progress_font = get_font(progress_text, bold=False, size=PROGRESS_FONT_SIZE)
 
-    draw.text((x, y), text=progress_text, fill=TEXT_COLOR, font=progress_font)
+    draw.text((x, PROGRESS_TEXT_Y), text=progress_text, fill=TEXT_COLOR, font=progress_font)
 
 
 def _draw_text_scroll(font: ImageFont.FreeTypeFont, text: str, width: int) -> Generator[Image.Image, None, None]:
@@ -295,7 +302,8 @@ def _draw_text_scroll(font: ImageFont.FreeTypeFont, text: str, width: int) -> Ge
     Image.Image
         A frame of the text scrolling
     """
-    text_width, text_height = (round(x) for x in font.getbbox(text)[2:])
+    text_bbox = font.getbbox(text)
+    text_width, text_height = text_bbox[2] - text_bbox[0], text_bbox[3] - text_bbox[1]
 
     if text_width <= width:
         frame = Image.new("RGBA", (width, text_height))
@@ -306,7 +314,8 @@ def _draw_text_scroll(font: ImageFont.FreeTypeFont, text: str, width: int) -> Ge
 
     # Add space between end and start for continuous scrolling
     full_text = text + "   " + text
-    full_text_width = font.getbbox(full_text)[2]
+    full_text_bbox = font.getbbox(full_text)
+    full_text_width = full_text_bbox[2] - full_text_bbox[0]
 
     pause_frames = 30
     total_frames = pause_frames + (full_text_width // SLIDING_SPEED)

@@ -167,12 +167,13 @@ class Dev(DynamoCog):
         self.bot._emojis = Emojis(await self.bot.fetch_application_emojis())
         result = []
         for name, emoji in emojis_old.items():
+            start = "="
             if name not in self.bot._emojis:
-                result.append(f"- {name} {emoji}")
+                start = "-"
             elif self.bot._emojis[name] != emoji:
-                result.append(f"^ {name} {emoji}")
-            else:
-                result.append(f"= {name} {emoji}")
+                start = "^"
+
+            result.append(f"{start} {name} {emoji}")
 
         for name, emoji in self.bot._emojis.items():
             if name not in emojis_old:
