@@ -6,9 +6,7 @@ from collections import OrderedDict
 from collections.abc import Callable, Coroutine, Hashable, Sized
 from dataclasses import dataclass
 from functools import partial
-from typing import Any, Protocol
-
-from typing_extensions import TypedDict
+from typing import Any, Protocol, TypedDict
 
 from dynamo._typing import AC, P, T
 

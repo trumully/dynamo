@@ -61,7 +61,7 @@ async def test_future_lru_cache_property(inputs: list[int]) -> None:
 @pytest.mark.asyncio
 @settings(deadline=None)
 @given(st.lists(st.integers(), min_size=1, max_size=10))
-async def test_future_lru_cache_clear_all(inputs: list[int]) -> None:
+async def test_future_lru_cache_clear(inputs: list[int]) -> None:
     """Tests that the cache can be cleared."""
 
     @dynamo.utils.cache.async_cache(maxsize=5)
@@ -75,7 +75,7 @@ async def test_future_lru_cache_clear_all(inputs: list[int]) -> None:
         results.append(result)
 
     assert async_cacheable_sized.cache_info().currsize > 0
-    async_cacheable_sized.cache_clear_all()
+    async_cacheable_sized.cache_clear()
     assert async_cacheable_sized.cache_info().currsize == 0
 
 
