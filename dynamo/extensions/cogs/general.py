@@ -43,16 +43,6 @@ class General(DynamoCog):
         """Get the bot's latency"""
         await ctx.send(f"\N{TABLE TENNIS PADDLE AND BALL} {round(self.bot.latency * 1000)}ms")
 
-    @commands.hybrid_command(name="about")
-    async def about(self, ctx: Context) -> None:
-        """Get information about the bot"""
-        e = user_embed(self.bot.user)
-        bot_name = self.bot.user.display_name
-        e.title = f"About {bot_name}"
-        e.description = f"{bot_name} is a bot that does stuff."
-        e.add_field(name="Uptime", value=f"`{human_timedelta(dt=self.bot.uptime, suffix=False)}`")
-        await ctx.send(embed=e)
-
     @commands.hybrid_command(name="user")
     async def user(self, ctx: Context, user: discord.Member | discord.User | None = None) -> None:
         """Get information about a user

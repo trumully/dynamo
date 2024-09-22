@@ -1,3 +1,4 @@
+import datetime
 import re
 from dataclasses import dataclass
 from enum import StrEnum, auto
@@ -79,6 +80,13 @@ class plural:
             return plural if abs(v) != 1 else singular
 
         return f"{v} {plural}" if abs(v) != 1 else f"{v} {singular}"
+
+
+def format_dt(dt: datetime.datetime, style: str | None = None) -> str:
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=datetime.timezone.utc)
+
+    return f"<t:{int(dt.timestamp())}>" if style is None else f"<t:{int(dt.timestamp())}:{style}>"
 
 
 def human_join(seq: Sequence[str], sep: str = ", ", conjunction: str = "or", *, oxford_comma: bool = True) -> str:

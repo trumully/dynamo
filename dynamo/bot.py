@@ -20,9 +20,10 @@ log = logging.getLogger(__name__)
 initial_extensions = (
     get_cog("errors"),
     get_cog("help"),
+    get_cog("dev"),
     get_cog("events"),
     get_cog("general"),
-    get_cog("dev"),
+    get_cog("stats"),
 )
 
 description = """

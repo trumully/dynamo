@@ -2,7 +2,7 @@ import datetime
 
 from dateutil.relativedelta import relativedelta
 
-from dynamo.utils.format import human_join, plural
+from dynamo.utils.format import format_dt, human_join, plural
 
 
 def human_timedelta(
@@ -102,3 +102,7 @@ def inferred_conversion(elapsed: float, factor: float, units: str) -> str:
         A human-readable string representing the elapsed time.
     """
     return f"{elapsed * factor:.2f}{units}"
+
+
+def format_relative(dt: datetime.datetime) -> str:
+    return format_dt(dt, "R")
