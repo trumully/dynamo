@@ -7,6 +7,8 @@ from dynamo.utils.helper import get_cog
 
 
 class DynamoCog(commands.Cog):
+    __slots__ = ("bot", "log")
+
     def __init__(self, bot: Dynamo) -> None:
         self.bot: Dynamo = bot
         self.log = logging.getLogger(get_cog(self.__class__.__name__))

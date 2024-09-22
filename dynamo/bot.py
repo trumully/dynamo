@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import AsyncGenerator, Generator
-from typing import Any, Generic, TypeVar, cast
+from typing import Any, cast
 
 import aiohttp
 import discord
@@ -11,6 +11,7 @@ import xxhash
 from discord import app_commands
 from discord.ext import commands
 
+from dynamo._typing import CommandT
 from dynamo.utils.context import Context
 from dynamo.utils.emoji import Emojis
 from dynamo.utils.helper import get_cog, platformdir, resolve_path_with_links
@@ -30,14 +31,8 @@ description = """
 Quantum entanglement.
 """
 
-CogT = TypeVar("CogT", bound=commands.Cog)
-CommandT = TypeVar(
-    "CommandT",
-    bound=commands.Command[Any, ..., Any] | app_commands.AppCommand | commands.HybridCommand,
-)
 
-
-class VersionableTree(app_commands.CommandTree["Dynamo"], Generic[CommandT]):
+class VersionableTree(app_commands.CommandTree["Dynamo"]):
     application_commands: dict[int | None, list[app_commands.AppCommand]]
     cache: dict[int | None, dict[CommandT | str, str]]
 
@@ -47,18 +42,7 @@ class VersionableTree(app_commands.CommandTree["Dynamo"], Generic[CommandT]):
         self.cache = {}
 
     async def get_hash(self, tree: app_commands.CommandTree) -> bytes:
-        """Get the hash of the command tree.
-
-        Parameters
-        ----------
-        tree : app_commands.CommandTree
-            The command tree to get the hash of.
-
-        Returns
-        -------
-        bytes
-            The hash of the command tree.
-        """
+        """Get the hash of the command tree."""
         commands = sorted(self._get_all_commands(guild=None), key=lambda c: c.qualified_name)
 
         if translator := self.translator:
@@ -190,6 +174,10 @@ class Dynamo(commands.AutoShardedBot):
             intents=intents,
             enable_debug_events=True,
             tree_cls=VersionableTree,
+            activity=discord.Activity(
+                name="The Cursed Apple",
+                type=discord.ActivityType.watching,
+            ),
         )
 
     async def setup_hook(self) -> None:
@@ -202,7 +190,6 @@ class Dynamo(commands.AutoShardedBot):
         self._BotBase__cogs = commands.core._CaseInsensitiveDict()
 
         self.app_emojis = Emojis(await self.fetch_application_emojis())
-        log.debug("Emojis: %s", self.app_emojis)
 
         for ext in initial_extensions:
             try:

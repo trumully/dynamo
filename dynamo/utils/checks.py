@@ -1,11 +1,9 @@
-from typing import Any, Callable, Coroutine, Protocol, TypeVar
+from typing import Any, Callable, Coroutine, Protocol
 
 from discord.ext import commands
 
+from dynamo._typing import ContextT, T
 from dynamo.utils.context import Context
-
-ContextT = TypeVar("ContextT", bound=commands.Context[Any], covariant=True)
-T = TypeVar("T")
 
 
 class Check(Protocol[ContextT]):

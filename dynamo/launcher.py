@@ -8,14 +8,13 @@ import socket
 import ssl
 from collections.abc import Generator
 from contextlib import contextmanager
-from pathlib import Path
+from importlib import metadata
 from typing import Any
 
 import aiohttp
 import base2048
 import click
 import discord
-import toml
 import truststore
 
 from dynamo._evt_policy import get_event_loop_policy
@@ -23,14 +22,6 @@ from dynamo.bot import Dynamo
 from dynamo.utils.helper import platformdir, resolve_path_with_links, valid_token
 
 log = logging.getLogger(__name__)
-
-
-def get_version() -> str:
-    parent_dir = resolve_path_with_links(Path(__file__).parent.parent, True)
-    with Path.open(parent_dir / "pyproject.toml") as f:
-        data = toml.load(f)
-    version: str = data["tool"]["poetry"]["version"]
-    return version
 
 
 class RemoveNoise(logging.Filter):
@@ -193,11 +184,14 @@ def _get_token() -> str | None:
 
 @click.group(invoke_without_command=True, options_metavar="[options]")
 @click.version_option(
-    version=get_version(),
-    prog_name="Dynamo",
-    message=click.style("%(prog)s - %(version)s", bold=True, fg="bright_cyan"),
+    metadata.version("dynamo"),
+    "-v",
+    "--version",
+    package_name="Dynamo",
+    prog_name="dynamo",
+    message=click.style("%(prog)s", fg="yellow") + click.style(" %(version)s", fg="bright_cyan"),
 )
-@click.option("--debug", is_flag=True, help="Set log level to debug")
+@click.option("--debug", "-d", is_flag=True, help="Set log level to debug")
 @click.pass_context
 def main(ctx: click.Context, debug: bool) -> None:
     """Launch the bot"""
@@ -210,7 +204,7 @@ def main(ctx: click.Context, debug: bool) -> None:
 
 @main.command(name="help")
 @click.pass_context
-def _help(ctx: click.Context) -> None:
+def dynamo_help(ctx: click.Context) -> None:
     """Show this message and exit."""
     click.echo(ctx.parent.get_help())
 
@@ -219,11 +213,8 @@ def _help(ctx: click.Context) -> None:
 def setup() -> None:
     """Set the bot's token"""
     if not valid_token(token := click.prompt("Enter your bot token", hide_input=True, type=str)):
-        msg = click.style(
-            "\N{WARNING SIGN} WARNING: That token doesn't look right. Double check before starting the bot.",
-            bold=True,
-            fg="yellow",
-        )
+        text = "\N{WARNING SIGN} WARNING: That token doesn't look right. Double check before starting the bot."
+        msg = click.style(text, bold=True, fg="yellow")
         click.echo(msg, err=True)
     _store_token(token)
 

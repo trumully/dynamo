@@ -8,7 +8,7 @@ from pathlib import Path
 import aiohttp
 from PIL import Image, ImageDraw, ImageFont
 
-from dynamo.utils.cache import future_lru_cache
+from dynamo.utils.cache import async_cache
 from dynamo.utils.format import FONTS, is_cjk
 from dynamo.utils.helper import ROOT, resolve_path_with_links, valid_url
 
@@ -330,7 +330,7 @@ def _draw_text_scroll(font: ImageFont.FreeTypeFont, text: str, width: int) -> Ge
         yield frame
 
 
-@future_lru_cache(ttl=1800)
+@async_cache(ttl=60)
 async def fetch_album_cover(url: str, session: aiohttp.ClientSession) -> bytes | None:
     """Fetch album cover from a URL.
 

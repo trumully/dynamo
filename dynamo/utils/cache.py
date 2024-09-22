@@ -2,37 +2,22 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import time
 from collections import OrderedDict
+from collections.abc import Callable, Coroutine, Hashable, Sized
 from dataclasses import dataclass
-from functools import wraps
-from typing import Any, Awaitable, Callable, Coroutine, ParamSpec, Protocol, TypeVar
+from functools import partial
+from typing import Any, Protocol
 
-P = ParamSpec("P")
-R = TypeVar("R")
+from typing_extensions import TypedDict
+
+from dynamo._typing import AC, P, T
 
 log = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
 class CacheInfo:
-    """
-    Cache info for the async_lru_cache decorator.
-
-    Attributes
-    ----------
-    hits : int
-        Number of cache hits.
-    misses : int
-        Number of cache misses.
-    currsize : int
-        Current size of the cache.
-
-    Methods
-    -------
-    clear()
-        Reset all counters to zero.
-    """
+    """Cache info for the async_lru_cache decorator."""
 
     hits: int = 0
     misses: int = 0
@@ -42,159 +27,109 @@ class CacheInfo:
         """Reset all counters to zero."""
         self.hits = self.misses = self.currsize = 0
 
-    def __repr__(self) -> str:
-        """Return a string representation of the cache info."""
-        return f"hits={self.hits}, misses={self.misses}, currsize={self.currsize}"
 
+class HashedSeq(list[Any]):
+    __slots__ = ("hash_value",)
 
-@dataclass(frozen=True, slots=True)
-class CacheKey:
-    """
-    Hashable cache key for functions. Requires args and kwargs to be hashable.
-
-    Attributes
-    ----------
-    func : Callable
-        The function being cached.
-    args : tuple
-        Positional arguments to the function.
-    kwargs : frozenset
-        Keyword arguments to the function.
-    """
-
-    func: Awaitable
-    args: tuple
-    kwargs: frozenset
+    def __init__(self, *args: Any, hash: Callable[[object], int] = hash) -> None:  # noqa: A002
+        self[:] = args
+        self.hash_value: int = hash(args)
 
     def __hash__(self) -> int:
-        """Compute a hash value for the cache key."""
-        return hash((self.func, self.args, self.kwargs))
-
-    def __repr__(self) -> str:
-        """Return a string representation of the cache key."""
-        return f"func={self.func.__name__}, args={self.args}, kwargs={self.kwargs}"
+        return self.hash_value
 
 
-@dataclass(frozen=True, slots=True)
-class CacheEntry:
-    value: asyncio.Future[R] | asyncio.Task[R]
-    expiry: float | None
+def make_key(
+    args: tuple[Any, ...],
+    kwargs: dict[Any, Any],
+    kwargs_mark: tuple[object] = (object(),),
+    fast_types: set[type] = {int, str},  # noqa: B006
+    type: type[type] = type,  # noqa: A002
+    len: Callable[[Sized], int] = len,  # noqa: A002
+) -> Hashable:
+    key: tuple[Any, ...] = args
+    if kwargs:
+        key += kwargs_mark
+        for item in kwargs.items():
+            key += item
+    return key[0] if len(key) == 1 and type(key[0]) in fast_types else HashedSeq(key)
 
 
-class Cacheable(Protocol[R]):
-    cache: OrderedDict[CacheKey, asyncio.Future[R] | asyncio.Task[R]]
+class CacheParameters(TypedDict):
+    maxsize: int | None
+    ttl: float | None
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Awaitable[R]: ...
+
+class LRUAsyncCallable(Protocol[AC]):
+    __slots__: tuple[str, ...] = ()
+
+    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> Coroutine[Any, Any, T]: ...
     def cache_info(self) -> CacheInfo: ...
-    def cache_clear_all(self) -> None: ...
-    def get(self, *args: Any, **kwargs: Any) -> CacheEntry | None: ...
-    def evict_containing(self, func_name: str) -> None: ...
+    def cache_clear(self) -> None: ...
+    def cache_parameters(self) -> CacheParameters: ...
 
 
-def _make_key(func: Coroutine[Any, Any, R], *args: Any, **kwargs: Any) -> CacheKey:
-    return CacheKey(func, args, frozenset(kwargs.items()))
-
-
-AsyncCallable = Callable[..., Coroutine[Any, Any, R]]
-CacheDecorator = Callable[[AsyncCallable[R]], Cacheable[R]]
-
-
-def future_lru_cache(
-    f: AsyncCallable[R] | None = None,
+def async_cache(
+    f: AC | None = None,
     /,
     *,
     maxsize: int | None = None,
-    ttl: int | None = None,
-) -> CacheDecorator[R]:
+    ttl: float | None = None,
+) -> Callable[[LRUAsyncCallable[AC]], Callable[P, asyncio.Task[T]]]:
     """Decorator to cache the result of an asynchronous function.
 
-    Functionally similar to `functools.lru_cache`, but non-blocking and thread-safe.
-    Eviction is carried out with an LRU algorithm and/or time-to-live (TTL).
+    Functionally similar to `functools.cache` & `functools.lru_cache` but non-blocking and thread-safe.
 
     Parameters
     ----------
-    f : AsyncCallable
-        The function to cache.
     maxsize : int | None, optional
-        The maximum number of items to cache. If set to None, the cache will have no maximum size.
+        Set the maximum number of items to cache.
     ttl : int | None, optional
-        The time to live for cached items in seconds. If set to None, the cache will not expire.
+        Set the time to live for cached items in seconds.
+
+    See
+    ---
+    - https://github.com/mikeshardmind/async-utils/blob/main/async_utils/task_cache.py
+    - https://asyncstdlib.readthedocs.io/en/stable
     """
 
-    def decorator(func: AsyncCallable[R]) -> Cacheable[R]:
-        _cache: OrderedDict[CacheKey, CacheEntry] = OrderedDict()
-        _info = CacheInfo()
+    def wrapper(coro: AC) -> LRUAsyncCallable[AC]:
+        internal_cache: OrderedDict[Hashable, asyncio.Task[T]] = OrderedDict()
+        cache_info: CacheInfo = CacheInfo()
 
-        async def run_and_cache(func: AsyncCallable[R], *args: Any, **kwargs: Any) -> R:
-            key: CacheKey = _make_key(func, *args, **kwargs)
-            result = await func(*args, **kwargs)
-            expiry = time.monotonic() + ttl if ttl else None
-            _cache[key] = CacheEntry(asyncio.Future(), expiry)
-            _cache[key].value.set_result(result)
-            _evict()
-            return result
+        def wrapped(*args: P.args, **kwargs: P.kwargs) -> asyncio.Task[T]:
+            key = make_key(args, kwargs)
+            try:
+                task = internal_cache[key]
+                internal_cache.move_to_end(key)
+                cache_info.hits += 1
+                log.debug("Hit on key: %s", key)
+                return internal_cache[key]
+            except KeyError:
+                log.debug("Miss on key: %s", key)
+                if maxsize is not None and len(internal_cache) >= maxsize:
+                    internal_cache.popitem(last=False)
+                internal_cache[key] = task = asyncio.create_task(coro(*args, **kwargs))
+                cache_info.misses += 1
+                cache_info.currsize = len(internal_cache)
+                if ttl is not None:
+                    call_after_ttl = partial(
+                        asyncio.get_running_loop().call_later,
+                        ttl,
+                        internal_cache.pop,
+                        key,
+                    )
+                    task.add_done_callback(call_after_ttl)
+                return task
 
-        def _evict() -> None:
-            now = time.monotonic()
-            expired_keys = [k for k, v in _cache.items() if v.expiry is not None and now >= v.expiry]
+        def cache_clear() -> None:
+            internal_cache.clear()
+            cache_info.clear()
 
-            for key in expired_keys:
-                _cache.pop(key)
-                _info.currsize -= 1
+        wrapped.cache_info = lambda: cache_info
+        wrapped.cache_clear = cache_clear
+        wrapped.cache_parameters = CacheParameters(maxsize=maxsize, ttl=ttl)
 
-            if maxsize is not None:
-                while _cache and _info.currsize > maxsize:
-                    key, _ = _cache.popitem(last=False)
-                    _info.currsize -= 1
+        return wrapped
 
-        def evict_containing(func_name: str) -> None:
-            to_evict = [k for k in _cache if k.func.__name__ == func_name]
-            for key in to_evict:
-                try:
-                    del _cache[key]
-                    _info.currsize -= 1
-                except KeyError:
-                    pass
-
-        def cache_info() -> CacheInfo:
-            return _info
-
-        def cache_clear_all() -> None:
-            _cache.clear()
-            _info.clear()
-
-        def get(*args: Any, **kwargs: Any) -> CacheEntry | None:
-            """Get a cache entry by key
-
-            Returns
-            -------
-            CacheEntry | None
-                The cache entry if it exists, otherwise None.
-            """
-            return _cache.get(_make_key(func, *args, **kwargs), None)
-
-        @wraps(func)
-        def wrapper(*args: Any, **kwargs: Any):
-            _evict()
-            now = time.monotonic()
-            key = _make_key(func, *args, **kwargs)
-            if key in _cache:
-                _info.hits += 1
-                if isinstance(_cache[key].value, asyncio.Future):
-                    return _cache[key].value
-                f = asyncio.Future()
-                f.set_result(_cache[key].value)
-                return f
-            _info.misses += 1
-            _info.currsize += 1
-            task: asyncio.Task[R] = asyncio.create_task(run_and_cache(func, *args, **kwargs))
-            _cache[key] = CacheEntry(task, now + ttl if ttl else None)
-            return task
-
-        wrapper.cache_info = cache_info
-        wrapper.cache_clear_all = cache_clear_all
-        wrapper.evict_containing = evict_containing
-        wrapper.get = get
-        return wrapper
-
-    return decorator if f is None else decorator(f)
+    return wrapper if f is None else wrapper(f)

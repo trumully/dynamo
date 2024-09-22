@@ -11,20 +11,7 @@ def valid_url(url: str) -> bool:
 
 
 def resolve_path_with_links(path: Path, /, folder: bool = False) -> Path:
-    """Resolve a path with links
-
-    Parameters
-    ----------
-    path : Path
-        The path to resolve.
-    folder : bool, optional
-        Whether to create a folder if the path does not exist, by default False.
-
-    Returns
-    -------
-    Path
-        The resolved path.
-    """
+    """Resolve a path with links"""
     try:
         return path.resolve(strict=True)
     except FileNotFoundError:
@@ -41,18 +28,6 @@ ROOT = resolve_path_with_links(Path(__file__).parent.parent.parent, folder=True)
 def valid_token(token: str) -> bool:
     """Validate a discord bot token
 
-    Parameters
-    ----------
-    token : str
-        The token to validate.
-
-    Returns
-    -------
-    bool
-        Whether the token is valid.
-
-    Notes
-    -----
     A discord bot token is a string that matches the following pattern:
     >>> "[M|N|O]XXXXXXXXXXXXXXXXXXXXXXX[XX].XXXXXX.XXXXXXXXXXXXXXXXXXXXXXXXXXX"
 

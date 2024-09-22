@@ -6,7 +6,7 @@ from discord.ext import commands
 
 from dynamo.bot import Dynamo
 from dynamo.utils.base_cog import DynamoCog
-from dynamo.utils.cache import future_lru_cache
+from dynamo.utils.cache import async_cache
 from dynamo.utils.checks import guild_only
 from dynamo.utils.context import Context
 from dynamo.utils.format import shorten_string
@@ -39,7 +39,7 @@ class EventsDropdownView(discord.ui.View):
         await self.message.edit(view=self)
 
 
-@future_lru_cache(maxsize=10, ttl=1800)
+@async_cache(maxsize=10, ttl=1800)
 async def get_interested(event: discord.ScheduledEvent) -> str:
     # https://peps.python.org/pep-0533/
     async with contextlib.aclosing(event.users()) as gen:
@@ -53,7 +53,7 @@ class Events(DynamoCog):
     def __init__(self, bot: Dynamo) -> None:
         super().__init__(bot)
 
-    @future_lru_cache(maxsize=10, ttl=1800)
+    @async_cache(maxsize=10, ttl=1800)
     async def fetch_events(self, guild: discord.Guild) -> list[discord.ScheduledEvent]:
         try:
             events = await guild.fetch_scheduled_events()

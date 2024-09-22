@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any
 
 import aiohttp
 import discord
 from discord.ext import commands
+
+from dynamo._typing import CommandT
 
 if TYPE_CHECKING:
     from dynamo.bot import Dynamo
@@ -63,14 +65,12 @@ class ConfirmationView(discord.ui.View):
 
 
 Channel = discord.VoiceChannel | discord.TextChannel | discord.Thread | discord.DMChannel
-CogT = TypeVar("CogT", bound=commands.Cog)
-R = TypeVar("R")
 
 
 class Context(commands.Context):
     channel: Channel
     prefix: str
-    command: commands.Command[CogT, ..., R]
+    command: CommandT
     bot: Dynamo
 
     class Status(StrEnum):

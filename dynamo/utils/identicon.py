@@ -11,7 +11,7 @@ from typing import Annotated, Self
 import numpy as np
 from PIL import Image
 
-from dynamo.utils.cache import future_lru_cache
+from dynamo.utils.cache import async_cache
 
 # 0.0 = same color
 COLOR_THRESHOLD = 0.4
@@ -19,19 +19,8 @@ COLOR_THRESHOLD = 0.4
 ArrayRGB = Annotated[np.ndarray, tuple[int, int, int]]
 
 
-def derive_seed(precursor: int | str) -> int:
-    """Generate a seed from integer, integer-like (i.e discord snowflake) or string
-
-    Parameters
-    ----------
-    precursor : int | str | None, optional
-        The precursor to generate the seed from.
-
-    Returns
-    -------
-    int
-        The generated seed.
-    """
+def derive_seed[SeedLike: (str, int)](precursor: SeedLike) -> int:
+    """Generate a seed from a string or int"""
     if isinstance(precursor, int):
         precursor = str(precursor)
     hashed = int.from_bytes(precursor.encode() + hashlib.sha256(precursor.encode()).digest(), byteorder="big")
@@ -58,18 +47,7 @@ class RGB:
         return self.r - other.r, self.g - other.g, self.b - other.b
 
     def is_similar(self, other: RGB) -> bool:
-        """Check if two colors are similar based on perceived color distance
-
-        Parameters
-        ----------
-        other : RGB
-            The color to compare to
-
-        Returns
-        -------
-        bool
-            Whether the two colors are similar
-        """
+        """Check if two colors are similar based on perceived color distance"""
         return self.perceived_distance(other) <= COLOR_THRESHOLD and self.euclidean_distance(other) <= COLOR_THRESHOLD
 
     def euclidean_distance(self, other: RGB) -> float:
@@ -168,18 +146,7 @@ def make_color(rng: np.random.Generator) -> RGB:
 
 
 def get_colors(seed: int) -> tuple[RGB, RGB]:
-    """Get two colors from a seed
-
-    Parameters
-    ----------
-    seed : int
-        The seed to generate the colors from
-
-    Returns
-    -------
-    tuple[RGB, RGB]
-        The two colors generated from the seed
-    """
+    """Get two colors from a seed"""
     rng = np.random.default_rng(seed=seed)
     fg = make_color(rng)
     bg = make_color(rng)
@@ -232,7 +199,7 @@ def seed_from_time() -> int:
     return int(str(time.monotonic()).replace(".", ""))
 
 
-@future_lru_cache(maxsize=20)
+@async_cache
 async def get_identicon(idt: Identicon, size: int = 256) -> bytes:
     """Generate a buffer for an identicon
 

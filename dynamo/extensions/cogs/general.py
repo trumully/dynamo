@@ -13,7 +13,6 @@ from dynamo.utils.context import Context
 from dynamo.utils.converter import SeedConverter
 from dynamo.utils.format import human_join
 from dynamo.utils.identicon import Identicon, derive_seed, get_colors, get_identicon, seed_from_time
-from dynamo.utils.time import human_timedelta
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
@@ -81,9 +80,11 @@ class General(DynamoCog):
         idt_bytes = await get_identicon(Identicon(5, fg, bg, 0.4, seed_to_use))
         file = discord.File(BytesIO(idt_bytes), filename=f"{fname}.png")
 
-        cmd_mention = await self.bot.tree.find_mention_for("general identicon", guild=ctx.guild)
+        cmd_mention = await self.bot.tree.find_mention_for("identicon", guild=ctx.guild)
         prefix = self.bot.prefixes.get(ctx.guild.id, ["d!", "d?"])[0]
-        description = f"**Command:**\n{cmd_mention} {display_name}\n{prefix}identicon {display_name}"
+        description = (
+            f"**Generate this identicon:**\n" f"> {cmd_mention} {display_name}\n" f"> {prefix}identicon {display_name}"
+        )
 
         e = discord.Embed(title=display_name, description=description, color=discord.Color.from_rgb(*fg.as_tuple()))
         e.set_image(url=f"attachment://{fname}.png")
