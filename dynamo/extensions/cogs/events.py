@@ -7,6 +7,7 @@ from discord.ext import commands
 from dynamo.bot import Dynamo
 from dynamo.utils.base_cog import DynamoCog
 from dynamo.utils.cache import future_lru_cache
+from dynamo.utils.checks import guild_only
 from dynamo.utils.context import Context
 from dynamo.utils.format import shorten_string
 
@@ -52,11 +53,6 @@ class Events(DynamoCog):
     def __init__(self, bot: Dynamo) -> None:
         super().__init__(bot)
 
-        self.active_users: set[int] = set()
-
-    def cog_check(self, ctx: commands.Context) -> bool:
-        return ctx.guild is not None
-
     @future_lru_cache(maxsize=10, ttl=1800)
     async def fetch_events(self, guild: discord.Guild) -> list[discord.ScheduledEvent]:
         try:
@@ -66,6 +62,8 @@ class Events(DynamoCog):
         return sorted(events, key=lambda e: e.start_time)
 
     @commands.hybrid_command(name="event")
+    @commands.cooldown(1, 35, commands.BucketType.guild)
+    @guild_only()
     async def event(self, ctx: Context, event: int | None = None) -> None:
         """Get a list of members subscribed to an event
 
@@ -74,9 +72,6 @@ class Events(DynamoCog):
         event: int | None, optional
             The event ID to get attendees of
         """
-        if ctx.author.id in self.active_users:
-            return
-
         if event is not None:
             try:
                 ev = await ctx.guild.fetch_scheduled_event(event)
@@ -87,7 +82,8 @@ class Events(DynamoCog):
             await ctx.send(interested, ephemeral=True)
             return
 
-        message = await ctx.send(f"{self.bot._emojis['loading2']} Fetching events...")
+        loading_emoji = self.bot.app_emojis.get("loading2", "⏳")
+        message = await ctx.send(f"{loading_emoji} Fetching events...")
 
         events = await self.fetch_events(ctx.guild)
 
@@ -95,14 +91,12 @@ class Events(DynamoCog):
             await message.edit(content=f"{ctx.Status.FAILURE} No events found!")
             return
 
-        self.active_users.add(ctx.author.id)
         view = EventsDropdownView(events, timeout=25)
         await message.edit(content="Select an event", view=view)
 
         await view.wait()
 
         await message.edit(content="Expired!", view=None)
-        self.active_users.remove(ctx.author.id)
         await message.delete(delay=10)
 
 

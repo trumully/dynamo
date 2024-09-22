@@ -87,18 +87,10 @@ class Errors(DynamoCog):
 
         Parameters
         ----------
-        ctx : commands.Context
-            The context.
         error : commands.CommandError
             The error.
         """
-        self.log.exception(
-            "%s called by %s raised an exception: %s. (%s)",
-            ctx.command,
-            ctx.author,
-            ctx.message,
-            exc_info=error.__traceback__,
-        )
+        self.log.exception("%s called by %s raised an exception: %s", ctx.command, ctx.author, ctx.message)
 
         error_message = self.get_command_error_message(error)
 

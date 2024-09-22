@@ -6,6 +6,7 @@ from discord.ext import commands
 
 from dynamo.bot import Dynamo
 from dynamo.utils.base_cog import DynamoCog
+from dynamo.utils.checks import is_owner
 from dynamo.utils.context import Context
 from dynamo.utils.converter import GuildConverter
 from dynamo.utils.emoji import Emojis
@@ -18,13 +19,11 @@ class Dev(DynamoCog):
     def __init__(self, bot: Dynamo) -> None:
         super().__init__(bot)
 
-    async def cog_check(self, ctx: commands.Context) -> bool:
-        return await self.bot.is_owner(ctx.author)
-
     @commands.hybrid_group(invoke_without_command=True, name="sync", aliases=("s",))
+    @is_owner()
     async def sync(
         self,
-        ctx: commands.Context,
+        ctx: Context,
         guild: discord.Guild = commands.param(converter=GuildConverter, default=None, displayed_name="guild_id"),
         copy: bool = False,
     ) -> None:
@@ -44,7 +43,8 @@ class Dev(DynamoCog):
         await ctx.send(f"Successfully synced {len(commands)} commands")
 
     @sync.command(name="global", aliases=("g",))
-    async def sync_global(self, ctx: commands.Context) -> None:
+    @is_owner()
+    async def sync_global(self, ctx: Context) -> None:
         """Sync global slash commands"""
         commands = await self.bot.tree.sync(guild=None)
         await ctx.send(f"Successfully synced {len(commands)} commands")
@@ -69,6 +69,7 @@ class Dev(DynamoCog):
         await ctx.send("Successfully cleared all commands")
 
     @commands.hybrid_command(name="load", aliases=("l",))
+    @is_owner()
     async def load(self, ctx: Context, *, module: str) -> None:
         """Load a cog
 
@@ -77,14 +78,16 @@ class Dev(DynamoCog):
         module: str
             The name of the cog to load.
         """
+        m = get_cog(module)
         try:
-            await self.bot.load_extension(m := get_cog(module))
+            await self.bot.load_extension(m)
         except commands.ExtensionError:
             self.log.exception("Failed to load %s", m)
         else:
             await ctx.send(ctx.Status.OK)
 
     @commands.hybrid_command(aliases=("ul",))
+    @is_owner()
     async def unload(self, ctx: Context, *, module: str) -> None:
         """Unload a cog
 
@@ -93,14 +96,16 @@ class Dev(DynamoCog):
         module: str
             The name of the cog to unload.
         """
+        m = get_cog(module)
         try:
-            await self.bot.unload_extension(m := get_cog(module))
+            await self.bot.unload_extension(m)
         except commands.ExtensionError:
             self.log.exception("Failed to unload %s", m)
         else:
             await ctx.send(ctx.Status.OK)
 
     @commands.hybrid_group(name="reload", aliases=("r",), invoke_without_command=True)
+    @is_owner()
     async def _reload(self, ctx: Context, *, module: str) -> None:
         """Reload a cog.
 
@@ -109,8 +114,10 @@ class Dev(DynamoCog):
         module: str
             The name of the cog to reload.
         """
+        m = get_cog(module)
+
         try:
-            await self.bot.reload_extension(m := get_cog(module))
+            await self.bot.reload_extension(m)
         except commands.ExtensionError:
             self.log.exception("Failed to reload %s", m)
         else:
@@ -120,9 +127,14 @@ class Dev(DynamoCog):
         try:
             await self.bot.reload_extension(module)
         except commands.ExtensionNotLoaded:
-            await self.bot.load_extension(module)
+            self.log.exception("%s is not loaded. Attempting to load...", module)
+            try:
+                await self.bot.load_extension(module)
+            except commands.ExtensionError:
+                self.log.exception("Failed to load %s", module)
 
     @_reload.command(name="all")
+    @is_owner()
     async def _reload_all(self, ctx: Context) -> None:
         """Reload all cogs"""
         if not await ctx.prompt("Are you sure you want to reload all cogs?"):
@@ -155,31 +167,39 @@ class Dev(DynamoCog):
         await ctx.send("\n".join(f"{status} `{ext}`" for status, ext in statuses))
 
     @commands.hybrid_command(name="quit", aliases=("exit", "shutdown", "q"))
-    async def shutdown(self, ctx: commands.Context) -> None:
+    @is_owner()
+    async def shutdown(self, ctx: Context) -> None:
         """Shutdown the bot"""
         await ctx.send("Shutting down...")
         await self.bot.close()
 
     @commands.hybrid_command(name="emoji")
-    async def emoji(self, ctx: commands.Context) -> None:
+    @is_owner()
+    async def emoji(self, ctx: Context) -> None:
         """Refresh the bot's emoji"""
-        emojis_old = self.bot._emojis
-        self.bot._emojis = Emojis(await self.bot.fetch_application_emojis())
-        result = []
-        for name, emoji in emojis_old.items():
-            start = "="
-            if name not in self.bot._emojis:
-                start = "-"
-            elif self.bot._emojis[name] != emoji:
-                start = "^"
+        old_emojis = self.bot.app_emojis
+        self.bot.app_emojis = new_emojis = Emojis(await self.bot.fetch_application_emojis())
 
-            result.append(f"{start} {name} {emoji}")
+        # All emojis
+        all_emojis = [f"`{name}`\t{emoji}" for name, emoji in new_emojis.items()]
 
-        for name, emoji in self.bot._emojis.items():
-            if name not in emojis_old:
-                result.append(f"+ {name} {emoji}")
+        # Added emojis
+        added = [f"`{name}`\t{emoji}" for name, emoji in new_emojis.items() if name not in old_emojis]
 
-        await ctx.send("```diff\n" + ("\n".join(result) or "**No emojis updated**") + "\n```")
+        # Removed emojis
+        removed = [f"`{name}`\t{emoji}" for name, emoji in old_emojis.items() if name not in new_emojis]
+
+        result = f"{'\n'.join(all_emojis)}\n"
+
+        if added:
+            result += "```diff\n+ Added\n```\n"
+            result += "\n".join(added) + "\n"
+
+        if removed:
+            result += "```diff\n- Removed\n```\n"
+            result += "\n".join(removed)
+
+        await ctx.send(result.strip())
 
 
 async def setup(bot: Dynamo) -> None:

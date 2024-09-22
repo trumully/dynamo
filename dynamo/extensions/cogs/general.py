@@ -10,12 +10,13 @@ from dynamo.bot import Dynamo
 from dynamo.utils import spotify
 from dynamo.utils.base_cog import DynamoCog
 from dynamo.utils.context import Context
-from dynamo.utils.converter import MemberTransformer
+from dynamo.utils.converter import SeedConverter
 from dynamo.utils.format import human_join
 from dynamo.utils.identicon import Identicon, derive_seed, get_colors, get_identicon, seed_from_time
 from dynamo.utils.time import human_timedelta
 
 log = logging.getLogger(__name__)
+log.setLevel(logging.DEBUG)
 
 
 def user_embed(user: discord.Member | discord.User | discord.ClientUser) -> discord.Embed:
@@ -38,20 +39,12 @@ class General(DynamoCog):
         super().__init__(bot)
 
     @commands.hybrid_command(name="ping")
-    async def ping(self, ctx: commands.Context) -> None:
+    async def ping(self, ctx: Context) -> None:
         """Get the bot's latency"""
         await ctx.send(f"\N{TABLE TENNIS PADDLE AND BALL} {round(self.bot.latency * 1000)}ms")
 
-    @commands.hybrid_command(name="invite")
-    async def invite(self, ctx: commands.Context) -> None:
-        """Get the invite link for the bot"""
-        if (user := self.bot.user) is None:
-            return
-
-        await ctx.send(f"[Invite me here!]({discord.utils.oauth_url(user.id)})", ephemeral=True)
-
     @commands.hybrid_command(name="about")
-    async def about(self, ctx: commands.Context) -> None:
+    async def about(self, ctx: Context) -> None:
         """Get information about the bot"""
         e = user_embed(self.bot.user)
         bot_name = self.bot.user.display_name
@@ -61,7 +54,7 @@ class General(DynamoCog):
         await ctx.send(embed=e)
 
     @commands.hybrid_command(name="user")
-    async def user(self, ctx: commands.Context, user: discord.Member | discord.User | None = None) -> None:
+    async def user(self, ctx: Context, user: discord.Member | discord.User | None = None) -> None:
         """Get information about a user
 
         Parameters
@@ -74,17 +67,17 @@ class General(DynamoCog):
     @commands.hybrid_command(name="identicon", aliases=("i", "idt"))
     async def identicon(
         self,
-        ctx: commands.Context,
-        seed: discord.Member | str = commands.param(converter=MemberTransformer, default=None),
+        ctx: Context,
+        seed: discord.Member | str | int = commands.param(converter=SeedConverter, default=""),
     ) -> None:
         """Generate an identicon from a user or string
 
         Parameters
         ----------
-        seed: MemberTransformer | None
+        seed: discord.Member | str | int, optional
             The seed to use. Random seed if empty.
         """
-        seed_to_use: discord.Member | str | int = seed if seed is not None else seed_from_time()
+        seed_to_use: discord.Member | str | int = seed if seed else seed_from_time()
         if isinstance(seed_to_use, str) and (parsed := urlparse(seed_to_use)).scheme and parsed.netloc:
             seed_to_use = (parsed.netloc + parsed.path).replace("/", "-")
 
@@ -147,8 +140,9 @@ class General(DynamoCog):
 
         file = discord.File(buffer, filename=fname)
         track = f"[{activity.title}](<{activity.track_url}>)"
+        spotify_emoji = self.bot.app_emojis.get("spotify", "🎧")
         embed = discord.Embed(
-            title=f"{self.bot._emojis['spotify']} Now Playing",
+            title=f"{spotify_emoji} Now Playing",
             description=f"{user.mention} is listening to **{track}** by"
             f" **{human_join(activity.artists, conjunction='and')}**",
             color=activity.color,

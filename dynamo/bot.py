@@ -200,8 +200,8 @@ class Dynamo(commands.AutoShardedBot):
         # Case insensitive cogs for help commands.
         self._BotBase__cogs = commands.core._CaseInsensitiveDict()
 
-        self._emojis = Emojis(await self.fetch_application_emojis())
-        log.debug("Emojis: %s", self._emojis)
+        self.app_emojis = Emojis(await self.fetch_application_emojis())
+        log.debug("Emojis: %s", self.app_emojis)
 
         for ext in initial_extensions:
             try:
