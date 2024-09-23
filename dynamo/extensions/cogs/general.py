@@ -1,34 +1,15 @@
-import logging
 from io import BytesIO
-from typing import cast
 from urllib.parse import urlparse
 
 import discord
 from discord.ext import commands
 
-from dynamo.bot import Dynamo
+from dynamo.core import Dynamo, DynamoCog
 from dynamo.utils import spotify
-from dynamo.utils.base_cog import DynamoCog
 from dynamo.utils.context import Context
 from dynamo.utils.converter import SeedConverter
 from dynamo.utils.format import human_join
 from dynamo.utils.identicon import Identicon, derive_seed, get_colors, get_identicon, seed_from_time
-
-log = logging.getLogger(__name__)
-log.setLevel(logging.DEBUG)
-
-
-def user_embed(user: discord.Member | discord.User | discord.ClientUser) -> discord.Embed:
-    e = discord.Embed(color=user.color)
-    e.set_footer(text=f"ID: {user.id}")
-    avatar = user.display_avatar.with_static_format("png")
-    e.set_author(name=str(user), icon_url=avatar.url)
-    if not user.bot:
-        e.add_field(name="Account Created", value=f"<t:{int(user.created_at.timestamp())}:R>")
-    if not isinstance(user, (discord.ClientUser, discord.User)) and user.joined_at:
-        e.add_field(name="Joined Server", value=f"<t:{int(user.joined_at.timestamp())}:R>")
-    e.set_image(url=avatar.url)
-    return e
 
 
 class General(DynamoCog):
@@ -41,17 +22,6 @@ class General(DynamoCog):
     async def ping(self, ctx: Context) -> None:
         """Get the bot's latency"""
         await ctx.send(f"\N{TABLE TENNIS PADDLE AND BALL} {round(self.bot.latency * 1000)}ms")
-
-    @commands.hybrid_command(name="user")
-    async def user(self, ctx: Context, user: discord.Member | discord.User | None = None) -> None:
-        """Get information about a user
-
-        Parameters
-        ----------
-        user: discord.Member | discord.User | None
-            The user to check. If nothing is provided, check author instead.
-        """
-        await ctx.send(embed=user_embed(user or ctx.author), ephemeral=True)
 
     @commands.hybrid_command(name="identicon", aliases=("i", "idt"))
     async def identicon(
@@ -72,22 +42,19 @@ class General(DynamoCog):
 
         display_name = seed_to_use if (isinstance(seed_to_use, (str, int))) else seed_to_use.display_name
 
-        # use user id if seed is a user
-        fname: str | int = seed_to_use if isinstance(seed_to_use, (str, int)) else seed_to_use.id
-        seed_to_use = derive_seed(fname)
+        seed_to_use = derive_seed(display_name)
         fg, bg = get_colors(seed=seed_to_use)
 
         idt_bytes = await get_identicon(Identicon(5, fg, bg, 0.4, seed_to_use))
-        file = discord.File(BytesIO(idt_bytes), filename=f"{fname}.png")
+        file = discord.File(BytesIO(idt_bytes), filename="identicon.png")
 
         cmd_mention = await self.bot.tree.find_mention_for("identicon", guild=ctx.guild)
         prefix = self.bot.prefixes.get(ctx.guild.id, ["d!", "d?"])[0]
         description = (
             f"**Generate this identicon:**\n" f"> {cmd_mention} {display_name}\n" f"> {prefix}identicon {display_name}"
         )
-
         e = discord.Embed(title=display_name, description=description, color=discord.Color.from_rgb(*fg.as_tuple()))
-        e.set_image(url=f"attachment://{fname}.png")
+        e.set_image(url="attachment://identicon.png")
         await ctx.send(embed=e, file=file)
 
     @commands.hybrid_command(name="spotify", aliases=("sp", "applemusic"))
@@ -105,11 +72,10 @@ class General(DynamoCog):
         if user.bot:
             return
 
-        user = cast(discord.Member, user)
         activity: discord.Spotify | None = next((a for a in user.activities if isinstance(a, discord.Spotify)), None)
 
         if activity is None:
-            await ctx.send("User is not listening to Spotify.")
+            await ctx.send(f"{user!s} is not listening to Spotify.")
             return
 
         album_cover: bytes | None = await spotify.fetch_album_cover(activity.album_cover_url, self.bot.session)
@@ -117,16 +83,7 @@ class General(DynamoCog):
             await ctx.send("Failed to fetch album cover.")
             return
 
-        color = activity.color.to_rgb()
-
-        buffer, ext = await spotify.draw(
-            name=activity.title,
-            artists=activity.artists,
-            color=color,
-            album=album_cover,
-            duration=activity.duration,
-            end=activity.end,
-        )
+        buffer, ext = await spotify.draw(activity, album_cover)
         fname = f"spotify-card.{ext}"
 
         file = discord.File(buffer, filename=fname)

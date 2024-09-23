@@ -1,18 +1,12 @@
 import logging
-from typing import Any, Mapping, ParamSpec, TypeVar
+from typing import Any, Mapping
 
 import discord
 from discord.ext import commands
 
-from dynamo.bot import Dynamo
-from dynamo.utils.base_cog import DynamoCog
+from dynamo._typing import CogT, CommandT
+from dynamo.core import Dynamo, DynamoCog
 from dynamo.utils.format import human_join
-
-CogT = TypeVar("CogT", bound=commands.Cog)
-T = TypeVar("T")
-R = TypeVar("R")
-P = ParamSpec("P")
-
 
 log = logging.getLogger(__name__)
 
@@ -25,7 +19,6 @@ class HelpEmbed(discord.Embed):
             "\nRequired parameters: <required> | Optional parameters: [optional]"
         )
         self.set_footer(text=text)
-        # Assign to self.colour which aliases to self.color
         self.colour = color
 
 
@@ -42,28 +35,27 @@ class DynamoHelp(commands.HelpCommand):
     async def send(self, **kwargs: Any) -> None:
         await self.get_destination().send(**kwargs)
 
-    async def send_bot_help(self, mapping: Mapping[CogT, list[commands.Command[CogT, P, T]]]) -> None:
+    async def send_bot_help(self, mapping: Mapping[CogT, list[CommandT]]) -> None:
         ctx = self.context
         embed = HelpEmbed(title=f"{ctx.me.display_name} Help")
         embed.set_thumbnail(url=ctx.me.display_avatar)
         usable = 0
 
         for cog, command in mapping.items():
-            if filtered_commands := await self.filter_commands(command):
-                name = cog.qualified_name if cog else "No"
-                if name in self.blacklisted:
-                    continue
-                amount_commands = len(filtered_commands)
-                usable += amount_commands
-                description = f"```{(cog.description or 'No description') if cog else 'Commands with no category'}```"
+            name = cog.qualified_name if cog else "None"
+            if name in self.blacklisted or not (filtered_commands := await self.filter_commands(command)):
+                continue
+            amount_commands = len(filtered_commands)
+            usable += amount_commands
+            description = f"```{(cog.description or 'No description') if cog else 'Commands with no category'}```"
 
-                embed.add_field(name=f"{name} Category ({amount_commands})", value=description)
+            embed.add_field(name=f"{name} Category ({amount_commands})", value=description)
 
         embed.description = f"{usable} commands"
 
         await self.send(embed=embed)
 
-    async def send_command_help(self, command: commands.Command[CogT, P, T]) -> None:
+    async def send_command_help(self, command: CommandT) -> None:
         signature = self.get_command_signature(command)
 
         embed = HelpEmbed(title=signature, description=f"```{command.help or "No help found..."}```")
@@ -86,7 +78,7 @@ class DynamoHelp(commands.HelpCommand):
         self,
         title: str,
         description: str,
-        commands: set[commands.Command[CogT, P, T]],
+        commands: set[CommandT],
         aliases: list[str] | tuple[str] | None = None,
         category: str | None = None,
     ) -> None:

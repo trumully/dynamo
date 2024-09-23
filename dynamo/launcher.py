@@ -2,67 +2,22 @@ import asyncio
 import logging
 import logging.handlers
 import os
-import queue
 import signal
 import socket
 import ssl
-from collections.abc import Generator
-from contextlib import contextmanager
 from importlib import metadata
 from typing import Any
 
 import aiohttp
 import base2048
 import click
-import discord
 import truststore
 
 from dynamo._evt_policy import get_event_loop_policy
-from dynamo.bot import Dynamo
+from dynamo.core import Dynamo, setup_logging
 from dynamo.utils.helper import platformdir, resolve_path_with_links, valid_token
 
 log = logging.getLogger(__name__)
-
-
-class RemoveNoise(logging.Filter):
-    known_messages: tuple[str, ...] = ("referencing an unknown", "PyNaCl is not installed, voice will NOT be supported")
-
-    def filter(self, record: logging.LogRecord) -> bool | logging.LogRecord:
-        return not any(message in record.msg for message in self.known_messages)
-
-
-@contextmanager
-def setup_logging(log_level: int = logging.INFO) -> Generator[None, Any, None]:
-    q: queue.SimpleQueue[Any] = queue.SimpleQueue()
-    q_handler = logging.handlers.QueueHandler(q)
-    q_handler.addFilter(RemoveNoise())
-    stream_handler = logging.StreamHandler()
-
-    log_path = resolve_path_with_links(platformdir.user_log_path, folder=True)
-    log_location = log_path / "dynamo.log"
-    rotating_file_handler = logging.handlers.RotatingFileHandler(log_location, maxBytes=2_000_000, backupCount=5)
-
-    discord.utils.setup_logging(handler=stream_handler)
-    discord.utils.setup_logging(handler=rotating_file_handler)
-
-    logging.getLogger("discord").setLevel(logging.INFO)
-    logging.getLogger("discord.http").setLevel(logging.WARNING)
-    logging.getLogger("discord.state")
-
-    root_logger = logging.getLogger()
-    root_logger.removeHandler(stream_handler)
-    root_logger.removeHandler(rotating_file_handler)
-
-    root_logger.setLevel(log_level)
-
-    q_listener = logging.handlers.QueueListener(q, stream_handler, rotating_file_handler)
-    root_logger.addHandler(q_handler)
-
-    try:
-        q_listener.start()
-        yield
-    finally:
-        q_listener.stop()
 
 
 def run_bot() -> None:

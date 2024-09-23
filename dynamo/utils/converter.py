@@ -23,7 +23,7 @@ class SeedConverter(commands.Converter, app_commands.Transformer):
 
     See
     ---
-    :func:`discord.ext.commands.MemberConverter.conver`
+    :func:`discord.ext.commands.MemberConverter.convert`
     """
 
     async def convert(self, ctx: Context, argument: str) -> discord.Member | str:

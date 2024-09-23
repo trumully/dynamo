@@ -2,154 +2,79 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import math
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from io import BytesIO
-from typing import Annotated, Self
+from typing import Annotated
 
 import numpy as np
 from PIL import Image
 
 from dynamo.utils.cache import async_cache
 
-# 0.0 = same color
+# 0.0 = same color | 1.0 = different color
 COLOR_THRESHOLD = 0.4
-
 ArrayRGB = Annotated[np.ndarray, tuple[int, int, int]]
 
 
 def derive_seed[SeedLike: (str, int)](precursor: SeedLike) -> int:
     """Generate a seed from a string or int"""
-    if isinstance(precursor, int):
-        precursor = str(precursor)
+    precursor = str(precursor)
     hashed = int.from_bytes(precursor.encode() + hashlib.sha256(precursor.encode()).digest(), byteorder="big")
     return hashed  # noqa: RET504  needs to be assigned as a var to work properly
 
 
-def _clamp(value: int, upper: int) -> int:
-    return max(0, min(value, upper))
+# Maximum distances (derived from distance between black and white)
+MAX_PERCEIVED_DISTANCE = 764.83
+MAX_EUCLIDEAN_DISTANCE = 441.67
 
 
-@dataclass
+@dataclass(slots=True)
 class RGB:
     r: int
     g: int
     b: int
 
     def __post_init__(self) -> None:
-        """Clamp the RGB values to the range [0, 255]"""
-        self.r = _clamp(self.r, 255)
-        self.g = _clamp(self.g, 255)
-        self.b = _clamp(self.b, 255)
+        self.r, self.g, self.b = (max(0, min(x, 255)) for x in (self.r, self.g, self.b))
 
     def difference(self, other: RGB) -> tuple[int, int, int]:
-        return self.r - other.r, self.g - other.g, self.b - other.b
+        return (self.r - other.r, self.g - other.g, self.b - other.b)
 
     def is_similar(self, other: RGB) -> bool:
-        """Check if two colors are similar based on perceived color distance"""
         return self.perceived_distance(other) <= COLOR_THRESHOLD and self.euclidean_distance(other) <= COLOR_THRESHOLD
 
     def euclidean_distance(self, other: RGB) -> float:
-        return euclidean_distance_to_max(self, other)
+        """Gets the euclidean distance between two colors"""
+        r, g, b = self.difference(other)
+        distance = ((r * r) + (g * g) + (b * b)) ** 0.5
+        return distance / MAX_EUCLIDEAN_DISTANCE
 
     def perceived_distance(self, other: RGB) -> float:
-        return perceived_distance_to_max(self, other)
+        """Gets the perceived distance between two colors
 
-    def flip(self) -> Self:
-        self.r = _clamp(255 - self.r, 255)
-        self.g = _clamp(255 - self.g, 255)
-        self.b = _clamp(255 - self.b, 255)
-        return self
+        See
+        ---
+        - https://www.compuphase.com/cmetric.htm
+        """
+        r_mean = (self.r + other.r) >> 1
+        r, g, b = self.difference(other)
+        # ΔC = √((2 + r̄/256) * ΔR² + 4 * ΔG² + (2 + (255 - r̄)/256) * ΔB²)
+        distance = ((((512 + r_mean) * r * r) >> 8) + 4 * g * g + (((767 - r_mean) * b * b) >> 8)) ** 0.5
+        return distance / MAX_PERCEIVED_DISTANCE
 
     def as_tuple(self) -> tuple[int, int, int]:
         return self.r, self.g, self.b
 
 
-def perceived_color_distance(x: RGB, y: RGB) -> float:
-    """Measure perceived distance between two colors
-
-    .. [1] https://www.compuphase.com/cmetric.htm
-    .. [2] https://stackoverflow.com/questions/8863810/python-find-similar-colors-best-way
-
-    Parameters
-    ----------
-    x : RGB
-        The first color
-    y : RGB
-        The second color
-
-    Returns
-    -------
-    float
-        The distance between the two colors
-    """
-    red_mean = (x.r + y.r) / 2
-    r, g, b = x.difference(y)
-
-    return math.sqrt((512 + red_mean) / 256 * r**2 + 4 * g**2 + (767 - red_mean) / 256 * b**2)
-
-
-def euclidean_color_distance(x: RGB, y: RGB) -> float:
-    """Measure euclidean distance between two colors
-
-
-    Parameters
-    ----------
-    x : RGB
-        The first color
-    y : RGB
-        The second color
-
-    Returns
-    -------
-    float
-        The distance between the two colors
-
-    See
-    ---
-        :func:`perceived_color_distance`
-    """
-    r, g, b = x.difference(y)
-    return math.sqrt(r**2 + g**2 + b**2)
-
-
-BLACK: RGB = RGB(0, 0, 0)
-WHITE: RGB = RGB(255, 255, 255)
-MAX_PERCEIVED_DISTANCE: float = perceived_color_distance(WHITE, BLACK)
-MAX_EUCLIDEAN_DISTANCE: float = euclidean_color_distance(WHITE, BLACK)
-
-
-def perceived_distance_to_max(x: RGB, y: RGB) -> float:
-    return perceived_color_distance(x, y) / MAX_PERCEIVED_DISTANCE
-
-
-def euclidean_distance_to_max(x: RGB, y: RGB) -> float:
-    return euclidean_color_distance(x, y) / MAX_EUCLIDEAN_DISTANCE
-
-
 def make_color(rng: np.random.Generator) -> RGB:
-    """Make a color from a given seed
-
-    Parameters
-    ----------
-    rng : np.random.Generator
-        The random number generator to use
-
-    Returns
-    -------
-    RGB
-        The color generated from the seed
-    """
-    colors: tuple[int, ...] = tuple(int(x) for x in rng.integers(low=0, high=256, size=3))
-    return RGB(*colors)
+    return RGB(*map(int, rng.integers(low=0, high=256, size=3, dtype=int)))
 
 
 def get_colors(seed: int) -> tuple[RGB, RGB]:
     """Get two colors from a seed"""
     rng = np.random.default_rng(seed=seed)
-    fg = make_color(rng)
-    bg = make_color(rng)
+    fg, bg = make_color(rng), make_color(rng)
 
     while fg.is_similar(bg):
         bg = make_color(rng)
@@ -167,28 +92,18 @@ class Identicon:
     fg_weight: float
     seed: int
 
-    rng: np.random.Generator = field(default_factory=np.random.default_rng, init=False, repr=False)
-
-    def __post_init__(self) -> None:
-        object.__setattr__(self, "rng", np.random.default_rng(seed=self.seed))
-
-    @property
-    def pattern(self) -> ArrayRGB:
-        colors = np.array((self.fg, self.bg))
-        size = (self.size * 2, self.size)
-        weight = (self.fg_weight, 1 - self.fg_weight)
-        return self.rng.choice(colors, size=size, p=weight)
-
     @property
     def icon(self) -> ArrayRGB:
-        return self.reflect(np.array([[c.as_tuple() for c in row] for row in self.pattern]))
-
-    @staticmethod
-    def reflect(matrix: np.ndarray) -> ArrayRGB:
-        return np.hstack((matrix, np.fliplr(matrix)))
+        rng = np.random.default_rng(seed=self.seed)
+        pattern = rng.choice(
+            [self.fg.as_tuple(), self.bg.as_tuple()],
+            size=(self.size * 2, self.size),
+            p=[self.fg_weight, 1 - self.fg_weight],
+        )
+        return np.hstack((pattern, np.fliplr(pattern)))
 
     def __eq__(self, other: object) -> bool:
-        return isinstance(other, Identicon) and self.__hash__() == other.__hash__()
+        return isinstance(other, Identicon) and hash(self) == hash(other)
 
     def __hash__(self) -> int:
         return hash(frozenset((self.size, self.fg.as_tuple(), self.bg.as_tuple(), self.fg_weight, self.seed)))
@@ -201,28 +116,12 @@ def seed_from_time() -> int:
 
 @async_cache
 async def get_identicon(idt: Identicon, size: int = 256) -> bytes:
-    """Generate a buffer for an identicon
-
-    Parameters
-    ----------
-    idt : Identicon
-        The identicon to generate a buffer for
-    size : int, optional
-        The size of the buffer to generate, by default 256
-
-    Returns
-    -------
-    bytes
-        The buffer for the identicon
-    """
-
     def _buffer(idt: Identicon, size: int) -> bytes:
-        with BytesIO() as buffer:
-            im = Image.fromarray(idt.icon.astype("uint8"))
-            im = im.convert("RGB")
-            im = im.resize((size, size), Image.Resampling.NEAREST)
-            im.save(buffer, format="png")
-            buffer.seek(0)
-            return buffer.getvalue()
+        buffer = BytesIO()
+        Image.fromarray(idt.icon.astype("uint8")).convert("RGB").resize((size, size), Image.Resampling.NEAREST).save(
+            buffer, format="png"
+        )
+        buffer.seek(0)
+        return buffer.getvalue()
 
     return await asyncio.to_thread(_buffer, idt, size)

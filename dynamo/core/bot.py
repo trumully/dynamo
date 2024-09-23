@@ -24,7 +24,7 @@ initial_extensions = (
     get_cog("dev"),
     get_cog("events"),
     get_cog("general"),
-    get_cog("stats"),
+    get_cog("info"),
 )
 
 description = """

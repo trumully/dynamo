@@ -4,8 +4,7 @@ import sys
 import discord
 from discord.ext import commands
 
-from dynamo.bot import Dynamo
-from dynamo.utils.base_cog import DynamoCog
+from dynamo.core import Dynamo, DynamoCog
 from dynamo.utils.checks import is_owner
 from dynamo.utils.context import Context
 from dynamo.utils.converter import GuildConverter
@@ -50,6 +49,7 @@ class Dev(DynamoCog):
         await ctx.send(f"Successfully synced {len(commands)} commands")
 
     @sync.command(name="clear", aliases=("c",))
+    @is_owner()
     async def clear_commands(
         self,
         ctx: Context,
@@ -81,7 +81,8 @@ class Dev(DynamoCog):
         m = get_cog(module)
         try:
             await self.bot.load_extension(m)
-        except commands.ExtensionError:
+        except commands.ExtensionError as ex:
+            await ctx.send(f"{ex.__class__.__name__}: {ex}")
             self.log.exception("Failed to load %s", m)
         else:
             await ctx.send(ctx.Status.OK)
@@ -99,7 +100,8 @@ class Dev(DynamoCog):
         m = get_cog(module)
         try:
             await self.bot.unload_extension(m)
-        except commands.ExtensionError:
+        except commands.ExtensionError as ex:
+            await ctx.send(f"{ex.__class__.__name__}: {ex}")
             self.log.exception("Failed to unload %s", m)
         else:
             await ctx.send(ctx.Status.OK)
@@ -118,7 +120,8 @@ class Dev(DynamoCog):
 
         try:
             await self.bot.reload_extension(m)
-        except commands.ExtensionError:
+        except commands.ExtensionError as ex:
+            await ctx.send(f"{ex.__class__.__name__}: {ex}")
             self.log.exception("Failed to reload %s", m)
         else:
             await ctx.send(ctx.Status.OK)

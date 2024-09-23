@@ -1,9 +1,14 @@
+from __future__ import annotations
+
 import logging
+from typing import TYPE_CHECKING
 
 from discord.ext import commands
 
-from dynamo.bot import Dynamo
 from dynamo.utils.helper import get_cog
+
+if TYPE_CHECKING:
+    from dynamo.core import Dynamo
 
 
 class DynamoCog(commands.Cog):

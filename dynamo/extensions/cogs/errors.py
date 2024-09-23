@@ -5,8 +5,7 @@ from discord import Interaction, app_commands
 from discord.ext import commands
 from rapidfuzz import fuzz
 
-from dynamo.bot import Dynamo
-from dynamo.utils.base_cog import DynamoCog
+from dynamo.core import Dynamo, DynamoCog
 from dynamo.utils.context import Context
 
 

@@ -6,6 +6,7 @@ from io import BytesIO
 from pathlib import Path
 
 import aiohttp
+import discord
 from PIL import Image, ImageDraw, ImageFont
 
 from dynamo.utils.cache import async_cache
@@ -59,6 +60,47 @@ PROGRESS_TEXT_Y: int = HEIGHT - PADDING - BORDER - 24
 SLIDING_SPEED: int = 6  # pixels per frame
 MAX_FRAMES: int = 480  # number of frames for sliding animation
 FRAME_DURATION: int = 50  # duration of each frame in milliseconds
+
+
+async def draw(activity: discord.Spotify, album: bytes) -> tuple[BytesIO, str]:
+    """Draw a Spotify card based on what the user is currently listening to. If the track's title is too long to fit
+    on the card, the title will scroll instead.
+
+    Parameters
+    ----------
+    name : str
+        The name of the track
+    artists : list[str]
+        The artists of the track
+    color : tuple[int, int, int]
+        The background color of the card
+    album : BytesIO
+        The album cover of the track
+    duration : datetime.timedelta | None, optional
+        The duration of the track, by default None
+    end : datetime.datetime | None, optional
+        The end time of the track, by default None
+
+    Returns
+    -------
+    tuple[BytesIO, str]
+        The Spotify card buffer and the output format
+
+    See
+    ---
+    :func:`fetch_album_cover`
+    :func:`_draw`
+    :func:`_draw_static_elements`
+    :func:`_draw_track_bar`
+    :func:`_draw_text_scroll`
+    """
+    name = activity.title
+    artists = activity.artists
+    color = activity.color.to_rgb()
+    duration = activity.duration
+    end = activity.end
+
+    return await asyncio.to_thread(_draw, name, artists, color, album, duration, end)
 
 
 def get_font(text: str, bold: bool = False, size: int = 22) -> ImageFont.FreeTypeFont:
@@ -125,49 +167,6 @@ def get_progress(end: datetime.datetime, duration: datetime.timedelta) -> float:
     return 1 - (end - now).total_seconds() / duration.total_seconds()
 
 
-async def draw(
-    name: str,
-    artists: list[str],
-    color: tuple[int, int, int],
-    album: bytes,
-    duration: datetime.timedelta | None = None,
-    end: datetime.datetime | None = None,
-) -> tuple[BytesIO, str]:
-    """Draw a Spotify card based on what the user is currently listening to. If the track's title is too long to fit
-    on the card, the title will scroll instead.
-
-    Parameters
-    ----------
-    name : str
-        The name of the track
-    artists : list[str]
-        The artists of the track
-    color : tuple[int, int, int]
-        The background color of the card
-    album : BytesIO
-        The album cover of the track
-    duration : datetime.timedelta | None, optional
-        The duration of the track, by default None
-    end : datetime.datetime | None, optional
-        The end time of the track, by default None
-
-    Returns
-    -------
-    tuple[BytesIO, str]
-        The Spotify card buffer and the output format
-
-    See
-    ---
-    :func:`fetch_album_cover`
-    :func:`_draw`
-    :func:`_draw_static_elements`
-    :func:`_draw_track_bar`
-    :func:`_draw_text_scroll`
-    """
-
-    return await asyncio.to_thread(_draw, name, artists, color, album, duration, end)
-
-
 def _draw(
     name: str,
     artists: list[str],
@@ -200,7 +199,7 @@ def _draw(
     if title_width <= available_width:
         base_draw.text((CONTENT_START_X, TITLE_START_Y), text=name, fill=TEXT_COLOR, font=title_font)
 
-        _draw_static_elements(base_draw, base, artists, artist_font, duration, end, spotify_logo)
+        draw_static_elements(base_draw, base, artists, artist_font, duration, end, spotify_logo)
 
         buffer = BytesIO()
         base.save(buffer, format="PNG")
@@ -208,7 +207,7 @@ def _draw(
         return buffer, "png"
 
     # Generate scrolling frames for the title
-    title_frames = _draw_text_scroll(title_font, name, available_width)
+    title_frames = draw_text_scroll(title_font, name, available_width)
     num_frames = len(title_frames)
 
     frames: list[Image.Image] = []
@@ -216,7 +215,7 @@ def _draw(
         frame = base.copy()
         frame_draw = ImageDraw.Draw(frame)
         frame.paste(next(title_frames), (CONTENT_START_X, TITLE_START_Y), next(title_frames))
-        _draw_static_elements(frame_draw, frame, artists, artist_font, duration, end, spotify_logo)
+        draw_static_elements(frame_draw, frame, artists, artist_font, duration, end, spotify_logo)
         frames.append(frame)
 
     buffer = BytesIO()
@@ -225,7 +224,7 @@ def _draw(
     return buffer, "gif"
 
 
-def _draw_static_elements(
+def draw_static_elements(
     draw: ImageDraw.ImageDraw,
     image: Image.Image,
     artists: list[str],
@@ -285,7 +284,7 @@ def _draw_track_bar(draw: ImageDraw.ImageDraw, progress: float, duration: dateti
     draw.text((x, PROGRESS_TEXT_Y), text=progress_text, fill=TEXT_COLOR, font=progress_font)
 
 
-def _draw_text_scroll(font: ImageFont.FreeTypeFont, text: str, width: int) -> Generator[Image.Image, None, None]:
+def draw_text_scroll(font: ImageFont.FreeTypeFont, text: str, width: int) -> Generator[Image.Image, None, None]:
     """Draw the text of a given track. If the text is too long to fit on the card, the text will scroll instead.
 
     Parameters
@@ -330,7 +329,7 @@ def _draw_text_scroll(font: ImageFont.FreeTypeFont, text: str, width: int) -> Ge
         yield frame
 
 
-@async_cache(ttl=60)
+@async_cache
 async def fetch_album_cover(url: str, session: aiohttp.ClientSession) -> bytes | None:
     """Fetch album cover from a URL.
 

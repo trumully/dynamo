@@ -10,7 +10,7 @@ from discord.ext import commands
 from dynamo._typing import CommandT
 
 if TYPE_CHECKING:
-    from dynamo.bot import Dynamo
+    from dynamo.core.bot import Dynamo
 
 
 class ConfirmationView(discord.ui.View):

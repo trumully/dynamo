@@ -27,9 +27,8 @@ def test_get_colors(seed: int) -> None:
     fg, bg = dynamo.utils.identicon.get_colors(seed)
     assert all(0 <= c <= 255 for c in fg.as_tuple())
     assert all(0 <= c <= 255 for c in bg.as_tuple())
-    perception = dynamo.utils.identicon.perceived_distance_to_max(fg, bg)
-    euclidean = dynamo.utils.identicon.euclidean_distance_to_max(fg, bg)
-    assert not fg.is_similar(bg), f"fg and bg are too similar: {fg} and {bg}\np|e = {perception}|{euclidean}"
+    perceived, euclidean = fg.perceived_distance(bg), fg.euclidean_distance(bg)
+    assert not fg.is_similar(bg), f"fg and bg are too similar: {fg} and {bg}\np|e = {perceived}|{euclidean}"
 
 
 @given(size=st.integers(1, 100), fg=rgb(), bg=rgb(), fg_weight=st.floats(0.0, 1.0), seed=st.integers(1))
@@ -43,10 +42,6 @@ def test_identicon(
     assert identicon.bg == bg
     assert identicon.fg_weight == fg_weight
     assert identicon.seed == seed
-
-    pattern = identicon.pattern
-    assert isinstance(pattern, np.ndarray)
-    assert pattern.shape == (size * 2, size)
 
     icon = identicon.icon
     assert isinstance(icon, np.ndarray)
@@ -70,6 +65,6 @@ def test_identicon(
     color_b=rgb(),
 )
 def test_color_distance(color_a: dynamo.utils.identicon.RGB, color_b: dynamo.utils.identicon.RGB) -> None:
-    distance = dynamo.utils.identicon.perceived_color_distance(color_a, color_b)
+    distance = color_a.perceived_distance(color_b)
     assert isinstance(distance, float)
     assert distance >= 0
