@@ -1,46 +1,51 @@
-# Dynamo
-Personal use bot.
+<p align="center">
+<a href="" rel="noopener"><img src="assets/images/dynamo.png" alt="Dynamo" height="400"></a>
+</p>
+<h3 align="center">Dynamo</h3>
 
-## Setup
+<div align="center"></div>
+
+<p align="center">Personal use bot
+    <br>
+</p>
+
+---
+
+## Setup <a name="setup"></a>
 ### Prerequisites
-`poetry` is required to set up Dynamo. Find installation instructions [here](https://python-poetry.org/docs/)
-### Installing
-#### Clone the repository:
+* Python >=3.12
+* [Poetry](https://python-poetry.org)
+
+### Clone the repository:
 ```shell
 git clone https://github.com/trumully/dynamo.git
 ```
-#### Install and run:
+
+### Install and run:
 ```shell
 cd dynamo
 poetry install
 poetry run dynamo setup
 poetry run dynamo
 ```
+To stop the bot, press `Ctrl+C` or use the `d!quit` command.
 
-## Development
+## Development <a name="development"></a>
 ### Install dev dependencies
 ```shell
 poetry install --with=dev
 ```
 
-### Run bot in debug mode
+### Run bot in debug mode1
 ```shell
 poetry run dynamo --debug
 ```
 
-### Run tests
-> [!NOTE]
-> Running tests from the CLI is recommended
+> [!TIP]
+> Run `d!reload <module>` to hot reload a module or `d!reload all` to hot reload all modules and utilities.
 
-#### CLI (recommended)
+
+### Run tests
 ```shell
 poetry run pytest tests --asyncio-mode=strict -n logical
 ```
-#### VSCode
-1. Open VSCode debugger `Ctrl+Shift+D`
-2. Run `Dynamo Tests` preset
-
-**or**
-
-1. Open Command Palette `Ctrl+Shift+P`
-2. Search and run: `Tests: Run All Tests`
