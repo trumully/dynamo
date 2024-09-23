@@ -28,7 +28,8 @@ poetry install
 poetry run dynamo setup
 poetry run dynamo
 ```
-To stop the bot, press `Ctrl+C` or use the `d!quit` command.
+> [!TIP]
+> To stop the bot, press `Ctrl+C` or use the `d!quit` command.
 
 ## Development <a name="development"></a>
 ### Install dev dependencies
@@ -36,7 +37,7 @@ To stop the bot, press `Ctrl+C` or use the `d!quit` command.
 poetry install --with=dev
 ```
 
-### Run bot in debug mode1
+### Debug mode
 ```shell
 poetry run dynamo --debug
 ```
