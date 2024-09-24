@@ -33,6 +33,7 @@ class ConfirmationView(discord.ui.View):
         super().__init__(timeout=timeout)
         self.author_id: int = author_id
         self.delete_after: bool = delete_after
+        self.value = False
 
     async def interaction_check(self, interaction: discord.Interaction[Dynamo]) -> bool:
         """Check if the interaction is from the author of the view"""
@@ -47,9 +48,16 @@ class ConfirmationView(discord.ui.View):
             The interaction to defer.
         """
         await interaction.response.defer()
-        if self.delete_after:
+        if self.delete_after and self.message:
             await interaction.delete_original_response()
         self.stop()
+
+    async def on_timeout(self) -> None:
+        for item in self.children:
+            item.disabled = True
+
+        if self.message:
+            await self.message.delete()
 
     @discord.ui.button(label="Confirm", style=discord.ButtonStyle.green)
     async def confirm(self, interaction: discord.Interaction[Dynamo], button: discord.ui.Button) -> None:
@@ -60,7 +68,6 @@ class ConfirmationView(discord.ui.View):
     @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red)
     async def cancel(self, interaction: discord.Interaction[Dynamo], button: discord.ui.Button) -> None:
         """Cancel the action"""
-        self.value = False
         await self._defer_and_stop(interaction)
 
 
@@ -92,10 +99,10 @@ class Context(commands.Context):
         self,
         message: str,
         *,
-        timeout: float = 60.0,
+        timeout: float = 30.0,
         delete_after: bool = True,
         author_id: int | None = None,
-    ) -> bool | None:
+    ) -> bool:
         """Prompt the user to confirm an action
 
         Parameters
@@ -111,7 +118,7 @@ class Context(commands.Context):
 
         Returns
         -------
-        bool | None
+        bool
             Whether the user confirmed the action.
         """
         author_id = author_id or self.author.id

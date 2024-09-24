@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from functools import partial
 from typing import Any, Protocol, TypedDict
 
-from dynamo._typing import AC, P, T
+from dynamo._typing import AsyncCallable, P, T
 
 log = logging.getLogger(__name__)
 
@@ -58,7 +58,7 @@ class CacheParameters(TypedDict):
     ttl: float | None
 
 
-class LRUAsyncCallable(Protocol[AC]):
+class LRUAsyncCallable(Protocol[AsyncCallable]):
     __slots__: tuple[str, ...] = ()
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> Coroutine[Any, Any, T]: ...
@@ -68,12 +68,12 @@ class LRUAsyncCallable(Protocol[AC]):
 
 
 def async_cache(
-    f: AC | None = None,
+    f: AsyncCallable[T] | None = None,
     /,
     *,
     maxsize: int | None = None,
     ttl: float | None = None,
-) -> Callable[[LRUAsyncCallable[AC]], Callable[P, asyncio.Task[T]]]:
+) -> Callable[[LRUAsyncCallable[AsyncCallable[T]]], LRUAsyncCallable[AsyncCallable[T]]]:
     """Decorator to cache the result of an asynchronous function.
 
     Functionally similar to `functools.cache` & `functools.lru_cache` but non-blocking and thread-safe.
@@ -91,7 +91,7 @@ def async_cache(
     - https://asyncstdlib.readthedocs.io/en/stable
     """
 
-    def wrapper(coro: AC) -> LRUAsyncCallable[AC]:
+    def wrapper(coro: AsyncCallable) -> LRUAsyncCallable[AsyncCallable]:
         internal_cache: OrderedDict[Hashable, asyncio.Task[T]] = OrderedDict()
         cache_info: CacheInfo = CacheInfo()
 

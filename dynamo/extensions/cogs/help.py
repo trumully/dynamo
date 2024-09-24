@@ -1,25 +1,34 @@
 import logging
-from typing import Any, Mapping
+from dataclasses import dataclass
+from typing import Any, Mapping, TypedDict
 
 import discord
 from discord.ext import commands
 
 from dynamo._typing import CogT, CommandT
 from dynamo.core import Dynamo, DynamoCog
-from dynamo.utils.format import human_join
+from dynamo.utils.format import code_block, human_join
 
 log = logging.getLogger(__name__)
 
 
+help_footer = (
+    "Use help [command] or help [category] for more information\n"
+    "Required parameters: <required> | Optional parameters: [optional]"
+)
+
+
+@dataclass
+class EmbedField(TypedDict):
+    name: str
+    value: str
+
+
 class HelpEmbed(discord.Embed):
-    def __init__(self, color: discord.Color = discord.Color.dark_embed(), **kwargs: Any):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        text = (
-            "Use help [command] or help [category] for more information"
-            "\nRequired parameters: <required> | Optional parameters: [optional]"
-        )
-        self.set_footer(text=text)
-        self.colour = color
+        self.set_footer(text=help_footer)
+        self.colour = discord.Color.dark_embed()
 
 
 class DynamoHelp(commands.HelpCommand):
@@ -39,28 +48,30 @@ class DynamoHelp(commands.HelpCommand):
         ctx = self.context
         embed = HelpEmbed(title=f"{ctx.me.display_name} Help")
         embed.set_thumbnail(url=ctx.me.display_avatar)
-        usable = 0
 
-        for cog, command in mapping.items():
-            name = cog.qualified_name if cog else "None"
-            if name in self.blacklisted or not (filtered_commands := await self.filter_commands(command)):
-                continue
-            amount_commands = len(filtered_commands)
-            usable += amount_commands
-            description = f"```{(cog.description or 'No description') if cog else 'Commands with no category'}```"
-
-            embed.add_field(name=f"{name} Category ({amount_commands})", value=description)
-
-        embed.description = f"{usable} commands"
+        for cog, commands in mapping.items():
+            filtered_commands = await self.filter_commands(commands)
+            if (cog and cog.qualified_name not in self.blacklisted) and filtered_commands:
+                cog_field = await self.add_cog_commands_to_embed(cog, commands)
+                if cog_field is not None:
+                    embed.add_field(**cog_field)
 
         await self.send(embed=embed)
 
+    async def add_cog_commands_to_embed(self, cog: CogT, commands: list[CommandT]) -> EmbedField | None:
+        name = cog.qualified_name if cog else "None"
+        filtered_commands = await self.filter_commands(commands)
+        if name in self.blacklisted or not filtered_commands:
+            return None
+
+        description = (cog.description or "No description") if cog else "Commands with no category"
+        return EmbedField(name=f"{name} ({len(filtered_commands)})", value=code_block(description))
+
     async def send_command_help(self, command: CommandT) -> None:
-        signature = self.get_command_signature(command)
+        description = command.help or "No help found..."
+        embed = HelpEmbed(title=command.qualified_name, description=code_block(description))
 
-        embed = HelpEmbed(title=signature, description=f"```{command.help or "No help found..."}```")
-
-        embed.add_field(name="Aliases", value=f"`{human_join(command.aliases) or 'None'}`")
+        embed.add_field(name="Aliases", value=f"`{human_join(command.aliases) or 'N/A'}`")
 
         cog = command.cog
         if cog and cog.qualified_name not in self.blacklisted:
@@ -102,13 +113,11 @@ class DynamoHelp(commands.HelpCommand):
 
     async def send_group_help(self, group: commands.Group) -> None:
         title = self.get_command_signature(group)
-        await self.send_help_embed(title, f"```{group.help}```", group.commands, group.aliases, group.cog_name)
+        await self.send_help_embed(title, code_block(group.help), group.commands, group.aliases, group.cog_name)
 
     async def send_cog_help(self, cog: commands.Cog) -> None:
         title = cog.qualified_name or "No"
-        await self.send_help_embed(
-            f"{title} Category", f"```{cog.description or 'No description'}```", set(cog.get_commands())
-        )
+        await self.send_help_embed(f"{title}", code_block(cog.description or "No description"), set(cog.get_commands()))
 
 
 class Help(DynamoCog):
@@ -116,7 +125,6 @@ class Help(DynamoCog):
         super().__init__(bot)
         self._original_help_command, self.bot.help_command = self.bot.help_command, DynamoHelp()
         self.bot.help_command.cog = self
-        self.log.debug("Using custom help command")
 
     async def cog_unload(self) -> None:
         self.bot.help_command = self._original_help_command

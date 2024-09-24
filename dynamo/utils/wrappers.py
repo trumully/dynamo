@@ -4,12 +4,12 @@ import time
 from collections.abc import Callable
 from functools import wraps
 
-from dynamo._typing import AC, P, T
+from dynamo._typing import AsyncCallable, P, T
 
 log = logging.getLogger(__name__)
 
 
-def timer(func: Callable[P, T] | AC[T]) -> Callable[P, T] | AC[T]:
+def timer(func: Callable[P, T] | AsyncCallable[T]) -> Callable[P, T] | AsyncCallable[T]:
     """Timer wrapper for functions"""
 
     @wraps(func)

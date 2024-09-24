@@ -1,10 +1,15 @@
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 import discord
 from discord import app_commands
 from discord.ext import commands
 
 from dynamo.utils.context import Context
+
+if TYPE_CHECKING:
+    from dynamo.core import Dynamo
 
 
 class GuildConverter(commands.GuildConverter):
@@ -32,7 +37,7 @@ class SeedConverter(commands.Converter, app_commands.Transformer):
         except commands.MemberNotFound:
             return argument
 
-    async def transform(self, interaction: discord.Interaction, value: str) -> discord.Member | str:
+    async def transform(self, interaction: discord.Interaction[Dynamo], value: str) -> discord.Member | str:
         # No need to reinvent the wheel, just run it through the commands.MemberConverter method.
         ctx = await Context.from_interaction(interaction)
         return await self.convert(ctx, value)

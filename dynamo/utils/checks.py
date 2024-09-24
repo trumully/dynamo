@@ -16,15 +16,6 @@ def is_owner() -> Check[Context]:
     """Check if the user is the owner of the bot."""
 
     def predicate(ctx: Context) -> bool:
-        return ctx.author.id == ctx.bot.owner_id
-
-    return commands.check(predicate)
-
-
-def guild_only() -> Check[Context]:
-    """Only run this command in a guild context"""
-
-    def predicate(ctx: Context) -> bool:
-        return ctx.guild is not None
+        return ctx.author.id == ctx.bot.owner.id
 
     return commands.check(predicate)

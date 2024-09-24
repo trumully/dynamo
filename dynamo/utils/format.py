@@ -128,6 +128,10 @@ def human_join(seq: Sequence[str], sep: str = ", ", conjunction: str = "or", *, 
     return f"{sep.join(seq[:-1])}{sep if oxford_comma else " "}{conjunction} {seq[-1]}"
 
 
+def code_block(content: str, language: str = "") -> str:
+    return f"```{language}\n{content}\n```"
+
+
 class CJK(StrEnum):
     CHINESE = auto()
     JAPANESE = auto()

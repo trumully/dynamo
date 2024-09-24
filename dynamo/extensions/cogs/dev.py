@@ -9,6 +9,7 @@ from dynamo.utils.checks import is_owner
 from dynamo.utils.context import Context
 from dynamo.utils.converter import GuildConverter
 from dynamo.utils.emoji import Emojis
+from dynamo.utils.format import code_block
 from dynamo.utils.helper import get_cog
 
 
@@ -23,7 +24,9 @@ class Dev(DynamoCog):
     async def sync(
         self,
         ctx: Context,
-        guild: discord.Guild = commands.param(converter=GuildConverter, default=None, displayed_name="guild_id"),
+        guild: discord.Guild = commands.param(
+            converter=GuildConverter, default=lambda ctx: ctx.guild, displayed_name="guild_id"
+        ),
         copy: bool = False,
     ) -> None:
         """Sync slash commands
@@ -53,7 +56,9 @@ class Dev(DynamoCog):
     async def clear_commands(
         self,
         ctx: Context,
-        guild: discord.Guild = commands.param(converter=GuildConverter, default=None, displayed_name="guild_id"),
+        guild: discord.Guild = commands.param(
+            converter=GuildConverter, default=lambda ctx: ctx.guild, displayed_name="guild_id"
+        ),
     ) -> None:
         """Clear all slash commands
 
@@ -183,24 +188,17 @@ class Dev(DynamoCog):
         old_emojis = self.bot.app_emojis
         self.bot.app_emojis = new_emojis = Emojis(await self.bot.fetch_application_emojis())
 
-        # All emojis
         all_emojis = [f"`{name}`\t{emoji}" for name, emoji in new_emojis.items()]
-
-        # Added emojis
         added = [f"`{name}`\t{emoji}" for name, emoji in new_emojis.items() if name not in old_emojis]
-
-        # Removed emojis
         removed = [f"`{name}`\t{emoji}" for name, emoji in old_emojis.items() if name not in new_emojis]
 
         result = f"{'\n'.join(all_emojis)}\n"
 
         if added:
-            result += "```diff\n+ Added\n```\n"
-            result += "\n".join(added) + "\n"
+            result += code_block("+ Added\n", "diff") + "\n".join(added)
 
         if removed:
-            result += "```diff\n- Removed\n```\n"
-            result += "\n".join(removed)
+            result += code_block("- Removed\n", "diff") + "\n".join(removed)
 
         await ctx.send(result.strip())
 

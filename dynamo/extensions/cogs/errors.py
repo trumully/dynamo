@@ -97,9 +97,9 @@ class Errors(DynamoCog):
             matches = [
                 f"**{command.qualified_name}** - {command.short_doc or 'No description provided'}"
                 for command in self.bot.commands
-                if fuzz.partial_ratio(ctx.invoked_with, command.name) > 80
+                if fuzz.partial_ratio(ctx.invoked_with, command.name) > 70
             ]
-            matches_string = f"\n\n{f'Did you mean\n>>> {'\n'.join(matches)}' if matches else ''}"
+            matches_string = f"\n\nDid you mean {f'\N{RIGHT-POINTING MAGNIFYING GLASS}\n>>> {'\n'.join(matches)}' if matches else ''}"
             error_message = error_message.format(ctx.invoked_with, matches_string)
 
         elif isinstance(error, commands.MissingRequiredArgument):
@@ -128,10 +128,11 @@ class Errors(DynamoCog):
             matches = [
                 command
                 for command in self.bot.tree.get_commands()
-                if fuzz.partial_ratio(command_name, command.name) > 80
+                if fuzz.partial_ratio(command_name, command.name) > 70
             ]
             msg = (
-                f"Command not found: '{command_name}'\n\n{f'Did you mean\n>>> {'\n'.join(matches)}' if matches else ''}"
+                f"Command not found: '{command_name}'"
+                f"\n\n{f'Did you mean \N{RIGHT-POINTING MAGNIFYING GLASS}\n>>> {'\n'.join(matches)}' if matches else ''}"
             )
             await interaction.response.send_message(
                 ephemeral=True,
