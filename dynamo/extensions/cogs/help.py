@@ -1,12 +1,13 @@
 import logging
 from dataclasses import dataclass
-from typing import Any, Mapping, TypedDict
+from typing import Any, Mapping, Never, TypedDict
 
 import discord
 from discord.ext import commands
 
 from dynamo._typing import CogT, CommandT
 from dynamo.core import Dynamo, DynamoCog
+from dynamo.utils.error_types import NotFoundWithHelp
 from dynamo.utils.format import code_block, human_join
 
 log = logging.getLogger(__name__)
@@ -49,14 +50,18 @@ class DynamoHelp(commands.HelpCommand):
         embed = HelpEmbed(title=f"{ctx.me.display_name} Help")
         embed.set_thumbnail(url=ctx.me.display_avatar)
 
-        for cog, commands in mapping.items():
-            filtered_commands = await self.filter_commands(commands)
+        for cog, command in mapping.items():
+            filtered_commands = await self.filter_commands(command)
             if (cog and cog.qualified_name not in self.blacklisted) and filtered_commands:
-                cog_field = await self.add_cog_commands_to_embed(cog, commands)
+                cog_field = await self.add_cog_commands_to_embed(cog, command)
                 if cog_field is not None:
                     embed.add_field(**cog_field)
 
         await self.send(embed=embed)
+
+    def command_not_found(self, string: str) -> Never:
+        log.debug("Command not found: %s", string)
+        raise NotFoundWithHelp(string)
 
     async def add_cog_commands_to_embed(self, cog: CogT, commands: list[CommandT]) -> EmbedField | None:
         name = cog.qualified_name if cog else "None"

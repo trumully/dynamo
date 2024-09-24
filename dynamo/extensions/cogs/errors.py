@@ -1,4 +1,4 @@
-from typing import Any, Callable, Coroutine, Mapping
+from typing import Any, Callable, Coroutine
 
 import discord
 from discord import Interaction, app_commands
@@ -7,33 +7,11 @@ from rapidfuzz import fuzz
 
 from dynamo.core import Dynamo, DynamoCog
 from dynamo.utils.context import Context
+from dynamo.utils.error_types import NotFoundWithHelp, app_command_error_messages, command_error_messages
 
 
 class Errors(DynamoCog):
     """Handles errors for the bot."""
-
-    command_error_messages: Mapping[type[commands.CommandError], str] = {
-        commands.CommandNotFound: "Command not found: **`{}`**{}",
-        commands.MissingRequiredArgument: "Missing required argument: `{}`.",
-        commands.BadArgument: "Bad argument.",
-        commands.CommandOnCooldown: "You are on cooldown. Try again in `{:.2f}` seconds.",
-        commands.TooManyArguments: "Too many arguments.",
-        commands.MissingPermissions: "You are not allowed to use this command.",
-        commands.BotMissingPermissions: "I am not allowed to use this command.",
-        commands.NoPrivateMessage: "This command can only be used in a server.",
-        commands.NotOwner: "You are not the owner of this bot.",
-        commands.DisabledCommand: "This command is disabled.",
-        commands.CheckFailure: "You do not have permission to use this command.",
-    }
-
-    app_command_error_messages: Mapping[type[app_commands.AppCommandError], str] = {
-        app_commands.CommandNotFound: "Command not found: **`{}`**{}",
-        app_commands.CommandOnCooldown: "You are on cooldown. Try again in `{:.2f}` seconds.",
-        app_commands.MissingPermissions: "You are not allowed to use this command.",
-        app_commands.BotMissingPermissions: "I am not allowed to use this command.",
-        app_commands.NoPrivateMessage: "This command can only be used in a server.",
-        app_commands.CheckFailure: "You do not have permission to use this command.",
-    }
 
     def __init__(self, bot: Dynamo) -> None:
         super().__init__(bot)
@@ -42,6 +20,8 @@ class Errors(DynamoCog):
             [Interaction[Dynamo], app_commands.AppCommandError], Coroutine[Any, Any, None]
         ] = self.bot.tree.on_error
         self.bot.tree.on_error = self.on_app_command_error
+        self.command_error_messages = command_error_messages
+        self.app_command_error_messages = app_command_error_messages
 
     async def cog_unload(self) -> None:
         """Restores the old tree error handler on unload."""
@@ -93,14 +73,19 @@ class Errors(DynamoCog):
 
         error_message = self.get_command_error_message(error)
 
-        if isinstance(error, commands.CommandNotFound):
+        if isinstance(error, (commands.CommandNotFound, NotFoundWithHelp)):
+            trigger = ctx.invoked_with if isinstance(error, commands.CommandNotFound) else error.args[0]
+
             matches = [
                 f"**{command.qualified_name}** - {command.short_doc or 'No description provided'}"
                 for command in self.bot.commands
-                if fuzz.partial_ratio(ctx.invoked_with, command.name) > 70
+                if fuzz.ratio(trigger, command.name) > 70
             ]
-            matches_string = f"\n\nDid you mean {f'\N{RIGHT-POINTING MAGNIFYING GLASS}\n>>> {'\n'.join(matches)}' if matches else ''}"
-            error_message = error_message.format(ctx.invoked_with, matches_string)
+            matches_string = (
+                f"\n\nDid you mean \N{RIGHT-POINTING MAGNIFYING GLASS}\n>>> {'\n'.join(matches)}" if matches else ""
+            )
+
+            error_message = error_message.format(trigger, matches_string)
 
         elif isinstance(error, commands.MissingRequiredArgument):
             error_message = error_message.format(error.param.name)
@@ -126,14 +111,12 @@ class Errors(DynamoCog):
             self.log.error("Command not found: %s.", interaction.data)
             command_name = interaction.data.get("name", "")
             matches = [
-                command
-                for command in self.bot.tree.get_commands()
-                if fuzz.partial_ratio(command_name, command.name) > 70
+                command for command in self.bot.tree.get_commands() if fuzz.ratio(command_name, command.name) > 70
             ]
-            msg = (
-                f"Command not found: '{command_name}'"
-                f"\n\n{f'Did you mean \N{RIGHT-POINTING MAGNIFYING GLASS}\n>>> {'\n'.join(matches)}' if matches else ''}"
-            )
+            msg = f"Command not found: '{command_name}'"
+            if matches:
+                msg += f"\n\nDid you mean \N{RIGHT-POINTING MAGNIFYING GLASS}\n>>> {'\n'.join(matches)}"
+
             await interaction.response.send_message(
                 ephemeral=True,
                 content=msg,
