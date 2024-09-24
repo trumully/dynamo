@@ -11,10 +11,12 @@ from typing import Any
 import aiohttp
 import base2048
 import click
+import pygit2
 import truststore
 
 from dynamo._evt_policy import get_event_loop_policy
 from dynamo.core import Dynamo, setup_logging
+from dynamo.utils.format import plural
 from dynamo.utils.helper import platformdir, resolve_path_with_links, valid_token
 
 log = logging.getLogger(__name__)
@@ -137,6 +139,30 @@ def _get_token() -> str | None:
     return token
 
 
+def check_for_updates() -> tuple[int, int]:
+    try:
+        repo = pygit2.Repository(".")
+        repo.remotes["origin"].fetch()
+        local_branch = repo.head.shorthand
+        local_commit = repo.revparse_single(local_branch).short_id
+        remote_commit = repo.revparse_single(f"origin/{local_branch}").short_id
+
+        ahead, behind = repo.ahead_behind(local_commit, remote_commit)
+    except (pygit2.GitError, KeyError):
+        return 0, 0
+    return ahead, behind
+
+
+def propagate_updates() -> None:
+    ahead, behind = check_for_updates()
+    if behind:
+        click.echo(click.style(f"You are {plural(behind):commit} behind the remote branch.", fg="yellow", bold=True))
+    elif ahead:
+        click.echo(click.style(f"You are {plural(ahead):commit} ahead of the remote branch.", fg="cyan", bold=True))
+    else:
+        click.echo(click.style("You are up to date with the remote branch.", fg="green"))
+
+
 @click.group(invoke_without_command=True, options_metavar="[options]")
 @click.version_option(
     metadata.version("dynamo"),
@@ -150,9 +176,12 @@ def _get_token() -> str | None:
 @click.pass_context
 def main(ctx: click.Context, debug: bool) -> None:
     """Launch the bot"""
+    propagate_updates()
     os.umask(0o077)
     if ctx.invoked_subcommand is None:
         log_level = logging.DEBUG if debug else logging.INFO
+        if log_level == logging.DEBUG:
+            click.echo("Running in DEBUG mode", err=True)
         with setup_logging(log_level=log_level):
             run_bot()
 
