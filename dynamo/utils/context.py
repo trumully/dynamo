@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import aiohttp
 import discord
 from discord.ext import commands
+from discord.ui import View
 
 from dynamo._typing import V
 
@@ -13,7 +14,7 @@ if TYPE_CHECKING:
     from dynamo.core.bot import Dynamo
 
 
-class ConfirmationView(discord.ui.View):
+class ConfirmationView(View):
     """A view for confirming an action"""
 
     value: bool
@@ -53,7 +54,8 @@ class ConfirmationView(discord.ui.View):
         self.stop()
 
     async def on_timeout(self) -> None:
-        for item in self.children:
+        for i in self.children:
+            item = cast(discord.ui.Button[ConfirmationView], i)
             item.disabled = True
 
         if self.message:

@@ -9,8 +9,13 @@ import dynamo.utils.time
 UTC = datetime.timezone.utc
 
 
-def aware_datetime(*args: tuple[int, ...]) -> datetime.datetime:
+def aware_datetime(*args: int) -> datetime.datetime:
     """Create an aware datetime with UTC timezone.
+
+    Parameters
+    ----------
+    *args: int
+        Time data to create the datetime. Assumed to be in the order of year, month, day, hour, minute, second.
 
     Returns
     -------
@@ -22,7 +27,9 @@ def aware_datetime(*args: tuple[int, ...]) -> datetime.datetime:
 
 def test_human_timedelta_basic() -> None:
     """Tests that the basic functionality of human_timedelta works as expected."""
-    now = aware_datetime(2023, 1, 1, 12, 0, 0)
+    # year, month, day, hour, minute, second
+    some_datetime = (2023, 1, 1, 12, 0, 0)
+    now = aware_datetime(*some_datetime)
 
     assert dynamo.utils.time.human_timedelta(now, now) == "now"
     assert dynamo.utils.time.human_timedelta(now + datetime.timedelta(seconds=5), now) == "5 seconds"

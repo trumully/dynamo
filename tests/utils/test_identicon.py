@@ -49,15 +49,15 @@ def test_identicon(
 
     # Assert immutability
     with pytest.raises(AttributeError):
-        identicon.size = size + 1
+        identicon.size = size + 1  # type: ignore
     with pytest.raises(AttributeError):
-        identicon.fg = dynamo.utils.identicon.RGB(0, 0, 0)
+        identicon.fg = dynamo.utils.identicon.RGB(0, 0, 0)  # type: ignore
     with pytest.raises(AttributeError):
-        identicon.bg = dynamo.utils.identicon.RGB(255, 255, 255)
+        identicon.bg = dynamo.utils.identicon.RGB(255, 255, 255)  # type: ignore
     with pytest.raises(AttributeError):
-        identicon.fg_weight = 0.5
+        identicon.fg_weight = 0.5  # type: ignore
     with pytest.raises(AttributeError):
-        identicon.seed = seed + 1
+        identicon.seed = seed + 1  # type: ignore
 
 
 @given(
