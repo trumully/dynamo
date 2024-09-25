@@ -69,8 +69,6 @@ def _make_key(
 
 
 class CachedTask(Generic[S, P, T]):
-    __slots__: tuple[str, ...] = ("__wrapped__", "cache_info", "cache_clear", "cache_parameters")
-
     @property
     def __wrapped__(self) -> WrappedCoroutine[S, P, T]: ...
 
