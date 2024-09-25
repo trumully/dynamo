@@ -1,15 +1,16 @@
 import asyncio
 import logging
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Coroutine
 from functools import wraps
+from typing import Any
 
-from dynamo._typing import AsyncCallable, P, T
+from dynamo._typing import P, T
 
 log = logging.getLogger(__name__)
 
 
-def timer(func: Callable[P, T] | AsyncCallable[T]) -> Callable[P, T] | AsyncCallable[T]:
+def timer(func: Callable[P, T] | Coroutine[Any, Any, T]) -> Callable[P, T] | Coroutine[Any, Any, T]:
     """Timer wrapper for functions"""
 
     @wraps(func)

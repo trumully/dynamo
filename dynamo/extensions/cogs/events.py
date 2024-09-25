@@ -1,23 +1,27 @@
+from __future__ import annotations
+
 import contextlib
+from copy import copy
 from typing import Any
 
 import discord
 from discord.ext import commands
 
+from dynamo._typing import V
 from dynamo.core import Dynamo, DynamoCog
 from dynamo.utils.cache import async_cache
 from dynamo.utils.context import Context
 from dynamo.utils.format import shorten_string
 
 
-class EventsDropdown(discord.ui.Select):
+class EventsDropdown(discord.ui.Select[V]):
     """Base dropdown for selecting an event. Functionality can be defined with callback."""
 
     def __init__(self, events: list[discord.ScheduledEvent], *args: Any, **kwargs: Any) -> None:
         self.events: list[discord.ScheduledEvent] = events
 
         options = [
-            discord.SelectOption(label=e.name, value=str(e.id), description=shorten_string(e.description))
+            discord.SelectOption(label=e.name, value=str(e.id), description=shorten_string(e.description or "..."))
             for e in events
         ]
 
@@ -27,11 +31,13 @@ class EventsDropdown(discord.ui.Select):
 class EventsView(discord.ui.View):
     """View for selecting an event"""
 
+    message: discord.Message
+
     def __init__(
         self,
         author_id: int,
         events: list[discord.ScheduledEvent],
-        dropdown: type[EventsDropdown],
+        dropdown: type[EventsDropdown[EventsView]],
         *args: Any,
         **kwargs: Any,
     ) -> None:
@@ -39,16 +45,22 @@ class EventsView(discord.ui.View):
         self.author_id: int = author_id
         self.add_item(dropdown(events))
 
+    @property
+    def __children(self) -> list[EventsDropdown[EventsView]]:
+        return getattr(self, "_children", []).copy()
+
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         return bool(interaction.user and interaction.user.id == self.author_id)
 
     async def on_timeout(self) -> None:
-        for item in self.children:
-            item.disabled = True
+        for item in self.__children:
+            new_item = copy(item)
+            new_item.disabled = True
+            self.add_item(item)
         await self.message.edit(view=self)
 
 
-class InterestedDropdown(EventsDropdown):
+class InterestedDropdown(EventsDropdown[EventsView]):
     async def callback(self, interaction: discord.Interaction) -> None:
         event = next((e for e in self.events if e.id == int(self.values[0])), None)
         await interaction.response.send_message(await get_interested(event) or "No users found", ephemeral=True)
@@ -69,6 +81,7 @@ class Events(DynamoCog):
         super().__init__(bot)
 
     async def fetch_events(self, guild: discord.Guild) -> list[discord.ScheduledEvent]:
+        events: list[discord.ScheduledEvent] = []
         try:
             events = await guild.fetch_scheduled_events(with_counts=False)
         except discord.HTTPException:
@@ -97,9 +110,12 @@ class Events(DynamoCog):
         event: int | None, optional
             The event ID to get attendees of
         """
+        if ctx.guild is None:
+            return
+
         message = await ctx.send(f"{self.bot.app_emojis.get('loading2', '⏳')}\tFetching events...")
 
-        event_check = await self.event_check(ctx.guild, event)
+        event_check: str | list[discord.ScheduledEvent] = await self.event_check(ctx.guild, event)
         if isinstance(event_check, str):
             await message.edit(content=event_check)
             await message.delete(delay=10)

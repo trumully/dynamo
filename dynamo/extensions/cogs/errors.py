@@ -5,9 +5,9 @@ from discord import Interaction, app_commands
 from discord.ext import commands
 from rapidfuzz import fuzz
 
+from dynamo._typing import NotFoundWithHelp, app_command_error_messages, command_error_messages
 from dynamo.core import Dynamo, DynamoCog
 from dynamo.utils.context import Context
-from dynamo.utils.error_types import NotFoundWithHelp, app_command_error_messages, command_error_messages
 
 
 class Errors(DynamoCog):
@@ -74,7 +74,8 @@ class Errors(DynamoCog):
         error_message = self.get_command_error_message(error)
 
         if isinstance(error, (commands.CommandNotFound, NotFoundWithHelp)):
-            trigger = ctx.invoked_with if isinstance(error, commands.CommandNotFound) else error.args[0]
+            invoked = ctx.invoked_with
+            trigger: str = invoked if invoked and isinstance(error, commands.CommandNotFound) else error.args[0]
 
             matches = [
                 f"**{command.qualified_name}** - {command.short_doc or 'No description provided'}"
@@ -107,11 +108,11 @@ class Errors(DynamoCog):
         error : app_commands.AppCommandError
             The exception.
         """
-        if interaction.command is None:
-            self.log.error("Command not found: %s.", interaction.data)
-            command_name = interaction.data.get("name", "")
+        if (command := interaction.command) is None:
+            command_name: str = "Unknown" if interaction.data is None else interaction.data.get("name", "Unknown")
+            self.log.error("Command not found: %s.", command_name)
             matches = [
-                command for command in self.bot.tree.get_commands() if fuzz.ratio(command_name, command.name) > 70
+                str(command) for command in self.bot.tree.get_commands() if fuzz.ratio(command_name, command.name) > 70
             ]
             msg = f"Command not found: '{command_name}'"
             if matches:
@@ -123,12 +124,12 @@ class Errors(DynamoCog):
             )
             return
 
-        self.log.error("%s called by %s raised an exception: %s.", interaction.command.name, interaction.user, error)
+        self.log.error("%s called by %s raised an exception: %s.", command.name, interaction.user, error)
 
         error_message = self.get_app_command_error_message(error)
 
         if isinstance(error, app_commands.CommandNotFound):
-            error_message = error_message.format(interaction.command.name)
+            error_message = error_message.format(command.name)
 
         elif isinstance(error, app_commands.CommandOnCooldown):
             error_message = error_message.format(error.retry_after)

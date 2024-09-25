@@ -5,19 +5,18 @@ import hashlib
 import time
 from dataclasses import dataclass
 from io import BytesIO
-from typing import Annotated
 
 import numpy as np
 from PIL import Image
 
+from dynamo._typing import ArrayRGB
 from dynamo.utils.cache import async_cache
 
 # 0.0 = same color | 1.0 = different color
 COLOR_THRESHOLD = 0.4
-ArrayRGB = Annotated[np.ndarray, tuple[int, int, int]]
 
 
-def derive_seed[SeedLike: (str, int)](precursor: SeedLike) -> int:
+def derive_seed(precursor: str | int) -> int:
     """Generate a seed from a string or int"""
     precursor = str(precursor)
     hashed = int.from_bytes(precursor.encode() + hashlib.sha256(precursor.encode()).digest(), byteorder="big")
@@ -124,4 +123,5 @@ async def get_identicon(idt: Identicon, size: int = 256) -> bytes:
         buffer.seek(0)
         return buffer.getvalue()
 
-    return await asyncio.to_thread(_buffer, idt, size)
+    result: bytes = await asyncio.to_thread(_buffer, idt, size)
+    return result

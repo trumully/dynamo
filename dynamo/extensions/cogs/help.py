@@ -5,9 +5,8 @@ from typing import Any, Mapping, Never, TypedDict
 import discord
 from discord.ext import commands
 
-from dynamo._typing import CogT, CommandT
+from dynamo._typing import CogT, CommandT, NotFoundWithHelp
 from dynamo.core import Dynamo, DynamoCog
-from dynamo.utils.error_types import NotFoundWithHelp
 from dynamo.utils.format import code_block, human_join
 
 log = logging.getLogger(__name__)
@@ -45,7 +44,7 @@ class DynamoHelp(commands.HelpCommand):
     async def send(self, **kwargs: Any) -> None:
         await self.get_destination().send(**kwargs)
 
-    async def send_bot_help(self, mapping: Mapping[CogT, list[CommandT]]) -> None:
+    async def send_bot_help(self, mapping: Mapping[CogT | None, list[CommandT]]) -> None:
         ctx = self.context
         embed = HelpEmbed(title=f"{ctx.me.display_name} Help")
         embed.set_thumbnail(url=ctx.me.display_avatar)
@@ -63,7 +62,7 @@ class DynamoHelp(commands.HelpCommand):
         log.debug("Command not found: %s", string)
         raise NotFoundWithHelp(string)
 
-    async def add_cog_commands_to_embed(self, cog: CogT, commands: list[CommandT]) -> EmbedField | None:
+    async def add_cog_commands_to_embed(self, cog: commands.Cog, commands: list[CommandT]) -> EmbedField | None:
         name = cog.qualified_name if cog else "None"
         filtered_commands = await self.filter_commands(commands)
         if name in self.blacklisted or not filtered_commands:
@@ -72,7 +71,7 @@ class DynamoHelp(commands.HelpCommand):
         description = (cog.description or "No description") if cog else "Commands with no category"
         return EmbedField(name=f"{name} ({len(filtered_commands)})", value=code_block(description))
 
-    async def send_command_help(self, command: CommandT) -> None:
+    async def send_command_help(self, command: commands.Command[CogT, ..., Any]) -> None:
         description = command.help or "No help found..."
         embed = HelpEmbed(title=command.qualified_name, description=code_block(description))
 
@@ -82,7 +81,7 @@ class DynamoHelp(commands.HelpCommand):
         if cog and cog.qualified_name not in self.blacklisted:
             embed.add_field(name="Category", value=cog.qualified_name)
 
-        if command._buckets and (cooldown := command._buckets._cooldown):
+        if (buckets := getattr(command, "_buckets", None)) and (cooldown := getattr(buckets, "_cooldown", None)):
             embed.add_field(
                 name="Cooldown",
                 value=f"{cooldown.rate} per {cooldown.per:.0f} seconds",
@@ -116,9 +115,11 @@ class DynamoHelp(commands.HelpCommand):
 
         await self.send(embed=embed)
 
-    async def send_group_help(self, group: commands.Group) -> None:
+    async def send_group_help(self, group: commands.Group[CogT, ..., CommandT]) -> None:
         title = self.get_command_signature(group)
-        await self.send_help_embed(title, code_block(group.help), group.commands, group.aliases, group.cog_name)
+        await self.send_help_embed(
+            title, code_block(group.help or "No help found..."), group.commands, group.aliases, group.cog_name
+        )
 
     async def send_cog_help(self, cog: commands.Cog) -> None:
         title = cog.qualified_name or "No"

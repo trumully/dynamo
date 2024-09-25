@@ -7,7 +7,7 @@ import aiohttp
 import discord
 from discord.ext import commands
 
-from dynamo._typing import CommandT
+from dynamo._typing import V
 
 if TYPE_CHECKING:
     from dynamo.core.bot import Dynamo
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 class ConfirmationView(discord.ui.View):
     """A view for confirming an action"""
 
-    value: bool | None
+    value: bool
     message: discord.Message | None
 
     def __init__(self, *, timeout: float, author_id: int, delete_after: bool) -> None:
@@ -35,7 +35,7 @@ class ConfirmationView(discord.ui.View):
         self.delete_after: bool = delete_after
         self.value = False
 
-    async def interaction_check(self, interaction: discord.Interaction[Dynamo]) -> bool:
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
         """Check if the interaction is from the author of the view"""
         return bool(interaction.user and interaction.user.id == self.author_id)
 
@@ -60,24 +60,18 @@ class ConfirmationView(discord.ui.View):
             await self.message.delete()
 
     @discord.ui.button(label="Confirm", style=discord.ButtonStyle.green)
-    async def confirm(self, interaction: discord.Interaction[Dynamo], button: discord.ui.Button) -> None:
+    async def confirm(self, interaction: discord.Interaction[Dynamo], button: discord.ui.Button[V]) -> None:
         """Confirm the action"""
         self.value = True
         await self._defer_and_stop(interaction)
 
     @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red)
-    async def cancel(self, interaction: discord.Interaction[Dynamo], button: discord.ui.Button) -> None:
+    async def cancel(self, interaction: discord.Interaction[Dynamo], button: discord.ui.Button[V]) -> None:
         """Cancel the action"""
         await self._defer_and_stop(interaction)
 
 
-Channel = discord.VoiceChannel | discord.TextChannel | discord.Thread | discord.DMChannel
-
-
-class Context(commands.Context):
-    channel: Channel
-    prefix: str
-    command: CommandT
+class Context(commands.Context["Dynamo"]):
     bot: Dynamo
 
     class Status(StrEnum):

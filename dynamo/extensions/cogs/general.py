@@ -45,11 +45,11 @@ class General(DynamoCog):
         seed_to_use = derive_seed(display_name)
         fg, bg = get_colors(seed=seed_to_use)
 
-        idt_bytes = await get_identicon(Identicon(5, fg, bg, 0.4, seed_to_use))
+        idt_bytes: bytes = await get_identicon(Identicon(5, fg, bg, 0.4, seed_to_use))
         file = discord.File(BytesIO(idt_bytes), filename="identicon.png")
 
         cmd_mention = await self.bot.tree.find_mention_for("identicon", guild=ctx.guild)
-        prefix = self.bot.prefixes.get(ctx.guild.id, ["d!", "d?"])[0]
+        prefix = "d!" if ctx.guild is None else self.bot.prefixes.get(ctx.guild.id, ["d!", "d?"])[0]
         description = (
             f"**Generate this identicon:**\n" f"> {cmd_mention} {display_name}\n" f"> {prefix}identicon {display_name}"
         )
@@ -58,7 +58,11 @@ class General(DynamoCog):
         await ctx.send(embed=e, file=file)
 
     @commands.hybrid_command(name="spotify", aliases=("sp", "applemusic"))
-    async def spotify(self, ctx: Context, user: discord.Member | discord.User | None = None) -> None:
+    async def spotify(
+        self,
+        ctx: Context,
+        user: discord.User | discord.Member | None = commands.param(default=None, converter=commands.MemberConverter),
+    ) -> None:
         """Get the currently playing Spotify track for a user.
 
         Parameters
@@ -72,7 +76,8 @@ class General(DynamoCog):
         if user.bot:
             return
 
-        activity: discord.Spotify | None = next((a for a in user.activities if isinstance(a, discord.Spotify)), None)
+        activities = getattr(user, "activities", [])
+        activity: discord.Spotify | None = next((a for a in activities if isinstance(a, discord.Spotify)), None)
 
         if activity is None:
             await ctx.send(f"{user!s} is not listening to Spotify.")

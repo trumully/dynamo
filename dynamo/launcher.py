@@ -190,7 +190,8 @@ def main(ctx: click.Context, debug: bool) -> None:
 @click.pass_context
 def dynamo_help(ctx: click.Context) -> None:
     """Show this message and exit."""
-    click.echo(ctx.parent.get_help())
+    if ctx.parent is not None:
+        click.echo(ctx.parent.get_help())
 
 
 @main.command()

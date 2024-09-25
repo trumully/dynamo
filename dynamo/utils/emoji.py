@@ -5,7 +5,7 @@ import discord
 emoji_base = "<{}:{}:{}>"
 
 
-class Emojis(dict[str, discord.Emoji]):
+class Emojis(dict[str, str]):
     def __init__(self, emojis: list[discord.Emoji], *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
 

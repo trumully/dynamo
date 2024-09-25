@@ -23,7 +23,7 @@ class GuildConverter(commands.GuildConverter):
             return ctx.guild or argument
 
 
-class SeedConverter(commands.Converter, app_commands.Transformer):
+class SeedConverter(commands.Converter[discord.Member | str], app_commands.Transformer):
     """Convert a given string to a member type if it is valid.
 
     See

@@ -24,9 +24,7 @@ class Dev(DynamoCog):
     async def sync(
         self,
         ctx: Context,
-        guild: discord.Guild = commands.param(
-            converter=GuildConverter, default=lambda ctx: ctx.guild, displayed_name="guild_id"
-        ),
+        guild: discord.Guild = commands.param(converter=GuildConverter, displayed_name="guild_id"),
         copy: bool = False,
     ) -> None:
         """Sync slash commands
@@ -56,9 +54,7 @@ class Dev(DynamoCog):
     async def clear_commands(
         self,
         ctx: Context,
-        guild: discord.Guild = commands.param(
-            converter=GuildConverter, default=lambda ctx: ctx.guild, displayed_name="guild_id"
-        ),
+        guild: discord.Guild = commands.param(converter=GuildConverter, displayed_name="guild_id"),
     ) -> None:
         """Clear all slash commands
 

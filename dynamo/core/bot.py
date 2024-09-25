@@ -11,7 +11,6 @@ import xxhash
 from discord import app_commands
 from discord.ext import commands
 
-from dynamo._typing import CommandT
 from dynamo.utils.context import Context
 from dynamo.utils.emoji import Emojis
 from dynamo.utils.helper import get_cog, platformdir, resolve_path_with_links
@@ -34,7 +33,7 @@ Quantum entanglement.
 
 class VersionableTree(app_commands.CommandTree["Dynamo"]):
     application_commands: dict[int | None, list[app_commands.AppCommand]]
-    cache: dict[int | None, dict[CommandT | str, str]]
+    cache: dict[int | None, dict[commands.Command[Any, ..., Any] | app_commands.Command[Any, ..., Any] | str, str]]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -60,7 +59,7 @@ class VersionableTree(app_commands.CommandTree["Dynamo"]):
         self.cache.pop(guild_id, None)
         return result
 
-    async def fetch_commands(self, guild: discord.abc.Snowflake | None = None) -> list[app_commands.AppCommand]:
+    async def fetch_commands(self, *, guild: discord.abc.Snowflake | None = None) -> list[app_commands.AppCommand]:
         result = await super().fetch_commands(guild=guild)
         guild_id = guild.id if guild else None
         self.application_commands[guild_id] = result
@@ -74,7 +73,10 @@ class VersionableTree(app_commands.CommandTree["Dynamo"]):
             return await self.fetch_commands(guild=guild)
 
     async def find_mention_for(
-        self, command: CommandT | str, *, guild: discord.abc.Snowflake | None = None
+        self,
+        command: commands.Command[Any, ..., Any] | app_commands.Command[Any, ..., Any] | str,
+        *,
+        guild: discord.abc.Snowflake | None = None,
     ) -> str | None:
         guild_id = guild.id if guild else None
         try:
@@ -90,7 +92,7 @@ class VersionableTree(app_commands.CommandTree["Dynamo"]):
             if check_global and not _command:
                 _command = discord.utils.get(self.walk_commands(), qualified_name=command)
         else:
-            _command = cast(app_commands.Command, command)
+            _command = cast(app_commands.Command[Any, ..., Any], command)
 
         if not _command:
             return None
@@ -110,25 +112,26 @@ class VersionableTree(app_commands.CommandTree["Dynamo"]):
         self.cache[guild_id][command] = mention
         return mention
 
-    def _walk_children(
-        self, commands: list[app_commands.Group | app_commands.Command]
-    ) -> Generator[app_commands.Command, None, None]:
+    def _walk_children[AppCommand: (app_commands.Command[Any, ..., Any], app_commands.Group)](
+        self, commands: list[AppCommand | app_commands.Group]
+    ) -> Generator[AppCommand, None, None]:
         for command in commands:
             if isinstance(command, app_commands.Group):
-                yield from self._walk_children(command.commands)
+                cmds: list[AppCommand] = cast(list[AppCommand], command.commands)
+                yield from self._walk_children(cmds)
             else:
                 yield command
 
     async def walk_mentions(
         self, *, guild: discord.abc.Snowflake | None = None
-    ) -> AsyncGenerator[tuple[app_commands.Command, str], None]:
+    ) -> AsyncGenerator[tuple[app_commands.Command[Any, ..., Any], str], None]:
         for command in self._walk_children(self.get_commands(guild=guild, type=discord.AppCommandType.chat_input)):
-            mention = await self.find_mention_for(cast(CommandT, command), guild=guild)
+            mention = await self.find_mention_for(command, guild=guild)
             if mention:
                 yield command, mention
         if guild and self.fallback_to_global is True:
             for command in self._walk_children(self.get_commands(guild=None, type=discord.AppCommandType.chat_input)):
-                mention = await self.find_mention_for(cast(CommandT, command), guild=guild)
+                mention = await self.find_mention_for(command, guild=guild)
                 if mention:
                     yield command, mention
                 else:
@@ -147,7 +150,6 @@ def _prefix_callable(bot: Dynamo, msg: discord.Message) -> list[str]:
 
 class Dynamo(commands.AutoShardedBot):
     session: aiohttp.ClientSession
-    user: discord.ClientUser
     context: Context
     logging_handler: Any
     bot_app_info: discord.AppInfo
@@ -186,9 +188,6 @@ class Dynamo(commands.AutoShardedBot):
         self.bot_app_info = await self.application_info()
         self.owner_id = self.bot_app_info.owner.id
 
-        # Case insensitive cogs for help commands.
-        self._BotBase__cogs = commands.core._CaseInsensitiveDict()
-
         self.app_emojis = Emojis(await self.fetch_application_emojis())
 
         for ext in initial_extensions:
@@ -213,6 +212,14 @@ class Dynamo(commands.AutoShardedBot):
         return self.bot_app_info.owner
 
     @property
+    def user(self) -> discord.ClientUser:
+        return cast(discord.ClientUser, super().user)
+
+    @property
+    def tree(self) -> VersionableTree:
+        return cast(VersionableTree, super().tree)
+
+    @property
     def dev_guild(self) -> discord.Guild:
         return cast(discord.Guild, discord.Object(id=681408104495448088, type=discord.Guild))
 
@@ -231,7 +238,7 @@ class Dynamo(commands.AutoShardedBot):
 
     async def get_context(
         self,
-        origin: discord.Message | discord.Interaction[Dynamo],
+        origin: discord.Message | discord.Interaction,
         /,
         *,
         cls: type[Context] = Context,

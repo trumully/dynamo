@@ -33,7 +33,7 @@ class Info(DynamoCog):
 
     def get_latest_commits(self, count: int = 3) -> str:
         repo = pygit2.Repository(".git")
-        commits = list(itertools.islice(repo.walk(repo.head.target, pygit2.GIT_SORT_TOPOLOGICAL), count))
+        commits = list(itertools.islice(repo.walk(repo.head.target, pygit2.enums.SortMode.TOPOLOGICAL), count))
         return "\n".join(self.format_commit(c) for c in commits)
 
     def embed_from_user(self, user: discord.Member | discord.User) -> discord.Embed:

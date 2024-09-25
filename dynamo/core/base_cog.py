@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 class DynamoCog(commands.Cog):
     __slots__ = ("bot", "log")
 
-    def __init__(self, bot: Dynamo) -> None:
+    def __init__(self, bot: Dynamo, case_insensitive: bool = True) -> None:
         self.bot: Dynamo = bot
         self.log = logging.getLogger(get_cog(self.__class__.__name__))
 
