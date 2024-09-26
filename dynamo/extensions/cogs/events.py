@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import contextlib
+from collections.abc import AsyncGenerator
 from copy import copy
-from typing import Any
+from typing import Any, cast
 
 import discord
 from discord.ext import commands
@@ -62,14 +63,15 @@ class EventsView(discord.ui.View):
 
 class InterestedDropdown(EventsDropdown[EventsView]):
     async def callback(self, interaction: discord.Interaction) -> None:
-        event = next((e for e in self.events if e.id == int(self.values[0])), None)
-        await interaction.response.send_message(await get_interested(event) or "No users found", ephemeral=True)
+        event: discord.ScheduledEvent | None = next((e for e in self.events if e.id == int(self.values[0])), None)
+        response = "No users found" if event is None else await get_interested(event)
+        await interaction.response.send_message(response, ephemeral=True)
 
 
 @async_cache(ttl=1800)
 async def get_interested(event: discord.ScheduledEvent) -> str:
     # https://peps.python.org/pep-0533/
-    async with contextlib.aclosing(event.users()) as gen:
+    async with contextlib.aclosing(cast(AsyncGenerator[discord.User], event.users())) as gen:
         users: list[discord.User] = [u async for u in gen]
     return f"`[{event.name}]({event.url}) {' '.join(u.mention for u in users) or "No users found"}`"
 
