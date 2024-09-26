@@ -19,7 +19,8 @@ log = logging.getLogger(__name__)
 BACKGROUND_COLOR: tuple[int, int, int] = (5, 5, 25)
 
 # White
-TEXT_COLOR = PROGRESS_BAR_COLOR = (255, 255, 255)
+TEXT_COLOR: tuple[int, int, int] = (255, 255, 255)
+PROGRESS_BAR_COLOR: tuple[int, int, int] = (255, 255, 255)
 
 # Light gray
 LENGTH_BAR_COLOR: tuple[int, int, int] = (64, 64, 64)
@@ -197,7 +198,7 @@ def _draw(
 
     # Draw only one frame if the title fits
     if title_width <= available_width:
-        base_draw.text((CONTENT_START_X, TITLE_START_Y), text=name, fill=TEXT_COLOR, font=title_font)
+        base_draw.text((CONTENT_START_X, TITLE_START_Y), text=name, fill=TEXT_COLOR, font=title_font)  # type: ignore
 
         draw_static_elements(base_draw, base, artists, artist_font, duration, end, spotify_logo)
 
@@ -208,7 +209,7 @@ def _draw(
 
     # Generate scrolling frames for the title
     title_frames = draw_text_scroll(title_font, name, available_width)
-    num_frames = len(title_frames)
+    num_frames = len(list(title_frames))
 
     frames: list[Image.Image] = []
     for _ in range(num_frames):
@@ -234,7 +235,7 @@ def draw_static_elements(
     spotify_logo: Image.Image,
 ) -> None:
     # Draw artist name
-    draw.text(
+    draw.text(  # type: ignore
         (CONTENT_START_X, TITLE_START_Y + TITLE_FONT_SIZE + 5),
         text=", ".join(artists),
         fill=TEXT_COLOR,
@@ -281,7 +282,7 @@ def _draw_track_bar(draw: ImageDraw.ImageDraw, progress: float, duration: dateti
     progress_text = f"{played} / {track_duration_str}"
     progress_font = get_font(progress_text, bold=False, size=PROGRESS_FONT_SIZE)
 
-    draw.text((x, PROGRESS_TEXT_Y), text=progress_text, fill=TEXT_COLOR, font=progress_font)
+    draw.text((x, PROGRESS_TEXT_Y), text=progress_text, fill=TEXT_COLOR, font=progress_font)  # type: ignore
 
 
 def draw_text_scroll(font: ImageFont.FreeTypeFont, text: str, width: int) -> Generator[Image.Image, None, None]:
@@ -302,19 +303,20 @@ def draw_text_scroll(font: ImageFont.FreeTypeFont, text: str, width: int) -> Gen
         A frame of the text scrolling
     """
     text_bbox = font.getbbox(text)
-    text_width, text_height = text_bbox[2] - text_bbox[0], text_bbox[3] - text_bbox[1]
+    text_width = int(text_bbox[2] - text_bbox[0])
+    text_height = int(text_bbox[3] - text_bbox[1])
 
     if text_width <= width:
         frame = Image.new("RGBA", (width, text_height))
         frame_draw = ImageDraw.Draw(frame)
-        frame_draw.text((0, 0), text, fill=TEXT_COLOR, font=font)
+        frame_draw.text((0, 0), text, fill=TEXT_COLOR, font=font)  # type: ignore
         yield frame
         return
 
     # Add space between end and start for continuous scrolling
     full_text = text + "   " + text
     full_text_bbox = font.getbbox(full_text)
-    full_text_width = full_text_bbox[2] - full_text_bbox[0]
+    full_text_width = int(full_text_bbox[2] - full_text_bbox[0])
 
     pause_frames = 30
     total_frames = pause_frames + (full_text_width // SLIDING_SPEED)
@@ -325,7 +327,7 @@ def draw_text_scroll(font: ImageFont.FreeTypeFont, text: str, width: int) -> Gen
 
         x_pos = 0 if i < pause_frames else -((i - pause_frames) * SLIDING_SPEED) % full_text_width
 
-        frame_draw.text((x_pos, 0), full_text, fill=TEXT_COLOR, font=font)
+        frame_draw.text((x_pos, 0), full_text, fill=TEXT_COLOR, font=font)  # type: ignore
         yield frame
 
 

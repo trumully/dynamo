@@ -62,7 +62,7 @@ def human_timedelta(
 
     attrs = [("year", "y"), ("month", "mo"), ("day", "d"), ("hour", "h"), ("minute", "m"), ("second", "s")]
 
-    output = []
+    output: list[str] = []
     for attr, brief_attr in attrs:
         if not (elem := getattr(delta, attr + "s")):
             continue

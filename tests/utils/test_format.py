@@ -70,7 +70,7 @@ def test_plural_value_immutable(value: int) -> None:
     """Test the plural value is immutable"""
     p = dynamo.utils.format.plural(value)
     with pytest.raises(AttributeError):
-        p.value = value + 1
+        p.value = value + 1  # type: ignore
 
 
 @pytest.mark.parametrize(

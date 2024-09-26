@@ -81,6 +81,25 @@ async def test_future_lru_cache_clear(inputs: list[int]) -> None:
 
 @pytest.mark.asyncio
 @settings(deadline=None)
+@given(inputs=st.lists(st.integers(min_value=1, max_value=100), min_size=10, max_size=10))
+async def test_maxsize_enforcement(inputs: list[int]) -> None:
+    """Test that the cache enforces the maxsize."""
+
+    @dynamo.utils.cache.async_cache(maxsize=5)
+    async def async_cacheable_sized(x: int) -> int:
+        await asyncio.sleep(0.01)
+        return x * 2
+
+    for i in inputs:
+        await async_cacheable_sized(i)
+
+    cache_info = async_cacheable_sized.cache_info()
+    assert cache_info.currsize <= 5
+    assert cache_info.currsize == min(len(set(inputs)), 5)
+
+
+@pytest.mark.asyncio
+@settings(deadline=None)
 @given(inputs=st.lists(st.integers(min_value=1, max_value=100), min_size=10, max_size=50))
 async def test_future_lru_cache_stampede_resistance(inputs: list[int]) -> None:
     """Test that the cache is resistant to cache stampede."""

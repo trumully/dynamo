@@ -4,10 +4,10 @@ import asyncio
 import logging
 import threading
 from collections import OrderedDict
-from collections.abc import Callable, Coroutine, Hashable, MutableSequence, Sized
+from collections.abc import Callable, Coroutine, Hashable, Sized
 from dataclasses import dataclass
 from functools import partial
-from typing import Any, Protocol, Self, cast, overload
+from typing import Any, Protocol, cast, overload
 
 from dynamo._typing import MISSING, P, T
 
@@ -36,14 +36,14 @@ class CacheInfo:
         self.full = False
 
 
-class HashedSeq(MutableSequence[Any]):
+class HashedSeq(list[Any]):
     __slots__: tuple[str, ...] = ("hash_value",)
 
     def __init__(self, /, *args: Any, _hash: Callable[[object], int] = hash) -> None:
         self[:] = args
         self.hash_value: int = _hash(args)
 
-    def __hash__(self) -> int:
+    def __hash__(self) -> int:  # type: ignore
         return self.hash_value
 
 
@@ -75,11 +75,7 @@ class CachedTask(Protocol[P, T]):
     @__wrapped__.setter
     def __wrapped__(self, value: WrappedCoroutine[P, T]) -> None: ...
 
-    @overload
-    def __call__(self: Self, *args: P.args, **kwargs: P.kwargs) -> asyncio.Task[T]: ...
-    @overload
-    def __call__(self: CachedTask[P, T], *args: Any, **kwargs: Any) -> asyncio.Task[T]: ...
-    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> asyncio.Task[T]: ...
+    def __call__(self, *args: Any, **kwargs: Any) -> asyncio.Task[T]: ...
     def cache_info(self) -> CacheInfo: ...
     def cache_clear(self) -> None: ...
     def cache_parameters(self) -> dict[str, int | float | None]: ...
@@ -221,6 +217,13 @@ def _async_cache_wrapper(
 
     def wrapper(*args: Any, **kwargs: Any) -> asyncio.Task[T]:
         key: Hashable = make_key(args, kwargs)
+        result = cache_get(key, sentinel)
+
+        # Mitigate lock contention on cache hit
+        if result is not sentinel:
+            log.debug("Cache hit for %s", args)
+            _cache_info.hits += 1
+            return result
         with lock:
             result = cache_get(key, sentinel)
             if result is not sentinel:
