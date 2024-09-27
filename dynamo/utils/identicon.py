@@ -115,6 +115,11 @@ def seed_from_time() -> int:
 
 @async_cache
 async def get_identicon(idt: Identicon, size: int = 256) -> bytes:
+    """|coro|
+
+    Get an identicon as bytes
+    """
+
     def _buffer(idt: Identicon, size: int) -> bytes:
         buffer = BytesIO()
         Image.fromarray(idt.icon.astype("uint8")).convert("RGB").resize((size, size), Image.Resampling.NEAREST).save(

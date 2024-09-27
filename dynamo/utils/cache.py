@@ -7,9 +7,12 @@ from collections import OrderedDict
 from collections.abc import Callable, Coroutine, Hashable, Sized
 from dataclasses import dataclass
 from functools import partial
-from typing import Any, Protocol, cast, overload
+from typing import Any, ParamSpec, Protocol, TypeVar, cast, overload
 
-from dynamo._typing import MISSING, P, T
+from dynamo._typing import MISSING
+
+P = ParamSpec("P")
+T = TypeVar("T")
 
 log = logging.getLogger(__name__)
 
@@ -68,7 +71,7 @@ def _make_key(
     return key[0] if _len(key) == 1 and _type(key[0]) in fast_types else HashedSeq(key)
 
 
-class CachedTask(Protocol[P, T]):
+class CachedTask[**P, T](Protocol):
     @property
     def __wrapped__(self) -> WrappedCoroutine[P, T]: ...
 
@@ -81,7 +84,7 @@ class CachedTask(Protocol[P, T]):
     def cache_parameters(self) -> dict[str, int | float | None]: ...
 
 
-def update_wrapper(
+def update_wrapper[**P, T](
     wrapper: CachedTask[P, T],
     wrapped: WrappedCoroutine[P, T],
     assigned: tuple[str, ...] = WRAPPER_ASSIGNMENTS,
@@ -126,26 +129,27 @@ def update_wrapper(
     return wrapper
 
 
-@overload
-def async_cache(
-    *, maxsize: int | None = 128, ttl: float | None = None
-) -> Callable[[WrappedCoroutine[P, T]], CachedTask[P, T]]: ...
+DecoratedCoroutine = Callable[[WrappedCoroutine[P, T]], CachedTask[P, T]]
 
 
 @overload
-def async_cache(coro: WrappedCoroutine[P, T], /) -> CachedTask[P, T]: ...
+def async_cache[**P, T](*, maxsize: int | None = 128, ttl: float | None = None) -> DecoratedCoroutine[P, T]: ...
 
 
-def async_cache(
+@overload
+def async_cache[**P, T](coro: WrappedCoroutine[P, T], /) -> CachedTask[P, T]: ...
+
+
+def async_cache[**P, T](
     maxsize: int | WrappedCoroutine[P, T] | None = 128,
     ttl: float | None = None,
-) -> CachedTask[P, T] | Callable[[WrappedCoroutine[P, T]], CachedTask[P, T]]:
+) -> CachedTask[P, T] | DecoratedCoroutine[P, T]:
     """
-    Decorator to cache the result of an asynchronous function.
+    Decorator to cache the result of a coroutine.
 
-    This decorator caches the result of an asynchronous function to improve performance
+    This decorator caches the result of a coroutine to improve performance
     by avoiding redundant computations. It is functionally similar to :func:`functools.cache`
-    and :func:`functools.lru_cache` but designed for asynchronous functions.
+    and :func:`functools.lru_cache` but designed for coroutines.
 
     Parameters
     ----------
@@ -159,9 +163,9 @@ def async_cache(
 
     Returns
     -------
-    CachedTask[P, T] | Callable[[WrappedCoroutine[P, T]], CachedTask[P, T]]
-        If a coroutine function is provided directly, returns the cached task.
-        Otherwise, returns a decorator that can be applied to a coroutine function.
+    CachedTask[P, T] | DecoratedCoroutine[P, T]
+        If a coroutine is provided directly, returns the cached task.
+        Otherwise, returns a decorator that can beapplied to a coroutine.
 
     Examples
     --------
@@ -201,7 +205,7 @@ def async_cache(
     return decorator
 
 
-def _async_cache_wrapper(
+def _async_cache_wrapper[**P, T](
     coro: WrappedCoroutine[P, T],
     maxsize: int | None,
     ttl: float | None,

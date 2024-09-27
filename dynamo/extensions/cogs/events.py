@@ -8,23 +8,29 @@ from typing import Any, cast
 import discord
 from discord.ext import commands
 
-from dynamo._typing import V
 from dynamo.core import Dynamo, DynamoCog
 from dynamo.utils.cache import async_cache
 from dynamo.utils.context import Context
 from dynamo.utils.format import shorten_string
 
 
-class EventsDropdown(discord.ui.Select[V]):
+def event_to_option(event: discord.ScheduledEvent) -> discord.SelectOption:
+    """Convert a ScheduledEvent to a SelectOption to be used in a dropdown menu"""
+    description = event.description if event.description is not None else ""
+    return discord.SelectOption(
+        label=event.name,
+        value=str(event.id),
+        description=shorten_string(description),
+    )
+
+
+class EventsDropdown[V: discord.ui.View](discord.ui.Select[V]):
     """Base dropdown for selecting an event. Functionality can be defined with callback."""
 
     def __init__(self, events: list[discord.ScheduledEvent], *args: Any, **kwargs: Any) -> None:
         self.events: list[discord.ScheduledEvent] = events
 
-        options = [
-            discord.SelectOption(label=e.name, value=str(e.id), description=shorten_string(e.description or "..."))
-            for e in events
-        ]
+        options = [event_to_option(e) for e in events]
 
         super().__init__(*args, placeholder="Select an event", min_values=1, max_values=1, options=options, **kwargs)
 
@@ -70,6 +76,22 @@ class InterestedDropdown(EventsDropdown[EventsView]):
 
 @async_cache(ttl=1800)
 async def get_interested(event: discord.ScheduledEvent) -> str:
+    """|coro|
+
+    Get a list of users interested in an event
+
+    Parameters
+    ----------
+    event : discord.ScheduledEvent
+        The event to get interested users of
+
+    Returns
+    -------
+    str
+        A formatted string of users interested in the event.
+        `[Event Name](Event URL) <@User1> <@User2> ...`
+        Designed to be copied and pasted.
+    """
     # https://peps.python.org/pep-0533/
     async with contextlib.aclosing(cast(AsyncGenerator[discord.User], event.users())) as gen:
         users: list[discord.User] = [u async for u in gen]
@@ -91,12 +113,32 @@ class Events(DynamoCog):
         return sorted(events, key=lambda e: e.start_time)
 
     @async_cache(ttl=1800)
-    async def event_check(self, guild: discord.Guild, event: int | None = None) -> str | list[discord.ScheduledEvent]:
-        if event is not None:
+    async def event_check(
+        self, guild: discord.Guild, event_id: int | None = None
+    ) -> str | list[discord.ScheduledEvent]:
+        """|coro|
+
+        Get a list of members subscribed to an event. If event is provided, get attendees of that event if it exists.
+        If no event is provided, get a list of all events in the guild. In both cases if neither events nor attendees
+        are found, return a failure message.
+
+        Parameters
+        ----------
+        guild : discord.Guild
+            The guild to fetch events from
+        event_id : int | None, optional
+            The id of a specific event to fetch, by default None
+
+        Returns
+        -------
+        str | list[discord.ScheduledEvent]
+            _description_
+        """
+        if event_id is not None:
             try:
-                ev = await guild.fetch_scheduled_event(event, with_counts=False)
+                ev = await guild.fetch_scheduled_event(event_id, with_counts=False)
             except discord.NotFound:
-                return f"No event with id: {event}"
+                return f"No event with id: {event_id}"
             return await get_interested(ev)
 
         return await self.fetch_events(guild) or f"{Context.Status.FAILURE} No events found!"

@@ -333,7 +333,9 @@ def draw_text_scroll(font: ImageFont.FreeTypeFont, text: str, width: int) -> Gen
 
 @async_cache
 async def fetch_album_cover(url: str, session: aiohttp.ClientSession) -> bytes | None:
-    """Fetch album cover from a URL.
+    """|coro|
+
+    Fetch album cover from a URL.
 
     Parameters
     ----------

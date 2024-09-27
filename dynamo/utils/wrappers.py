@@ -10,7 +10,9 @@ from dynamo._typing import P, T
 log = logging.getLogger(__name__)
 
 
-def timer(func: Callable[P, T] | Coroutine[Any, Any, T]) -> Callable[P, T] | Coroutine[Any, Any, T]:
+def timer(
+    func: Callable[P, T] | Coroutine[Any, Any, T],
+) -> Callable[..., Callable[P, T]] | Callable[..., Coroutine[Any, Any, T]]:
     """Timer wrapper for functions"""
 
     @wraps(func)
