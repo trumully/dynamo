@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeVar, cast, override
 
 import discord
 from discord import app_commands
@@ -12,19 +12,25 @@ if TYPE_CHECKING:
     from dynamo.core import Dynamo
 
 
-class GuildConverter(commands.GuildConverter):
+BotT = TypeVar("BotT", bound=commands.Bot | commands.AutoShardedBot, covariant=True)
+GuildLike = TypeVar("GuildLike", bound=discord.Guild | str, covariant=True)
+SeedLike = TypeVar("SeedLike", bound=discord.Member | str, covariant=True)
+
+
+class GuildConverter(commands.Converter[GuildLike]):
     """Convert an argument to a guild. If not found, return the current guild. If there's no guild at all,
     return the argument."""
 
-    async def convert(self, ctx: Context, argument: str) -> discord.Guild | str:  # type: ignore
+    @override
+    async def convert(self, ctx: commands.Context[BotT], argument: str) -> GuildLike:
         try:
-            result: discord.Guild = await commands.GuildConverter().convert(ctx, argument)
+            result = await commands.GuildConverter().convert(ctx, argument)
         except commands.GuildNotFound:
-            return argument if ctx.guild is None else ctx.guild
-        return result
+            result = argument if ctx.guild is None else ctx.guild
+        return cast(GuildLike, result)
 
 
-class SeedConverter(commands.Converter[discord.Member | str], app_commands.Transformer):
+class SeedConverter(commands.Converter[SeedLike], app_commands.Transformer):
     """Convert a given string to a member type if it is valid.
 
     See
@@ -32,15 +38,18 @@ class SeedConverter(commands.Converter[discord.Member | str], app_commands.Trans
     :func:`discord.ext.commands.MemberConverter.convert`
     """
 
-    async def convert(self, ctx: Context, argument: str) -> discord.Member | str:  # type: ignore
+    @override
+    async def convert(self, ctx: commands.Context[BotT], argument: str) -> SeedLike:
         try:
-            return await commands.MemberConverter().convert(ctx, argument)
+            result = await commands.MemberConverter().convert(ctx, argument)
         except commands.MemberNotFound:
-            return argument
+            result = argument
+        return cast(SeedLike, result)
 
-    async def transform(self, interaction: discord.Interaction[Dynamo], value: str) -> discord.Member | str:  # type: ignore
+    @override
+    async def transform(self, interaction: discord.Interaction, value: str) -> discord.Member | str:
         # No need to reinvent the wheel, just run it through the commands.MemberConverter method.
-        ctx = await Context.from_interaction(interaction)
+        ctx = await Context.from_interaction(cast(discord.Interaction[Dynamo], interaction))
         return await self.convert(ctx, value)
 
     @property

@@ -1,7 +1,6 @@
 from collections.abc import Callable, Coroutine, Mapping
-from typing import Annotated, Any, ParamSpec, TypeVar
+from typing import Any, ParamSpec, TypeVar
 
-import numpy as np
 from discord import app_commands
 from discord.ext import commands
 from discord.ui import View
@@ -15,7 +14,6 @@ T_contra = TypeVar("T_contra", contravariant=True)
 S = TypeVar("S", bound=object)
 S_co = TypeVar("S_co", bound=object, covariant=True)
 
-ArrayRGB = Annotated[np.ndarray[Any, Any], tuple[int, int, int]]
 AC = TypeVar("AC", bound=Callable[..., Coroutine[Any, Any, Any]])
 CogT = TypeVar("CogT", bound=commands.Cog)
 CommandT = TypeVar("CommandT", bound=commands.Command[Any, ..., Any])

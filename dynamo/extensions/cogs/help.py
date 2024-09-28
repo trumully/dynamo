@@ -1,11 +1,12 @@
 import logging
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Mapping, Never, TypedDict
+from typing import Any, Never, TypedDict
 
 import discord
 from discord.ext import commands
 
-from dynamo._typing import CogT, CommandT, NotFoundWithHelp
+from dynamo._types import CogT, CommandT, NotFoundWithHelp
 from dynamo.core import Dynamo, DynamoCog
 from dynamo.utils.format import code_block, human_join
 
@@ -58,7 +59,7 @@ class DynamoHelp(commands.HelpCommand):
 
         await self.send(embed=embed)
 
-    def command_not_found(self, string: str) -> Never:
+    def command_not_found(self, string: str) -> Never:  # noqa: PLR6301
         log.debug("Command not found: %s", string)
         raise NotFoundWithHelp(string)
 
@@ -75,7 +76,7 @@ class DynamoHelp(commands.HelpCommand):
         description = command.help or "No help found..."
         embed = HelpEmbed(title=command.qualified_name, description=code_block(description))
 
-        embed.add_field(name="Aliases", value=f"`{human_join(command.aliases) or 'N/A'}`")
+        embed.add_field(name="Aliases", value=f"`{human_join(command.aliases) or "N/A"}`")
 
         cog = command.cog
         if cog and cog.qualified_name not in self.blacklisted:
@@ -100,18 +101,18 @@ class DynamoHelp(commands.HelpCommand):
         embed = HelpEmbed(title=title, description=description or "No help found...")
 
         if aliases:
-            embed.add_field(name="Aliases", value=f"`{human_join(aliases) or 'None'}`")
+            embed.add_field(name="Aliases", value=f"`{human_join(aliases) or "None"}`")
 
         if category:
             embed.add_field(name="Category", value=category)
 
         if filtered_commands := await self.filter_commands(commands):
             sub_commands = [
-                f"**{command.name}** - {command.help or 'No help found...'}" for command in filtered_commands
+                f"**{command.name}** - {command.help or "No help found..."}" for command in filtered_commands
             ]
             subcommand_field_title = "Commands" if title.endswith("Category") else "Subcommands"
             if sub_commands:
-                embed.add_field(name=subcommand_field_title, value=f">>> {'\n'.join(sub_commands)}", inline=False)
+                embed.add_field(name=subcommand_field_title, value=f">>> {"\n".join(sub_commands)}", inline=False)
 
         await self.send(embed=embed)
 

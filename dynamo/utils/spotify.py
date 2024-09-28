@@ -164,7 +164,7 @@ def get_progress(end: datetime.datetime, duration: datetime.timedelta) -> float:
     float
         The progress of the track as a percentage
     """
-    now = datetime.datetime.now(tz=datetime.timezone.utc)
+    now = datetime.datetime.now(tz=datetime.UTC)
     return 1 - (end - now).total_seconds() / duration.total_seconds()
 
 

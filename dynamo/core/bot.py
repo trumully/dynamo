@@ -236,11 +236,11 @@ class Dynamo(commands.AutoShardedBot):
 
         log.info("Ready: %s (ID: %s)", self.user, self.user.id)
 
-    async def get_context(
+    async def get_context[ContextT: commands.Context[Any]](
         self,
         origin: discord.Message | discord.Interaction,
         /,
         *,
-        cls: type[Context] = Context,
-    ) -> Context:
+        cls: type[ContextT] = Context,
+    ) -> ContextT:
         return await super().get_context(origin, cls=cls)

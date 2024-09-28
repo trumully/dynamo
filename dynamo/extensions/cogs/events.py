@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import contextlib
 from collections.abc import AsyncGenerator
-from copy import copy
 from typing import Any, cast
 
 import discord
@@ -52,18 +51,13 @@ class EventsView(discord.ui.View):
         self.author_id: int = author_id
         self.add_item(dropdown(events))
 
-    @property
-    def __children(self) -> list[EventsDropdown[EventsView]]:
-        return getattr(self, "_children", []).copy()
-
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         return bool(interaction.user and interaction.user.id == self.author_id)
 
     async def on_timeout(self) -> None:
-        for item in self.__children:
-            new_item = copy(item)
-            new_item.disabled = True
-            self.add_item(item)
+        for i in self.children:
+            item = cast(EventsDropdown[EventsView], i)
+            item.disabled = True
         await self.message.edit(view=self)
 
 
@@ -95,7 +89,7 @@ async def get_interested(event: discord.ScheduledEvent) -> str:
     # https://peps.python.org/pep-0533/
     async with contextlib.aclosing(cast(AsyncGenerator[discord.User], event.users())) as gen:
         users: list[discord.User] = [u async for u in gen]
-    return f"`[{event.name}]({event.url}) {' '.join(u.mention for u in users) or "No users found"}`"
+    return f"`[{event.name}]({event.url}) {" ".join(u.mention for u in users) or "No users found"}`"
 
 
 class Events(DynamoCog):
@@ -157,7 +151,7 @@ class Events(DynamoCog):
         if ctx.guild is None:
             return
 
-        message = await ctx.send(f"{self.bot.app_emojis.get('loading2', '⏳')}\tFetching events...")
+        message = await ctx.send(f"{self.bot.app_emojis.get("loading2", "⏳")}\tFetching events...")
 
         event_check: str | list[discord.ScheduledEvent] = await self.event_check(ctx.guild, event)
         if isinstance(event_check, str):

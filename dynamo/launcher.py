@@ -24,15 +24,14 @@ log = logging.getLogger(__name__)
 
 def run_bot() -> None:
     loop = asyncio.new_event_loop()
-    loop.set_task_factory(asyncio.eager_task_factory)
     policy = get_event_loop_policy()
     asyncio.set_event_loop_policy(policy)
     asyncio.set_event_loop(loop)
+    loop.set_task_factory(asyncio.eager_task_factory)
 
     # https://github.com/aio-libs/aiohttp/issues/8599
     # https://github.com/mikeshardmind/salamander-reloaded
     connector = aiohttp.TCPConnector(
-        happy_eyeballs_delay=None,
         family=socket.AddressFamily.AF_INET,
         ttl_dns_cache=60,
         loop=loop,
@@ -52,8 +51,8 @@ def run_bot() -> None:
                 await bot.close()
 
     try:
-        loop.add_signal_handler(signal.SIGINT, lambda: loop.stop())
-        loop.add_signal_handler(signal.SIGTERM, lambda: loop.stop())
+        loop.add_signal_handler(signal.SIGINT, loop.stop)
+        loop.add_signal_handler(signal.SIGTERM, loop.stop)
     except NotImplementedError:
         pass
 
@@ -99,13 +98,11 @@ def run_bot() -> None:
         for task in tasks:
             try:
                 if (exc := task.exception()) is not None:
-                    loop.call_exception_handler(
-                        {
-                            "message": "Unhandled exception in task during shutdown.",
-                            "exception": exc,
-                            "task": task,
-                        }
-                    )
+                    loop.call_exception_handler({
+                        "message": "Unhandled exception in task during shutdown.",
+                        "exception": exc,
+                        "task": task,
+                    })
             except (asyncio.InvalidStateError, asyncio.CancelledError):
                 pass
 

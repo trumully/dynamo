@@ -9,7 +9,7 @@ from discord.ext import commands
 
 from dynamo.core import Dynamo, DynamoCog
 from dynamo.utils.context import Context
-from dynamo.utils.time import format_relative, human_timedelta
+from dynamo.utils.time_utils import format_relative, human_timedelta
 
 PYTHON = "https://s3.dualstack.us-east-2.amazonaws.com/pythondotorg-assets/media/community/logos/python-logo-only.png"
 
@@ -22,7 +22,8 @@ class Info(DynamoCog):
 
         self.process = psutil.Process()
 
-    def format_commit(self, commit: pygit2.Commit) -> str:
+    @staticmethod
+    def format_commit(commit: pygit2.Commit) -> str:
         """A formatted commit message [`hash`](url) message (offset)"""
         short, *_ = commit.message.partition("\n")
         commit_tz = datetime.timezone(datetime.timedelta(minutes=commit.commit_time_offset))
@@ -36,7 +37,8 @@ class Info(DynamoCog):
         commits = list(itertools.islice(repo.walk(repo.head.target, pygit2.enums.SortMode.TOPOLOGICAL), count))
         return "\n".join(self.format_commit(c) for c in commits)
 
-    def embed_from_user(self, user: discord.Member | discord.User) -> discord.Embed:
+    @staticmethod
+    def embed_from_user(user: discord.Member | discord.User) -> discord.Embed:
         embed = discord.Embed(color=user.color)
         embed.set_footer(text=f"ID: {user.id}")
         avatar = user.display_avatar.with_static_format("png")

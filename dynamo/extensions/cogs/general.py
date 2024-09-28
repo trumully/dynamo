@@ -6,7 +6,6 @@ from discord.ext import commands
 
 from dynamo.core import Dynamo, DynamoCog
 from dynamo.utils import spotify
-from dynamo.utils.cache import async_cache
 from dynamo.utils.context import Context
 from dynamo.utils.converter import SeedConverter
 from dynamo.utils.format import human_join
@@ -19,7 +18,6 @@ class General(DynamoCog):
     def __init__(self, bot: Dynamo) -> None:
         super().__init__(bot)
 
-    @async_cache
     async def generate_identicon(
         self, seed: discord.Member | str | int, guild: discord.Guild | None
     ) -> tuple[discord.Embed, discord.File]:
@@ -43,7 +41,7 @@ class General(DynamoCog):
         if isinstance(seed_to_use, str) and (parsed := urlparse(seed_to_use)).scheme and parsed.netloc:
             seed_to_use = (parsed.netloc + parsed.path).replace("/", "-")
 
-        display_name = seed_to_use if (isinstance(seed_to_use, (str, int))) else seed_to_use.display_name
+        display_name = seed_to_use if (isinstance(seed_to_use, str | int)) else seed_to_use.display_name
 
         seed_to_use = derive_seed(display_name)
         fg, bg = get_colors(seed=seed_to_use)
@@ -121,7 +119,7 @@ class General(DynamoCog):
         embed = discord.Embed(
             title=f"{spotify_emoji} Now Playing",
             description=f"{user.mention} is listening to **{track}** by"
-            f" **{human_join(activity.artists, conjunction='and')}**",
+            f" **{human_join(activity.artists, conjunction="and")}**",
             color=activity.color,
         )
         embed.set_footer(text=f"Requested by {ctx.author!s}", icon_url=ctx.author.display_avatar.url)

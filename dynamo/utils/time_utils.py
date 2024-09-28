@@ -45,13 +45,13 @@ def human_timedelta(
         accuracy = 1
 
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=datetime.timezone.utc)
+        dt = dt.replace(tzinfo=datetime.UTC)
 
-    if (now := source or datetime.datetime.now(datetime.timezone.utc)).tzinfo is None:
-        now = now.replace(tzinfo=datetime.timezone.utc)
+    if (now := source or datetime.datetime.now(datetime.UTC)).tzinfo is None:
+        now = now.replace(tzinfo=datetime.UTC)
 
-    now = now.replace(microsecond=0).astimezone(datetime.timezone.utc)
-    dt = dt.replace(microsecond=0).astimezone(datetime.timezone.utc)
+    now = now.replace(microsecond=0).astimezone(datetime.UTC)
+    dt = dt.replace(microsecond=0).astimezone(datetime.UTC)
 
     if dt > now:
         delta = relativedelta(dt, now)

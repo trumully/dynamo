@@ -1,9 +1,9 @@
 import datetime
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum, auto
 from pathlib import Path
-from typing import Sequence
 
 from dynamo.utils.helper import ROOT, resolve_path_with_links
 
@@ -84,7 +84,7 @@ class plural:
 
 def format_dt(dt: datetime.datetime, style: str | None = None) -> str:
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=datetime.timezone.utc)
+        dt = dt.replace(tzinfo=datetime.UTC)
 
     return f"<t:{int(dt.timestamp())}>" if style is None else f"<t:{int(dt.timestamp())}:{style}>"
 

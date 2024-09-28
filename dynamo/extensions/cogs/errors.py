@@ -1,11 +1,12 @@
-from typing import Any, Callable, Coroutine
+from collections.abc import Callable, Coroutine
+from typing import Any
 
 import discord
 from discord import Interaction, app_commands
 from discord.ext import commands
 from rapidfuzz import fuzz
 
-from dynamo._typing import NotFoundWithHelp, app_command_error_messages, command_error_messages
+from dynamo._types import NotFoundWithHelp, app_command_error_messages, command_error_messages
 from dynamo.core import Dynamo, DynamoCog
 from dynamo.utils.context import Context
 
@@ -73,17 +74,17 @@ class Errors(DynamoCog):
 
         error_message = self.get_command_error_message(error)
 
-        if isinstance(error, (commands.CommandNotFound, NotFoundWithHelp)):
+        if isinstance(error, commands.CommandNotFound | NotFoundWithHelp):
             invoked = ctx.invoked_with
             trigger: str = invoked if invoked and isinstance(error, commands.CommandNotFound) else error.args[0]
 
             matches = [
-                f"**{command.qualified_name}** - {command.short_doc or 'No description provided'}"
+                f"**{command.qualified_name}** - {command.short_doc or "No description provided"}"
                 for command in self.bot.commands
                 if fuzz.ratio(trigger, command.name) > 70
             ]
             matches_string = (
-                f"\n\nDid you mean \N{RIGHT-POINTING MAGNIFYING GLASS}\n>>> {'\n'.join(matches)}" if matches else ""
+                f"\n\nDid you mean \N{RIGHT-POINTING MAGNIFYING GLASS}\n>>> {"\n".join(matches)}" if matches else ""
             )
 
             error_message = error_message.format(trigger, matches_string)
@@ -116,7 +117,7 @@ class Errors(DynamoCog):
             ]
             msg = f"Command not found: '{command_name}'"
             if matches:
-                msg += f"\n\nDid you mean \N{RIGHT-POINTING MAGNIFYING GLASS}\n>>> {'\n'.join(matches)}"
+                msg += f"\n\nDid you mean \N{RIGHT-POINTING MAGNIFYING GLASS}\n>>> {"\n".join(matches)}"
 
             await interaction.response.send_message(
                 ephemeral=True,

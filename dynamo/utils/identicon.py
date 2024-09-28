@@ -7,9 +7,9 @@ from dataclasses import dataclass
 from io import BytesIO
 
 import numpy as np
+from numpy.typing import NDArray
 from PIL import Image
 
-from dynamo._typing import ArrayRGB
 from dynamo.utils.cache import async_cache
 
 # 0.0 = same color | 1.0 = different color
@@ -92,7 +92,7 @@ class Identicon:
     seed: int
 
     @property
-    def icon(self) -> ArrayRGB:
+    def icon(self) -> NDArray[np.int_]:
         rng = np.random.default_rng(seed=self.seed)
         pattern = rng.choice(
             [self.fg.as_tuple(), self.bg.as_tuple()],

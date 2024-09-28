@@ -3,7 +3,7 @@ import sys
 
 
 def get_event_loop_policy() -> asyncio.AbstractEventLoopPolicy:
-    if sys.platform in ("win32", "cygwin", "cli"):
+    if sys.platform in {"win32", "cygwin", "cli"}:
         try:
             import winloop
         except ImportError:

@@ -8,7 +8,7 @@ import discord
 from discord.ext import commands
 from discord.ui import View
 
-from dynamo._typing import V
+from dynamo._types import V
 
 if TYPE_CHECKING:
     from dynamo.core.bot import Dynamo

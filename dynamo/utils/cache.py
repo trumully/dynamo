@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from functools import partial
 from typing import Any, ParamSpec, Protocol, TypeVar, cast, overload
 
-from dynamo._typing import MISSING
+from dynamo._types import MISSING
 
 P = ParamSpec("P")
 T = TypeVar("T")
@@ -21,7 +21,18 @@ WRAPPER_UPDATES = ("__dict__",)
 FAST_TYPES: set[type] = {int, str}
 
 
+class CachedTask[**P, T](Protocol):
+    __wrapped__: Callable[..., WrappedCoroutine[P, T]]
+
+    def __call__(self, *args: Any, **kwargs: Any) -> asyncio.Task[T]: ...
+
+    cache_info: Callable[[], CacheInfo]
+    cache_clear: Callable[[], None]
+    cache_parameters: Callable[[], dict[str, int | float | None]]
+
+
 WrappedCoroutine = Callable[P, Coroutine[Any, Any, T]]
+DecoratedCoroutine = Callable[[WrappedCoroutine[P, T]], CachedTask[P, T]]
 
 
 @dataclass(slots=True)
@@ -48,88 +59,6 @@ class HashedSeq(list[Any]):
 
     def __hash__(self) -> int:  # type: ignore
         return self.hash_value
-
-
-def _make_key(
-    args: tuple[Any, ...],
-    kwargs: dict[Any, Any],
-    kwargs_mark: tuple[object] = (object(),),
-    fast_types: set[type] = FAST_TYPES,
-    _type: type[type] = type,
-    _len: Callable[[Sized], int] = len,
-) -> Hashable:
-    """
-    Make cache key from optionally typed positional and keyword arguments. Structure is flat and hashable.
-    Although efficient, it will treat `f(x=1, y=2)` and `f(y=2, x=1)` as distinct calls and will be cached
-    separately.
-    """
-    key: tuple[Any, ...] = args
-    if kwargs:
-        key += kwargs_mark
-        for item in kwargs.items():
-            key += item
-    return key[0] if _len(key) == 1 and _type(key[0]) in fast_types else HashedSeq(key)
-
-
-class CachedTask[**P, T](Protocol):
-    @property
-    def __wrapped__(self) -> WrappedCoroutine[P, T]: ...
-
-    @__wrapped__.setter
-    def __wrapped__(self, value: WrappedCoroutine[P, T]) -> None: ...
-
-    def __call__(self, *args: Any, **kwargs: Any) -> asyncio.Task[T]: ...
-    def cache_info(self) -> CacheInfo: ...
-    def cache_clear(self) -> None: ...
-    def cache_parameters(self) -> dict[str, int | float | None]: ...
-
-
-def update_wrapper[**P, T](
-    wrapper: CachedTask[P, T],
-    wrapped: WrappedCoroutine[P, T],
-    assigned: tuple[str, ...] = WRAPPER_ASSIGNMENTS,
-    updated: tuple[str, ...] = WRAPPER_UPDATES,
-) -> CachedTask[P, T]:
-    """
-    Update a wrapper function to look more like the wrapped function.
-
-    Parameters
-    ----------
-    wrapper : CachedTask[P, T]
-        The wrapper function to be updated.
-    wrapped : WrappedCoroutine[P, T]
-        The original function being wrapped.
-    assigned : tuple of str, optional
-        Attribute names to assign from the wrapped function. Default is WRAPPER_ASSIGNMENTS.
-    updated : tuple of str, optional
-        Attribute names to update from the wrapped function. Default is WRAPPER_UPDATES.
-
-    Returns
-    -------
-    CachedTask[P, T]
-        The updated wrapper function.
-
-    Notes
-    -----
-    Typically used in decorators to ensure the wrapper function retains the metadata
-    of the wrapped function.
-
-    See Also
-    --------
-    functools.update_wrapper : Similar function for synchronous functions.
-    """
-    for attr in assigned:
-        if hasattr(wrapped, attr):
-            setattr(wrapper, attr, getattr(wrapped, attr))
-    for attr in updated:
-        if hasattr(wrapper, attr) and hasattr(wrapped, attr):
-            getattr(wrapper, attr).update(getattr(wrapped, attr))
-
-    wrapper.__wrapped__ = wrapped
-    return wrapper
-
-
-DecoratedCoroutine = Callable[[WrappedCoroutine[P, T]], CachedTask[P, T]]
 
 
 @overload
@@ -203,6 +132,72 @@ def async_cache[**P, T](
         return update_wrapper(wrapper, coro)
 
     return decorator
+
+
+def _make_key(
+    args: tuple[Any, ...],
+    kwargs: dict[Any, Any],
+    kwargs_mark: tuple[object] = (object(),),
+    fast_types: set[type] = FAST_TYPES,
+    _type: type[type] = type,
+    _len: Callable[[Sized], int] = len,
+) -> Hashable:
+    """
+    Make cache key from optionally typed positional and keyword arguments. Structure is flat and hashable.
+    Although efficient, it will treat `f(x=1, y=2)` and `f(y=2, x=1)` as distinct calls and will be cached
+    separately.
+    """
+    key: tuple[Any, ...] = args
+    if kwargs:
+        key += kwargs_mark
+        for item in kwargs.items():
+            key += item
+    return key[0] if _len(key) == 1 and _type(key[0]) in fast_types else HashedSeq(key)
+
+
+def update_wrapper[**P, T](
+    wrapper: CachedTask[P, T],
+    wrapped: WrappedCoroutine[P, T],
+    assigned: tuple[str, ...] = WRAPPER_ASSIGNMENTS,
+    updated: tuple[str, ...] = WRAPPER_UPDATES,
+) -> CachedTask[P, T]:
+    """
+    Update a wrapper function to look more like the wrapped function.
+
+    Parameters
+    ----------
+    wrapper : CachedTask[P, T]
+        The wrapper function to be updated.
+    wrapped : WrappedCoroutine[P, T]
+        The original function being wrapped.
+    assigned : tuple of str, optional
+        Attribute names to assign from the wrapped function. Default is WRAPPER_ASSIGNMENTS.
+    updated : tuple of str, optional
+        Attribute names to update from the wrapped function. Default is WRAPPER_UPDATES.
+
+    Returns
+    -------
+    CachedTask[P, T]
+        The updated wrapper function.
+
+    Notes
+    -----
+    Typically used in decorators to ensure the wrapper function retains the metadata
+    of the wrapped function.
+
+    See Also
+    --------
+    functools.update_wrapper : Similar function for synchronous functions.
+    """
+    for attr in assigned:
+        if hasattr(wrapped, attr):
+            setattr(wrapper, attr, getattr(wrapped, attr))
+    for attr in updated:
+        if hasattr(wrapper, attr) and hasattr(wrapped, attr):
+            getattr(wrapper, attr).update(getattr(wrapped, attr))
+
+    wrapper.__wrapped__ = cast(Callable[..., WrappedCoroutine[P, T]], wrapped)
+    return wrapper
 
 
 def _async_cache_wrapper[**P, T](
