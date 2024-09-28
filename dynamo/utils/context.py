@@ -99,7 +99,9 @@ class Context(commands.Context["Dynamo"]):
         delete_after: bool = True,
         author_id: int | None = None,
     ) -> bool:
-        """Prompt the user to confirm an action
+        """|coro|
+
+        Prompt the user to confirm an action
 
         Parameters
         ----------

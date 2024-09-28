@@ -1,9 +1,9 @@
 import asyncio
 import logging
 import time
-from collections.abc import Awaitable, Callable, Generator
+from collections.abc import Callable, Coroutine, Generator
 from contextlib import contextmanager
-from typing import cast
+from typing import Any, Protocol, cast, overload
 
 log = logging.getLogger(__name__)
 
@@ -16,17 +16,31 @@ def time_it(func_name: str) -> Generator[None, None, None]:
     log.debug("%s took %s seconds", func_name, f"{end - start:.2f}")
 
 
-def timer[**P, T](func: Callable[P, T] | Callable[P, Awaitable[T]]) -> Callable[P, T] | Callable[P, Awaitable[T]]:
+class WrappedCoroutine[**P, T](Protocol):
+    __name__: str
+
+    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> Coroutine[Any, Any, T]: ...
+
+
+@overload
+def timer[**P, T](func: WrappedCoroutine[P, T]) -> WrappedCoroutine[P, T]: ...
+
+
+@overload
+def timer[**P, T](func: Callable[P, T]) -> Callable[P, T]: ...
+
+
+def timer[**P, T](func: Callable[P, T] | WrappedCoroutine[P, T]) -> Callable[P, T] | WrappedCoroutine[P, T]:
     if asyncio.iscoroutinefunction(func):
 
         async def async_wrap(*args: P.args, **kwargs: P.kwargs) -> T:
             with time_it(func.__name__):
                 return await func(*args, **kwargs)
 
-        return cast(Callable[P, Awaitable[T]], async_wrap)
+        return async_wrap
 
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
         with time_it(func.__name__):
             return cast(T, func(*args, **kwargs))
 
-    return cast(Callable[P, T], wrapper)
+    return wrapper

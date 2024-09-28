@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import logging
 from collections.abc import Generator
+from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
 
@@ -101,7 +102,7 @@ async def draw(activity: discord.Spotify, album: bytes) -> tuple[BytesIO, str]:
     duration = activity.duration
     end = activity.end
 
-    return await asyncio.to_thread(_draw, name, artists, color, album, duration, end)
+    return await asyncio.to_thread(_draw, DrawArgs(name, artists, color, album, duration, end))
 
 
 def get_font(text: str, bold: bool = False, size: int = 22) -> ImageFont.FreeTypeFont:
@@ -168,21 +169,24 @@ def get_progress(end: datetime.datetime, duration: datetime.timedelta) -> float:
     return 1 - (end - now).total_seconds() / duration.total_seconds()
 
 
-def _draw(
-    name: str,
-    artists: list[str],
-    color: tuple[int, int, int],
-    album: bytes,
-    duration: datetime.timedelta | None = None,
-    end: datetime.datetime | None = None,
-) -> tuple[BytesIO, str]:
+@dataclass(frozen=True)
+class DrawArgs:
+    name: str
+    artists: list[str]
+    color: tuple[int, int, int]
+    album: bytes
+    duration: datetime.timedelta | None = None
+    end: datetime.datetime | None = None
+
+
+def _draw(args: DrawArgs) -> tuple[BytesIO, str]:
     # Base
-    base = Image.new("RGBA", (WIDTH, HEIGHT), color)
+    base = Image.new("RGBA", (WIDTH, HEIGHT), args.color)
     base_draw = ImageDraw.Draw(base)
     base_draw.rectangle((BORDER, BORDER, WIDTH - BORDER, HEIGHT - BORDER), fill=BACKGROUND_COLOR)
 
     # Album cover
-    album_bytes = Image.open(BytesIO(album)).resize((ALBUM_SIZE, ALBUM_SIZE))
+    album_bytes = Image.open(BytesIO(args.album)).resize((ALBUM_SIZE, ALBUM_SIZE))
     album_position = (BORDER, BORDER)
     base.paste(album_bytes, album_position)
 
@@ -190,17 +194,19 @@ def _draw(
     spotify_logo = Image.open(SPOTIFY_LOGO_PATH).resize((LOGO_SIZE, LOGO_SIZE))
 
     # Track title and artist
-    title_font = get_font(name, bold=True, size=TITLE_FONT_SIZE)
-    artist_font = get_font(", ".join(artists), bold=False, size=ARTIST_FONT_SIZE)
+    title_font = get_font(args.name, bold=True, size=TITLE_FONT_SIZE)
+    artist_font = get_font(", ".join(args.artists), bold=False, size=ARTIST_FONT_SIZE)
 
-    title_width = title_font.getbbox(name)[2]
+    title_width = title_font.getbbox(args.name)[2]
     available_width = WIDTH - CONTENT_START_X - LOGO_SIZE - PADDING * 2 - BORDER
 
     # Draw only one frame if the title fits
     if title_width <= available_width:
-        base_draw.text((CONTENT_START_X, TITLE_START_Y), text=name, fill=TEXT_COLOR, font=title_font)  # type: ignore
+        base_draw.text((CONTENT_START_X, TITLE_START_Y), text=args.name, fill=TEXT_COLOR, font=title_font)  # type: ignore
 
-        draw_static_elements(base_draw, base, artists, artist_font, duration, end, spotify_logo)
+        draw_static_elements(
+            StaticDrawArgs(base_draw, base, args.artists, artist_font, args.duration, args.end, spotify_logo)
+        )
 
         buffer = BytesIO()
         base.save(buffer, format="PNG")
@@ -208,7 +214,7 @@ def _draw(
         return buffer, "png"
 
     # Generate scrolling frames for the title
-    title_frames = draw_text_scroll(title_font, name, available_width)
+    title_frames = draw_text_scroll(title_font, args.name, available_width)
     num_frames = len(list(title_frames))
 
     frames: list[Image.Image] = []
@@ -216,7 +222,9 @@ def _draw(
         frame = base.copy()
         frame_draw = ImageDraw.Draw(frame)
         frame.paste(next(title_frames), (CONTENT_START_X, TITLE_START_Y), next(title_frames))
-        draw_static_elements(frame_draw, frame, artists, artist_font, duration, end, spotify_logo)
+        draw_static_elements(
+            StaticDrawArgs(frame_draw, frame, args.artists, artist_font, args.duration, args.end, spotify_logo)
+        )
         frames.append(frame)
 
     buffer = BytesIO()
@@ -225,29 +233,32 @@ def _draw(
     return buffer, "gif"
 
 
-def draw_static_elements(
-    draw: ImageDraw.ImageDraw,
-    image: Image.Image,
-    artists: list[str],
-    artist_font: ImageFont.FreeTypeFont,
-    duration: datetime.timedelta | None,
-    end: datetime.datetime | None,
-    spotify_logo: Image.Image,
-) -> None:
+@dataclass(frozen=True)
+class StaticDrawArgs:
+    draw: ImageDraw.ImageDraw
+    image: Image.Image
+    artists: list[str]
+    artist_font: ImageFont.FreeTypeFont
+    duration: datetime.timedelta | None
+    end: datetime.datetime | None
+    spotify_logo: Image.Image
+
+
+def draw_static_elements(args: StaticDrawArgs) -> None:
     # Draw artist name
     draw.text(  # type: ignore
         (CONTENT_START_X, TITLE_START_Y + TITLE_FONT_SIZE + 5),
-        text=", ".join(artists),
+        text=", ".join(args.artists),
         fill=TEXT_COLOR,
-        font=artist_font,
+        font=args.artist_font,
     )
 
     # Draw progress bar if duration and end are provided
-    if duration and end:
-        progress = get_progress(end, duration)
-        _draw_track_bar(draw, progress, duration)
+    if args.duration and args.end:
+        progress = get_progress(args.end, args.duration)
+        _draw_track_bar(args.draw, progress, args.duration)
 
-    image.paste(spotify_logo, (LOGO_X, LOGO_Y), spotify_logo)
+    args.image.paste(args.spotify_logo, (LOGO_X, LOGO_Y), args.spotify_logo)
 
 
 def _draw_track_bar(draw: ImageDraw.ImageDraw, progress: float, duration: datetime.timedelta) -> None:

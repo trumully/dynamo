@@ -150,6 +150,7 @@ def _prefix_callable(bot: Dynamo, msg: discord.Message) -> list[str]:
 
 class Dynamo(commands.AutoShardedBot):
     session: aiohttp.ClientSession
+    connector: aiohttp.TCPConnector
     context: Context
     logging_handler: Any
     bot_app_info: discord.AppInfo

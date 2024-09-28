@@ -97,6 +97,7 @@ ignore = [
     "B008",
     "ASYNC109",
     "E999",
+    "PLR6301",
 ]
 unfixable = ["ERA"]
 

@@ -188,7 +188,7 @@ class Dev(DynamoCog):
         added = [f"`{name}`\t{emoji}" for name, emoji in new_emojis.items() if name not in old_emojis]
         removed = [f"`{name}`\t{emoji}" for name, emoji in old_emojis.items() if name not in new_emojis]
 
-        result = f"{'\n'.join(all_emojis)}\n"
+        result = f"{"\n".join(all_emojis)}\n"
 
         if added:
             result += code_block("+ Added\n", "diff") + "\n".join(added)

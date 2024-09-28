@@ -11,6 +11,7 @@ from numpy.typing import NDArray
 from PIL import Image
 
 from dynamo.utils.cache import async_cache
+from dynamo.utils.wrappers import timer
 
 # 0.0 = same color | 1.0 = different color
 COLOR_THRESHOLD = 0.4
@@ -120,6 +121,7 @@ async def get_identicon(idt: Identicon, size: int = 256) -> bytes:
     Get an identicon as bytes
     """
 
+    @timer
     def _buffer(idt: Identicon, size: int) -> bytes:
         buffer = BytesIO()
         Image.fromarray(idt.icon.astype("uint8")).convert("RGB").resize((size, size), Image.Resampling.NEAREST).save(

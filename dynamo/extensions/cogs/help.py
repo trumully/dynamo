@@ -59,7 +59,7 @@ class DynamoHelp(commands.HelpCommand):
 
         await self.send(embed=embed)
 
-    def command_not_found(self, string: str) -> Never:  # noqa: PLR6301
+    def command_not_found(self, string: str) -> Never:
         log.debug("Command not found: %s", string)
         raise NotFoundWithHelp(string)
 

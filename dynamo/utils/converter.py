@@ -1,16 +1,13 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, TypeVar, cast, override
+from typing import TypeVar, cast, override
 
 import discord
 from discord import app_commands
 from discord.ext import commands
 
+from dynamo.core import Dynamo
 from dynamo.utils.context import Context
-
-if TYPE_CHECKING:
-    from dynamo.core import Dynamo
-
 
 BotT = TypeVar("BotT", bound=commands.Bot | commands.AutoShardedBot, covariant=True)
 GuildLike = TypeVar("GuildLike", bound=discord.Guild | str, covariant=True)
