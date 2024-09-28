@@ -1,9 +1,11 @@
 import asyncio
 import logging
 import time
-from collections.abc import Callable, Coroutine, Generator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
-from typing import Any, Protocol, cast, overload
+from typing import cast, overload
+
+from dynamo._types import WrappedCoroutine
 
 log = logging.getLogger(__name__)
 
@@ -14,12 +16,6 @@ def time_it(func_name: str) -> Generator[None, None, None]:
     yield
     end = time.perf_counter()
     log.debug("%s took %s seconds", func_name, f"{end - start:.2f}")
-
-
-class WrappedCoroutine[**P, T](Protocol):
-    __name__: str
-
-    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> Coroutine[Any, Any, T]: ...
 
 
 @overload

@@ -4,12 +4,12 @@ import asyncio
 import logging
 import threading
 from collections import OrderedDict
-from collections.abc import Callable, Coroutine, Hashable, Sized
+from collections.abc import Callable, Hashable, Sized
 from dataclasses import dataclass
 from functools import partial
 from typing import Any, ParamSpec, Protocol, TypeVar, cast, overload
 
-from dynamo._types import MISSING
+from dynamo._types import MISSING, WrappedCoroutine
 
 P = ParamSpec("P")
 T = TypeVar("T")
@@ -22,16 +22,14 @@ FAST_TYPES: set[type] = {int, str}
 
 
 class CachedTask[**P, T](Protocol):
-    __wrapped__: Callable[..., WrappedCoroutine[P, T]]
-
-    def __call__(self, *args: Any, **kwargs: Any) -> asyncio.Task[T]: ...
+    __wrapped__: Callable[P, WrappedCoroutine[P, T]]
+    __call__: Callable[..., asyncio.Task[T]]
 
     cache_info: Callable[[], CacheInfo]
     cache_clear: Callable[[], None]
     cache_parameters: Callable[[], dict[str, int | float | None]]
 
 
-WrappedCoroutine = Callable[P, Coroutine[Any, Any, T]]
 DecoratedCoroutine = Callable[[WrappedCoroutine[P, T]], CachedTask[P, T]]
 
 
@@ -70,8 +68,7 @@ def async_cache[**P, T](coro: WrappedCoroutine[P, T], /) -> CachedTask[P, T]: ..
 
 
 def async_cache[**P, T](
-    maxsize: int | WrappedCoroutine[P, T] | None = 128,
-    ttl: float | None = None,
+    maxsize: int | WrappedCoroutine[P, T] | None = 128, ttl: float | None = None
 ) -> CachedTask[P, T] | DecoratedCoroutine[P, T]:
     """
     Decorator to cache the result of a coroutine.
@@ -94,7 +91,7 @@ def async_cache[**P, T](
     -------
     CachedTask[P, T] | DecoratedCoroutine[P, T]
         If a coroutine is provided directly, returns the cached task.
-        Otherwise, returns a decorator that can beapplied to a coroutine.
+        Otherwise, returns a decorator that can be applied to a coroutine.
 
     Examples
     --------
@@ -119,7 +116,7 @@ def async_cache[**P, T](
         maxsize = max(maxsize, 0)
     elif callable(maxsize):
         coro, maxsize = maxsize, 128
-        wrapper = _async_cache_wrapper(coro, maxsize, ttl)
+        wrapper = _cache_wrapper(coro, maxsize, ttl)
         wrapper.cache_parameters = lambda: {"maxsize": maxsize, "ttl": ttl}
         return update_wrapper(wrapper, coro)
     else:
@@ -127,11 +124,24 @@ def async_cache[**P, T](
         raise TypeError(error)
 
     def decorator(coro: WrappedCoroutine[P, T]) -> CachedTask[P, T]:
-        wrapper = _async_cache_wrapper(coro, maxsize, ttl)
+        wrapper = _cache_wrapper(coro, maxsize, ttl)
         wrapper.cache_parameters = lambda: {"maxsize": maxsize, "ttl": ttl}
         return update_wrapper(wrapper, coro)
 
     return decorator
+
+
+def _create_key(args: tuple[Any, ...], kwargs: dict[Any, Any], kwargs_mark: tuple[object]) -> tuple[Any, ...]:
+    key = args
+    if kwargs:
+        key += kwargs_mark + tuple(kwargs.items())
+    return key
+
+
+def _finalize_key(
+    key: tuple[Any, ...], fast_types: set[type], _type: type[type] = type, _len: Callable[[Sized], int] = len
+) -> Hashable:
+    return key[0] if _len(key) == 1 and _type(key[0]) in fast_types else HashedSeq(key)
 
 
 def _make_key(
@@ -139,20 +149,14 @@ def _make_key(
     kwargs: dict[Any, Any],
     kwargs_mark: tuple[object] = (object(),),
     fast_types: set[type] = FAST_TYPES,
-    _type: type[type] = type,
-    _len: Callable[[Sized], int] = len,
 ) -> Hashable:
     """
     Make cache key from optionally typed positional and keyword arguments. Structure is flat and hashable.
     Although efficient, it will treat `f(x=1, y=2)` and `f(y=2, x=1)` as distinct calls and will be cached
     separately.
     """
-    key: tuple[Any, ...] = args
-    if kwargs:
-        key += kwargs_mark
-        for item in kwargs.items():
-            key += item
-    return key[0] if _len(key) == 1 and _type(key[0]) in fast_types else HashedSeq(key)
+    key = _create_key(args, kwargs, kwargs_mark)
+    return _finalize_key(key, fast_types)
 
 
 def update_wrapper[**P, T](
@@ -171,9 +175,9 @@ def update_wrapper[**P, T](
     wrapped : WrappedCoroutine[P, T]
         The original function being wrapped.
     assigned : tuple of str, optional
-        Attribute names to assign from the wrapped function. Default is WRAPPER_ASSIGNMENTS.
+        Attribute names to assign from the wrapped function. Default is :const:`WRAPPER_ASSIGNMENTS`.
     updated : tuple of str, optional
-        Attribute names to update from the wrapped function. Default is WRAPPER_UPDATES.
+        Attribute names to update from the wrapped function. Default is :const:`WRAPPER_UPDATES`.
 
     Returns
     -------
@@ -187,7 +191,7 @@ def update_wrapper[**P, T](
 
     See Also
     --------
-    functools.update_wrapper : Similar function for synchronous functions.
+    :func:`functools.update_wrapper` : Similar function for synchronous functions.
     """
     for attr in assigned:
         if hasattr(wrapped, attr):
@@ -200,11 +204,7 @@ def update_wrapper[**P, T](
     return wrapper
 
 
-def _async_cache_wrapper[**P, T](
-    coro: WrappedCoroutine[P, T],
-    maxsize: int | None,
-    ttl: float | None,
-) -> CachedTask[P, T]:
+def _cache_wrapper[**P, T](coro: WrappedCoroutine[P, T], maxsize: int | None, ttl: float | None) -> CachedTask[P, T]:
     sentinel = MISSING
     make_key = _make_key
 
@@ -214,7 +214,7 @@ def _async_cache_wrapper[**P, T](
     lock = threading.Lock()
     _cache_info = CacheInfo()
 
-    def wrapper(*args: Any, **kwargs: Any) -> asyncio.Task[T]:
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> asyncio.Task[T]:
         key: Hashable = make_key(args, kwargs)
         result = cache_get(key, sentinel)
 
@@ -248,16 +248,11 @@ def _async_cache_wrapper[**P, T](
         if ttl is not None:
 
             def evict(k: Hashable) -> None:
+                log.debug("Eviction: TTL expired for %s", k)
                 with lock:
-                    log.debug("Eviction: TTL expired for %s", k)
                     internal_cache.pop(k, sentinel)
 
-            call_after_ttl = partial(
-                asyncio.get_running_loop().call_later,
-                ttl,
-                evict,
-                key,
-            )
+            call_after_ttl = partial(asyncio.get_running_loop().call_later, ttl, evict, key)
             task.add_done_callback(call_after_ttl)
         return task
 

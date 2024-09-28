@@ -1,5 +1,5 @@
 from collections.abc import Callable, Coroutine, Mapping
-from typing import Any, ParamSpec, TypeVar
+from typing import Any, ParamSpec, Protocol, TypeVar
 
 from discord import app_commands
 from discord.ext import commands
@@ -20,6 +20,15 @@ CommandT = TypeVar("CommandT", bound=commands.Command[Any, ..., Any])
 ContextT = TypeVar("ContextT", bound=commands.Context[Any], covariant=True)
 
 V = TypeVar("V", bound="View", covariant=True)
+
+
+class WrappedCoroutine[**P, R](Protocol):
+    __name__: str
+    __call__: Callable[P, Coroutine[Any, Any, R]]
+
+
+class DecoratedCoroutine[**P, R](Protocol):
+    __call__: Callable[[WrappedCoroutine[P, R]], R]
 
 
 class NotFoundWithHelp(commands.CommandError): ...

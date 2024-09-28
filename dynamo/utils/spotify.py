@@ -11,7 +11,7 @@ import discord
 from PIL import Image, ImageDraw, ImageFont
 
 from dynamo.utils.cache import async_cache
-from dynamo.utils.format import FONTS, is_cjk
+from dynamo.utils.format import FONTS, human_join, is_cjk
 from dynamo.utils.helper import ROOT, resolve_path_with_links, valid_url
 
 log = logging.getLogger(__name__)
@@ -62,6 +62,36 @@ PROGRESS_TEXT_Y: int = HEIGHT - PADDING - BORDER - 24
 SLIDING_SPEED: int = 6  # pixels per frame
 MAX_FRAMES: int = 480  # number of frames for sliding animation
 FRAME_DURATION: int = 50  # duration of each frame in milliseconds
+
+
+def make_embed(
+    user: discord.Member | discord.User, activity: discord.Spotify, image: BytesIO, emoji: str, *, ext: str
+) -> tuple[discord.Embed, discord.File]:
+    """Make an embed for the currently playing Spotify track.
+
+    Parameters
+    ----------
+    spotify_info : bytes
+        The Spotify info as bytes
+    album : bytes
+        The album cover as bytes
+
+    Returns
+    -------
+    discord.Embed
+        The embed for the currently playing Spotify track
+    """
+    fname = f"spotify-card.{ext}"
+    track = f"[{activity.title}](<{activity.track_url}>)"
+    file = discord.File(image, filename=fname)
+    embed = discord.Embed(
+        title=f"{emoji} Now Playing",
+        description=f"{user.mention} is listening to **{track}** by"
+        f" **{human_join(activity.artists, conjunction="and")}**",
+        color=activity.color,
+    )
+    embed.set_image(url=f"attachment://{fname}")
+    return embed, file
 
 
 async def draw(activity: discord.Spotify, album: bytes) -> tuple[BytesIO, str]:

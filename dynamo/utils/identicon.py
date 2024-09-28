@@ -19,8 +19,8 @@ COLOR_THRESHOLD = 0.4
 
 def derive_seed(precursor: str | int) -> int:
     """Generate a seed from a string or int"""
-    precursor = str(precursor)
-    hashed = int.from_bytes(precursor.encode() + hashlib.sha256(precursor.encode()).digest(), byteorder="big")
+    encoded_precursor = str(precursor).encode()
+    hashed = int.from_bytes(encoded_precursor + hashlib.sha256(encoded_precursor).digest(), byteorder="big")
     return hashed  # noqa: RET504  needs to be assigned as a var to work properly
 
 

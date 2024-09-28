@@ -16,11 +16,7 @@ from dynamo.utils.format import shorten_string
 def event_to_option(event: discord.ScheduledEvent) -> discord.SelectOption:
     """Convert a ScheduledEvent to a SelectOption to be used in a dropdown menu"""
     description = event.description if event.description is not None else ""
-    return discord.SelectOption(
-        label=event.name,
-        value=str(event.id),
-        description=shorten_string(description),
-    )
+    return discord.SelectOption(label=event.name, value=str(event.id), description=shorten_string(description))
 
 
 class EventsDropdown[V: discord.ui.View](discord.ui.Select[V]):
@@ -63,7 +59,7 @@ class EventsView(discord.ui.View):
 
 class InterestedDropdown(EventsDropdown[EventsView]):
     async def callback(self, interaction: discord.Interaction) -> None:
-        event: discord.ScheduledEvent | None = next((e for e in self.events if e.id == int(self.values[0])), None)
+        event: discord.ScheduledEvent | None = next(filter(lambda e: e.id == int(self.values[0]), self.events), None)
         response = "No users found" if event is None else await get_interested(event)
         await interaction.response.send_message(response, ephemeral=True)
 
@@ -138,7 +134,7 @@ class Events(DynamoCog):
         return await self.fetch_events(guild) or f"{Context.Status.FAILURE} No events found!"
 
     @commands.hybrid_command(name="event")
-    @commands.cooldown(1, 35, commands.BucketType.guild)
+    @commands.cooldown(1, 35, commands.BucketType.user)
     @commands.guild_only()
     async def event(self, ctx: Context, event: int | None = None) -> None:
         """Get a list of members subscribed to an event

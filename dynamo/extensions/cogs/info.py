@@ -14,6 +14,33 @@ from dynamo.utils.time_utils import format_relative, human_timedelta
 PYTHON = "https://s3.dualstack.us-east-2.amazonaws.com/pythondotorg-assets/media/community/logos/python-logo-only.png"
 
 
+def format_commit(commit: pygit2.Commit) -> str:
+    """A formatted commit message [`hash`](url) message (offset)"""
+    short, *_ = commit.message.partition("\n")
+    commit_tz = datetime.timezone(datetime.timedelta(minutes=commit.commit_time_offset))
+    commit_time = datetime.datetime.fromtimestamp(commit.commit_time, commit_tz).astimezone(commit_tz)
+
+    offset = format_relative(dt=commit_time)
+    return f"[`{commit.short_id}`](https://github.com/trumully/dynamo/commit/{commit.id}) {short} ({offset})"
+
+
+def get_latest_commits(count: int = 3) -> str:
+    """Get (count) latest commits from the git repository"""
+    repo = pygit2.Repository(".git")
+    commits = list(itertools.islice(repo.walk(repo.head.target, pygit2.enums.SortMode.TOPOLOGICAL), count))
+    return "\n".join(format_commit(c) for c in commits)
+
+
+def embed_from_user(user: discord.Member | discord.User) -> discord.Embed:
+    embed = discord.Embed(color=user.color)
+    avatar = user.display_avatar.with_static_format("png")
+    embed.set_footer(text=f"ID: {user.id}")
+    embed.set_author(name=str(user))
+    embed.set_image(url=avatar.url)
+    embed.timestamp = discord.utils.utcnow()
+    return embed
+
+
 class Info(DynamoCog):
     """Statistics commands"""
 
@@ -22,37 +49,12 @@ class Info(DynamoCog):
 
         self.process = psutil.Process()
 
-    @staticmethod
-    def format_commit(commit: pygit2.Commit) -> str:
-        """A formatted commit message [`hash`](url) message (offset)"""
-        short, *_ = commit.message.partition("\n")
-        commit_tz = datetime.timezone(datetime.timedelta(minutes=commit.commit_time_offset))
-        commit_time = datetime.datetime.fromtimestamp(commit.commit_time, commit_tz).astimezone(commit_tz)
-
-        offset = format_relative(dt=commit_time)
-        return f"[`{commit.short_id}`](https://github.com/trumully/dynamo/commit/{commit.id}) {short} ({offset})"
-
-    def get_latest_commits(self, count: int = 3) -> str:
-        repo = pygit2.Repository(".git")
-        commits = list(itertools.islice(repo.walk(repo.head.target, pygit2.enums.SortMode.TOPOLOGICAL), count))
-        return "\n".join(self.format_commit(c) for c in commits)
-
-    @staticmethod
-    def embed_from_user(user: discord.Member | discord.User) -> discord.Embed:
-        embed = discord.Embed(color=user.color)
-        embed.set_footer(text=f"ID: {user.id}")
-        avatar = user.display_avatar.with_static_format("png")
-        embed.set_author(name=str(user))
-        embed.set_image(url=avatar.url)
-        embed.timestamp = discord.utils.utcnow()
-        return embed
-
     @commands.hybrid_command(name="about")
     async def about(self, ctx: Context) -> None:
         """Get information about the bot"""
 
         bot_name = self.bot.user.display_name
-        revision = self.get_latest_commits()
+        revision = get_latest_commits()
         avatar_url = self.bot.user.display_avatar.with_static_format("png")
         discord_version = metadata.version("discord.py")
 
@@ -81,7 +83,7 @@ class Info(DynamoCog):
         user: discord.Member | discord.User
             The user to get the avatar of
         """
-        await ctx.send(embed=self.embed_from_user(user), ephemeral=True)
+        await ctx.send(embed=embed_from_user(user), ephemeral=True)
 
 
 async def setup(bot: Dynamo) -> None:

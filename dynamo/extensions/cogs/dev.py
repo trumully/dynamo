@@ -79,14 +79,15 @@ class Dev(DynamoCog):
         module: str
             The name of the cog to load.
         """
-        m = get_cog(module)
+        message = ctx.message
+        cog = get_cog(module)
         try:
-            await self.bot.load_extension(m)
+            await self.bot.load_extension(cog)
         except commands.ExtensionError as ex:
             await ctx.send(f"{ex.__class__.__name__}: {ex}")
-            self.log.exception("Failed to load %s", m)
+            self.log.exception("Failed to load %s", cog)
         else:
-            await ctx.send(ctx.Status.OK)
+            await message.add_reaction(ctx.Status.OK)
 
     @commands.hybrid_command(aliases=("ul",))
     @is_owner()
@@ -98,14 +99,15 @@ class Dev(DynamoCog):
         module: str
             The name of the cog to unload.
         """
-        m = get_cog(module)
+        message = ctx.message
+        cog = get_cog(module)
         try:
-            await self.bot.unload_extension(m)
+            await self.bot.unload_extension(cog)
         except commands.ExtensionError as ex:
             await ctx.send(f"{ex.__class__.__name__}: {ex}")
-            self.log.exception("Failed to unload %s", m)
+            self.log.exception("Failed to unload %s", cog)
         else:
-            await ctx.send(ctx.Status.OK)
+            await message.add_reaction(ctx.Status.OK)
 
     @commands.hybrid_group(name="reload", aliases=("r",), invoke_without_command=True)
     @is_owner()
@@ -117,15 +119,15 @@ class Dev(DynamoCog):
         module: str
             The name of the cog to reload.
         """
-        m = get_cog(module)
-
+        message: discord.Message | None = ctx.message
+        cog = get_cog(module)
         try:
-            await self.bot.reload_extension(m)
+            await self.bot.reload_extension(cog)
         except commands.ExtensionError as ex:
             await ctx.send(f"{ex.__class__.__name__}: {ex}")
-            self.log.exception("Failed to reload %s", m)
+            self.log.exception("Failed to reload %s", cog)
         else:
-            await ctx.send(ctx.Status.OK)
+            await message.add_reaction(ctx.Status.OK)
 
     async def reload_or_load_extension(self, module: str) -> None:
         try:

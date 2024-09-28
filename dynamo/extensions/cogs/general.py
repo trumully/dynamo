@@ -8,7 +8,6 @@ from dynamo.core import Dynamo, DynamoCog
 from dynamo.utils import spotify
 from dynamo.utils.context import Context
 from dynamo.utils.converter import SeedConverter
-from dynamo.utils.format import human_join
 from dynamo.utils.identicon import Identicon, derive_seed, get_colors, get_identicon, seed_from_time
 
 
@@ -99,7 +98,7 @@ class General(DynamoCog):
             return
 
         activities = getattr(user, "activities", [])
-        activity: discord.Spotify | None = next((a for a in activities if isinstance(a, discord.Spotify)), None)
+        activity: discord.Spotify | None = next(filter(lambda a: isinstance(a, discord.Spotify), activities), None)
 
         if activity is None:
             await ctx.send(f"{user!s} is not listening to Spotify.")
@@ -111,19 +110,8 @@ class General(DynamoCog):
             return
 
         buffer, ext = await spotify.draw(activity, album_cover)
-        fname = f"spotify-card.{ext}"
+        embed, file = spotify.make_embed(user, activity, buffer, self.bot.app_emojis.get("spotify", "🎧"), ext=ext)
 
-        file = discord.File(buffer, filename=fname)
-        track = f"[{activity.title}](<{activity.track_url}>)"
-        spotify_emoji = self.bot.app_emojis.get("spotify", "🎧")
-        embed = discord.Embed(
-            title=f"{spotify_emoji} Now Playing",
-            description=f"{user.mention} is listening to **{track}** by"
-            f" **{human_join(activity.artists, conjunction="and")}**",
-            color=activity.color,
-        )
-        embed.set_footer(text=f"Requested by {ctx.author!s}", icon_url=ctx.author.display_avatar.url)
-        embed.set_image(url=f"attachment://{fname}")
         await ctx.send(embed=embed, file=file)
 
 

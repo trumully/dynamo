@@ -10,6 +10,8 @@ from dynamo._types import NotFoundWithHelp, app_command_error_messages, command_
 from dynamo.core import Dynamo, DynamoCog
 from dynamo.utils.context import Context
 
+AppCommandErrorMethod = Callable[[Interaction[Dynamo], app_commands.AppCommandError], Coroutine[Any, Any, None]]
+
 
 class Errors(DynamoCog):
     """Handles errors for the bot."""
@@ -17,9 +19,7 @@ class Errors(DynamoCog):
     def __init__(self, bot: Dynamo) -> None:
         super().__init__(bot)
 
-        self.old_tree_error: Callable[
-            [Interaction[Dynamo], app_commands.AppCommandError], Coroutine[Any, Any, None]
-        ] = self.bot.tree.on_error
+        self.old_tree_error: AppCommandErrorMethod = self.bot.tree.on_error
         self.bot.tree.on_error = self.on_app_command_error
         self.command_error_messages = command_error_messages
         self.app_command_error_messages = app_command_error_messages
