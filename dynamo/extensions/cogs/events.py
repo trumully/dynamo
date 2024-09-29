@@ -54,7 +54,8 @@ class EventsView(discord.ui.View):
         for i in self.children:
             item = cast(EventsDropdown[EventsView], i)
             item.disabled = True
-        await self.message.edit(view=self)
+        await self.message.edit(content="Expired!", view=self)
+        await self.message.delete(delay=10)
 
 
 class InterestedDropdown(EventsDropdown[EventsView]):
@@ -88,53 +89,54 @@ async def get_interested(event: discord.ScheduledEvent) -> str:
     return f"`[{event.name}]({event.url}) {" ".join(u.mention for u in users) or "No users found"}`"
 
 
+async def fetch_events(guild: discord.Guild) -> list[discord.ScheduledEvent]:
+    events: list[discord.ScheduledEvent] = []
+    try:
+        events = await guild.fetch_scheduled_events(with_counts=False)
+    except discord.HTTPException:
+        return []
+    return sorted(events, key=lambda e: e.start_time)
+
+
+@async_cache(ttl=1800)
+async def event_check(guild: discord.Guild, event_id: int | None = None) -> str | list[discord.ScheduledEvent]:
+    """|coro|
+
+    Get a list of members subscribed to an event. If event is provided, get attendees of that event if it exists.
+    If no event is provided, get a list of all events in the guild. In both cases if neither events nor attendees
+    are found, return a failure message.
+
+    Parameters
+    ----------
+    guild : discord.Guild
+        The guild to fetch events from
+    event_id : int | None, optional
+        The id of a specific event to fetch, by default None
+
+    Returns
+    -------
+    str | list[discord.ScheduledEvent]
+        A string if an event is not found, otherwise a list of events
+    """
+    if event_id is not None:
+        try:
+            ev = await guild.fetch_scheduled_event(event_id, with_counts=False)
+        except discord.NotFound:
+            return f"No event with id: {event_id}"
+        return await get_interested(ev)
+
+    events = await fetch_events(guild)
+    return events or f"{Context.Status.FAILURE} No events found!"
+
+
 class Events(DynamoCog):
     """Scheduled event related commands"""
 
     def __init__(self, bot: Dynamo) -> None:
         super().__init__(bot)
-
-    async def fetch_events(self, guild: discord.Guild) -> list[discord.ScheduledEvent]:
-        events: list[discord.ScheduledEvent] = []
-        try:
-            events = await guild.fetch_scheduled_events(with_counts=False)
-        except discord.HTTPException:
-            self.log.exception("Failed to fetch events for guild %s", guild.id)
-        return sorted(events, key=lambda e: e.start_time)
-
-    @async_cache(ttl=1800)
-    async def event_check(
-        self, guild: discord.Guild, event_id: int | None = None
-    ) -> str | list[discord.ScheduledEvent]:
-        """|coro|
-
-        Get a list of members subscribed to an event. If event is provided, get attendees of that event if it exists.
-        If no event is provided, get a list of all events in the guild. In both cases if neither events nor attendees
-        are found, return a failure message.
-
-        Parameters
-        ----------
-        guild : discord.Guild
-            The guild to fetch events from
-        event_id : int | None, optional
-            The id of a specific event to fetch, by default None
-
-        Returns
-        -------
-        str | list[discord.ScheduledEvent]
-            _description_
-        """
-        if event_id is not None:
-            try:
-                ev = await guild.fetch_scheduled_event(event_id, with_counts=False)
-            except discord.NotFound:
-                return f"No event with id: {event_id}"
-            return await get_interested(ev)
-
-        return await self.fetch_events(guild) or f"{Context.Status.FAILURE} No events found!"
+        self.active_users: set[int] = set()
 
     @commands.hybrid_command(name="event")
-    @commands.cooldown(1, 35, commands.BucketType.user)
     @commands.guild_only()
     async def event(self, ctx: Context, event: int | None = None) -> None:
         """Get a list of members subscribed to an event
@@ -144,24 +146,30 @@ class Events(DynamoCog):
         event: int | None, optional
             The event ID to get attendees of
         """
-        if ctx.guild is None:
+        if ctx.guild is None or ctx.author.id in self.active_users:
             return
 
-        message = await ctx.send(f"{self.bot.app_emojis.get("loading2", "⏳")}\tFetching events...")
+        # Prevent invokation when a view is already active by invoking user
+        self.active_users.add(ctx.author.id)
 
-        event_check: str | list[discord.ScheduledEvent] = await self.event_check(ctx.guild, event)
-        if isinstance(event_check, str):
-            await message.edit(content=event_check)
+        guild_not_cached = event_check.get_containing(ctx.guild, event) is None
+        fetch_message = "Events not cached, fetching..." if guild_not_cached else "Fetching events..."
+        message = await ctx.send(f"{self.bot.app_emojis.get("loading2", "⏳")}\t{fetch_message}")
+
+        event_exists: str | list[discord.ScheduledEvent] = await event_check(ctx.guild, event)
+        if isinstance(event_exists, str):
+            self.active_users.remove(ctx.author.id)
+            await message.edit(content=event_exists)
             await message.delete(delay=10)
             return
 
-        view = EventsView(ctx.author.id, event_check, InterestedDropdown, timeout=25)
+        view = EventsView(ctx.author.id, event_exists, InterestedDropdown, timeout=25)
+        view.message = message
         await message.edit(content=f"Events in {ctx.guild.name}:", view=view)
 
         await view.wait()
 
-        await message.edit(content="Expired!", view=None)
-        await message.delete(delay=10)
+        self.active_users.remove(ctx.author.id)
 
 
 async def setup(bot: Dynamo) -> None:

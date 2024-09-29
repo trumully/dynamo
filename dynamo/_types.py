@@ -22,13 +22,17 @@ ContextT = TypeVar("ContextT", bound=commands.Context[Any], covariant=True)
 V = TypeVar("V", bound="View", covariant=True)
 
 
-class WrappedCoroutine[**P, R](Protocol):
+class WrappedCoroutine[**P, T](Protocol):
+    """A coroutine that has been wrapped by a decorator."""
+
     __name__: str
-    __call__: Callable[P, Coroutine[Any, Any, R]]
+    __call__: Callable[P, Coroutine[Any, Any, T]]
 
 
-class DecoratedCoroutine[**P, R](Protocol):
-    __call__: Callable[[WrappedCoroutine[P, R]], R]
+class DecoratedCoroutine[**P, T](Protocol):
+    """A decorator that has been applied to a coroutine."""
+
+    __call__: Callable[[WrappedCoroutine[P, T]], T]
 
 
 class NotFoundWithHelp(commands.CommandError): ...
@@ -59,8 +63,27 @@ app_command_error_messages: Mapping[type[app_commands.AppCommandError], str] = {
 }
 
 
-class _MISSING:
+class MissingSentinel:
+    """
+    Represents a sentinel value to indicate that something is missing or not provided.
+
+    This class is not meant to be instantiated. It should be used as a type for
+    comparison or as a default value in function signatures.
+    """
+
     __slots__ = ()
 
+    def __eq__(self, other: Any) -> bool:
+        return False
 
-MISSING: Any = _MISSING()
+    def __bool__(self) -> bool:
+        return False
+
+    def __hash__(self) -> int:
+        return 0
+
+    def __repr__(self):
+        return "..."
+
+
+MISSING: Any = MissingSentinel()

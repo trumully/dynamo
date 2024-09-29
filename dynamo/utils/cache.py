@@ -28,6 +28,7 @@ class CachedTask[**P, T](Protocol):
     cache_info: Callable[[], CacheInfo]
     cache_clear: Callable[[], None]
     cache_parameters: Callable[[], dict[str, int | float | None]]
+    get_containing: Callable[P, asyncio.Task[T] | None]
 
 
 DecoratedCoroutine = Callable[[WrappedCoroutine[P, T]], CachedTask[P, T]]
@@ -247,10 +248,10 @@ def _cache_wrapper[**P, T](coro: WrappedCoroutine[P, T], maxsize: int | None, tt
 
         if ttl is not None:
 
-            def evict(k: Hashable) -> None:
+            def evict(k: Hashable, default: Any = MISSING) -> None:
                 log.debug("Eviction: TTL expired for %s", k)
                 with lock:
-                    internal_cache.pop(k, sentinel)
+                    internal_cache.pop(k, default)
 
             call_after_ttl = partial(asyncio.get_running_loop().call_later, ttl, evict, key)
             task.add_done_callback(call_after_ttl)
@@ -264,7 +265,13 @@ def _cache_wrapper[**P, T](coro: WrappedCoroutine[P, T], maxsize: int | None, tt
             internal_cache.clear()
             _cache_info.clear()
 
+    def get_containing(*args: P.args, **kwargs: P.kwargs) -> asyncio.Task[T] | None:
+        key = make_key(args, kwargs)
+        result = cache_get(key, sentinel)
+        return result if result is not sentinel else None
+
     _wrapper = cast(CachedTask[P, T], wrapper)
     _wrapper.cache_info = cache_info
     _wrapper.cache_clear = cache_clear
+    _wrapper.get_containing = get_containing
     return _wrapper
