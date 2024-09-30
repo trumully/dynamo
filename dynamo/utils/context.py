@@ -8,8 +8,6 @@ import discord
 from discord.ext import commands
 from discord.ui import View
 
-from dynamo._types import V
-
 if TYPE_CHECKING:
     from dynamo.core.bot import Dynamo
 
@@ -41,19 +39,14 @@ class ConfirmationView(View):
         return bool(interaction.user and interaction.user.id == self.author_id)
 
     async def _defer_and_stop(self, interaction: discord.Interaction[Dynamo]) -> None:
-        """Defer the interaction and stop the view.
-
-        Parameters
-        ----------
-        interaction : discord.Interaction
-            The interaction to defer.
-        """
+        """Defer the interaction and stop the view."""
         await interaction.response.defer()
         if self.delete_after and self.message:
             await interaction.delete_original_response()
         self.stop()
 
     async def on_timeout(self) -> None:
+        """Disable the buttons and delete the message"""
         for i in self.children:
             item = cast(discord.ui.Button[ConfirmationView], i)
             item.disabled = True
@@ -62,13 +55,13 @@ class ConfirmationView(View):
             await self.message.delete()
 
     @discord.ui.button(label="Confirm", style=discord.ButtonStyle.green)
-    async def confirm(self, interaction: discord.Interaction[Dynamo], button: discord.ui.Button[V]) -> None:
+    async def confirm[V: View](self, interaction: discord.Interaction[Dynamo], button: discord.ui.Button[V]) -> None:
         """Confirm the action"""
         self.value = True
         await self._defer_and_stop(interaction)
 
     @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red)
-    async def cancel(self, interaction: discord.Interaction[Dynamo], button: discord.ui.Button[V]) -> None:
+    async def cancel[V: View](self, interaction: discord.Interaction[Dynamo], button: discord.ui.Button[V]) -> None:
         """Cancel the action"""
         await self._defer_and_stop(interaction)
 

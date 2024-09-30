@@ -3,7 +3,6 @@ from typing import Any, ParamSpec, Protocol, TypeVar
 
 from discord import app_commands
 from discord.ext import commands
-from discord.ui import View
 
 P = ParamSpec("P")
 
@@ -18,8 +17,6 @@ AC = TypeVar("AC", bound=Callable[..., Coroutine[Any, Any, Any]])
 CogT = TypeVar("CogT", bound=commands.Cog)
 CommandT = TypeVar("CommandT", bound=commands.Command[Any, ..., Any])
 ContextT = TypeVar("ContextT", bound=commands.Context[Any], covariant=True)
-
-V = TypeVar("V", bound="View", covariant=True)
 
 
 class WrappedCoroutine[**P, T](Protocol):

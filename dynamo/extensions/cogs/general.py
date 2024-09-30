@@ -53,7 +53,7 @@ class General(DynamoCog):
         description = (
             f"**Generate this identicon:**\n" f"> {cmd_mention} {display_name}\n" f"> {prefix}identicon {display_name}"
         )
-        e = discord.Embed(title=display_name, description=description, color=discord.Color.from_rgb(*fg.as_tuple()))
+        e = discord.Embed(title=display_name, description=description, color=fg.as_discord_color())
         e.set_image(url="attachment://identicon.png")
         return e, file
 

@@ -177,7 +177,7 @@ def track_duration(seconds: int) -> str:
     """
     minutes, seconds = divmod(seconds, 60)
     hours, minutes = divmod(minutes, 60)
-    return f"{hours}:{minutes:02d}:{seconds:02d}" if hours else f"{minutes:02d}:{seconds:02d}"
+    return f"{f'{hours}:' if hours else ''}{minutes:02d}:{seconds:02d}"
 
 
 def get_progress(end: datetime.datetime, duration: datetime.timedelta) -> float:
@@ -276,9 +276,9 @@ class StaticDrawArgs:
 
 def draw_static_elements(args: StaticDrawArgs) -> None:
     # Draw artist name
-    draw.text(  # type: ignore
-        (CONTENT_START_X, TITLE_START_Y + TITLE_FONT_SIZE + 5),
-        text=", ".join(args.artists),
+    args.draw.text(  # type: ignore
+        xy=(CONTENT_START_X, TITLE_START_Y + TITLE_FONT_SIZE + 5),
+        text=str(", ".join(args.artists)),
         fill=TEXT_COLOR,
         font=args.artist_font,
     )

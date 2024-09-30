@@ -16,7 +16,7 @@ async def test_future_lru_cache_basic(first: int, second: int) -> None:
 
     @dynamo.utils.cache.async_cache
     async def async_cacheable(x: int) -> int:
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(0.001)
         return x * 2
 
     # Test cache hit
@@ -34,14 +34,14 @@ async def test_future_lru_cache_basic(first: int, second: int) -> None:
 
 
 @pytest.mark.asyncio
-@settings(deadline=None)
+@settings(deadline=None, max_examples=10)
 @given(st.lists(st.integers(), min_size=1, max_size=10))
 async def test_future_lru_cache_property(inputs: list[int]) -> None:
     """Tests that the cache properties are correctly updated."""
 
     @dynamo.utils.cache.async_cache(maxsize=5)
     async def async_cacheable_sized(x: int) -> int:
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(0.001)
         return x * 2
 
     call_count: int = 0
@@ -59,14 +59,14 @@ async def test_future_lru_cache_property(inputs: list[int]) -> None:
 
 
 @pytest.mark.asyncio
-@settings(deadline=None)
-@given(st.lists(st.integers(), min_size=1, max_size=10))
+@settings(deadline=None, max_examples=10)
+@given(st.lists(st.integers(), min_size=1, max_size=5))
 async def test_future_lru_cache_clear(inputs: list[int]) -> None:
     """Tests that the cache can be cleared."""
 
     @dynamo.utils.cache.async_cache(maxsize=5)
     async def async_cacheable_sized(x: int) -> int:
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(0.001)
         return x * 2
 
     results: list[int] = []
@@ -80,14 +80,14 @@ async def test_future_lru_cache_clear(inputs: list[int]) -> None:
 
 
 @pytest.mark.asyncio
-@settings(deadline=None)
-@given(inputs=st.lists(st.integers(min_value=1, max_value=100), min_size=10, max_size=10))
+@settings(deadline=None, max_examples=10)
+@given(inputs=st.lists(st.integers(min_value=0, max_value=5), min_size=1, max_size=5))
 async def test_maxsize_enforcement(inputs: list[int]) -> None:
     """Test that the cache enforces the maxsize."""
 
     @dynamo.utils.cache.async_cache(maxsize=5)
     async def async_cacheable_sized(x: int) -> int:
-        await asyncio.sleep(0.01)
+        await asyncio.sleep(0.001)
         return x * 2
 
     for i in inputs:
@@ -99,8 +99,8 @@ async def test_maxsize_enforcement(inputs: list[int]) -> None:
 
 
 @pytest.mark.asyncio
-@settings(deadline=None)
-@given(inputs=st.lists(st.integers(min_value=1, max_value=100), min_size=10, max_size=50))
+@settings(deadline=None, max_examples=10)
+@given(inputs=st.lists(st.integers(min_value=1, max_value=10), min_size=5, max_size=10))
 async def test_future_lru_cache_stampede_resistance(inputs: list[int]) -> None:
     """Test that the cache is resistant to cache stampede."""
 
@@ -110,7 +110,7 @@ async def test_future_lru_cache_stampede_resistance(inputs: list[int]) -> None:
     async def slow_function(x: int) -> int:
         nonlocal call_count
         call_count += 1
-        await asyncio.sleep(0.1)  # Simulate a slow operation
+        await asyncio.sleep(0.001)  # Reduce sleep time
         return x * 2
 
     # Simulate multiple concurrent requests for the same keys

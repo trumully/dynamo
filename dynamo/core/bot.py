@@ -177,10 +177,7 @@ class Dynamo(commands.AutoShardedBot):
             intents=intents,
             enable_debug_events=True,
             tree_cls=VersionableTree,
-            activity=discord.Activity(
-                name="The Cursed Apple",
-                type=discord.ActivityType.watching,
-            ),
+            activity=discord.Activity(name="The Cursed Apple", type=discord.ActivityType.watching),
         )
 
     async def setup_hook(self) -> None:

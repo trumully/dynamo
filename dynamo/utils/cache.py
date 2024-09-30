@@ -7,7 +7,7 @@ from collections import OrderedDict
 from collections.abc import Callable, Hashable, Sized
 from dataclasses import dataclass
 from functools import partial
-from typing import Any, ParamSpec, Protocol, TypeVar, cast, overload
+from typing import Any, ParamSpec, Protocol, TypeVar, cast, final, overload
 
 from dynamo._types import MISSING, WrappedCoroutine
 
@@ -21,6 +21,7 @@ WRAPPER_UPDATES = ("__dict__",)
 FAST_TYPES: set[type] = {int, str}
 
 
+@final
 class CachedTask[**P, T](Protocol):
     __wrapped__: Callable[P, WrappedCoroutine[P, T]]
     __call__: Callable[..., asyncio.Task[T]]
@@ -34,6 +35,7 @@ class CachedTask[**P, T](Protocol):
 DecoratedCoroutine = Callable[[WrappedCoroutine[P, T]], CachedTask[P, T]]
 
 
+@final
 @dataclass(slots=True)
 class CacheInfo:
     """Cache info for the async_cache decorator."""
@@ -201,7 +203,7 @@ def update_wrapper[**P, T](
         if hasattr(wrapper, attr) and hasattr(wrapped, attr):
             getattr(wrapper, attr).update(getattr(wrapped, attr))
 
-    wrapper.__wrapped__ = cast(Callable[..., WrappedCoroutine[P, T]], wrapped)
+    wrapper.__wrapped__ = cast(Callable[P, WrappedCoroutine[P, T]], wrapped)
     return wrapper
 
 
@@ -209,7 +211,7 @@ def _cache_wrapper[**P, T](coro: WrappedCoroutine[P, T], maxsize: int | None, tt
     sentinel = MISSING
     make_key = _make_key
 
-    internal_cache: OrderedDict[Hashable, asyncio.Task[T]] = OrderedDict()
+    internal_cache: OrderedDict[Hashable, asyncio.Future[T]] = OrderedDict()
     cache_get = internal_cache.get
     cache_len = internal_cache.__len__
     lock = threading.Lock()
@@ -217,34 +219,36 @@ def _cache_wrapper[**P, T](coro: WrappedCoroutine[P, T], maxsize: int | None, tt
 
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> asyncio.Task[T]:
         key: Hashable = make_key(args, kwargs)
-        result = cache_get(key, sentinel)
+        future = cache_get(key, sentinel)
 
         # Mitigate lock contention on cache hit
-        if result is not sentinel:
+        if future is not sentinel:
             log.debug("Cache hit for %s", args)
             _cache_info.hits += 1
-            return result
+            return asyncio.create_task(_wrap_future(future))
+
         with lock:
-            result = cache_get(key, sentinel)
-            if result is not sentinel:
+            future = cache_get(key, sentinel)
+            if future is not sentinel:
                 log.debug("Cache hit for %s", args)
                 _cache_info.hits += 1
-                return result
+                return asyncio.create_task(_wrap_future(future))
             log.debug("Cache miss for %s", args)
             _cache_info.misses += 1
 
-        task: asyncio.Task[T] = asyncio.create_task(coro(*args, **kwargs))
-        if maxsize is not None:
-            with lock:
+        future = asyncio.get_running_loop().create_future()
+
+        with lock:
+            if maxsize is not None:
                 if key not in internal_cache and _cache_info.full:
                     log.debug("Eviction: LRU cache is full")
                     internal_cache.popitem(last=False)
-                internal_cache[key] = task
+                internal_cache[key] = future
                 internal_cache.move_to_end(key)
                 _cache_info.full = cache_len() >= maxsize
                 _cache_info.currsize = cache_len()
-        else:
-            internal_cache[key] = task
+            else:
+                internal_cache[key] = future
 
         if ttl is not None:
 
@@ -254,8 +258,21 @@ def _cache_wrapper[**P, T](coro: WrappedCoroutine[P, T], maxsize: int | None, tt
                     internal_cache.pop(k, default)
 
             call_after_ttl = partial(asyncio.get_running_loop().call_later, ttl, evict, key)
-            task.add_done_callback(call_after_ttl)
-        return task
+            future.add_done_callback(call_after_ttl)
+
+        async def run_coro():
+            try:
+                result = await coro(*args, **kwargs)
+                future.set_result(result)
+            except Exception as e:
+                future.set_exception(e)
+                raise
+            return result
+
+        return asyncio.create_task(run_coro())
+
+    async def _wrap_future(future: asyncio.Future[T]) -> T:
+        return await future
 
     def cache_info() -> CacheInfo:
         return _cache_info
@@ -267,8 +284,9 @@ def _cache_wrapper[**P, T](coro: WrappedCoroutine[P, T], maxsize: int | None, tt
 
     def get_containing(*args: P.args, **kwargs: P.kwargs) -> asyncio.Task[T] | None:
         key = make_key(args, kwargs)
-        result = cache_get(key, sentinel)
-        return result if result is not sentinel else None
+        with lock:
+            future = cache_get(key, sentinel)
+            return asyncio.create_task(_wrap_future(future)) if future is not sentinel else None
 
     _wrapper = cast(CachedTask[P, T], wrapper)
     _wrapper.cache_info = cache_info

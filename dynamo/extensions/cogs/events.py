@@ -15,8 +15,8 @@ from dynamo.utils.format import shorten_string
 
 def event_to_option(event: discord.ScheduledEvent) -> discord.SelectOption:
     """Convert a ScheduledEvent to a SelectOption to be used in a dropdown menu"""
-    description = event.description if event.description is not None else ""
-    return discord.SelectOption(label=event.name, value=str(event.id), description=shorten_string(description))
+    description = shorten_string(event.description or "")
+    return discord.SelectOption(label=event.name, value=str(event.id), description=description)
 
 
 class EventsDropdown[V: discord.ui.View](discord.ui.Select[V]):
@@ -60,7 +60,7 @@ class EventsView(discord.ui.View):
 
 class InterestedDropdown(EventsDropdown[EventsView]):
     async def callback(self, interaction: discord.Interaction) -> None:
-        event: discord.ScheduledEvent | None = next(filter(lambda e: e.id == int(self.values[0]), self.events), None)
+        event: discord.ScheduledEvent | None = next((e for e in self.events if e.id == int(self.values[0])), None)
         response = "No users found" if event is None else await get_interested(event)
         await interaction.response.send_message(response, ephemeral=True)
 
@@ -152,8 +152,9 @@ class Events(DynamoCog):
         # Prevent invokation when a view is already active by invoking user
         self.active_users.add(ctx.author.id)
 
-        guild_not_cached = event_check.get_containing(ctx.guild, event) is None
-        fetch_message = "Events not cached, fetching..." if guild_not_cached else "Fetching events..."
+        # Message for when the events are cached or not
+        guild_cached = event_check.get_containing(ctx.guild, event) is not None
+        fetch_message = "Fetching events..." if guild_cached else "Events not cached, fetching..."
         message = await ctx.send(f"{self.bot.app_emojis.get("loading2", "⏳")}\t{fetch_message}")
 
         event_exists: str | list[discord.ScheduledEvent] = await event_check(ctx.guild, event)

@@ -44,7 +44,7 @@ class SeedConverter(commands.Converter[SeedLike], app_commands.Transformer):
         return cast(SeedLike, result)
 
     @override
-    async def transform(self, interaction: discord.Interaction, value: str) -> discord.Member | str:
+    async def transform(self, interaction: discord.Interaction, value: str) -> SeedLike:
         # No need to reinvent the wheel, just run it through the commands.MemberConverter method.
         ctx = await Context.from_interaction(cast(discord.Interaction[Dynamo], interaction))
         return await self.convert(ctx, value)

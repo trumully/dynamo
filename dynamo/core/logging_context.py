@@ -9,12 +9,12 @@ import discord
 
 from dynamo.utils.helper import platformdir, resolve_path_with_links
 
+known_messages: tuple[str, ...] = ("referencing an unknown", "PyNaCl is not installed, voice will NOT be supported")
+
 
 class RemoveNoise(logging.Filter):
-    known_messages: tuple[str, ...] = ("referencing an unknown", "PyNaCl is not installed, voice will NOT be supported")
-
     def filter(self, record: logging.LogRecord) -> bool | logging.LogRecord:
-        return not any(message in record.msg for message in self.known_messages)
+        return not any(message in record.msg for message in known_messages)
 
 
 @contextmanager
