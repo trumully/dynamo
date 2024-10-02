@@ -1,16 +1,19 @@
 from __future__ import annotations
 
 import logging
+import re
 from collections.abc import AsyncGenerator, Generator
-from typing import Any, cast
+from typing import Any, Self, cast
 
 import aiohttp
+import apsw
 import discord
 import msgspec
 import xxhash
 from discord import app_commands
 from discord.ext import commands
 
+from dynamo._types import RawSubmittable
 from dynamo.utils.context import Context
 from dynamo.utils.emoji import Emojis
 from dynamo.utils.helper import get_cog, platformdir, resolve_path_with_links
@@ -24,11 +27,15 @@ initial_extensions = (
     get_cog("events"),
     get_cog("general"),
     get_cog("info"),
+    get_cog("tags"),
 )
 
 description = """
 Quantum entanglement.
 """
+
+modal_regex = re.compile(r"^m:(.{1,10}):(.*)$", flags=re.DOTALL)
+button_regex = re.compile(r"^b:(.{1,10}):(.*)$", flags=re.DOTALL)
 
 
 class VersionableTree(app_commands.CommandTree["Dynamo"]):
@@ -148,23 +155,22 @@ def _prefix_callable(bot: Dynamo, msg: discord.Message) -> list[str]:
     return base
 
 
+type Interaction = discord.Interaction[Dynamo]
+
+
 class Dynamo(commands.AutoShardedBot):
     session: aiohttp.ClientSession
     connector: aiohttp.TCPConnector
+    conn: apsw.Connection
     context: Context
     logging_handler: Any
     bot_app_info: discord.AppInfo
 
-    def __init__(self, connector: aiohttp.TCPConnector, session: aiohttp.ClientSession) -> None:
+    def __init__(self, connector: aiohttp.TCPConnector, conn: apsw.Connection, session: aiohttp.ClientSession) -> None:
         self.session = session
+        self.conn = conn
         allowed_mentions = discord.AllowedMentions(roles=False, everyone=False, users=True)
-        intents = discord.Intents(
-            guilds=True,
-            members=True,
-            messages=True,
-            message_content=True,
-            presences=True,
-        )
+        intents = discord.Intents(guilds=True, members=True, messages=True, message_content=True, presences=True)
         super().__init__(
             connector=connector,
             command_prefix=_prefix_callable,
@@ -179,6 +185,8 @@ class Dynamo(commands.AutoShardedBot):
             tree_cls=VersionableTree,
             activity=discord.Activity(name="The Cursed Apple", type=discord.ActivityType.watching),
         )
+        self.raw_modal_submits: dict[str, RawSubmittable] = {}
+        self.raw_button_submits: dict[str, RawSubmittable] = {}
 
     async def setup_hook(self) -> None:
         self.prefixes: dict[int, list[str]] = {}
@@ -233,6 +241,19 @@ class Dynamo(commands.AutoShardedBot):
             self.uptime = discord.utils.utcnow()
 
         log.info("Ready: %s (ID: %s)", self.user, self.user.id)
+
+    async def on_interaction(self, interaction: discord.Interaction[Self]) -> None:
+        for typ, regex, mapping in (
+            (discord.InteractionType.modal_submit, modal_regex, self.raw_modal_submits),
+            (discord.InteractionType.component, button_regex, self.raw_button_submits),
+        ):
+            if interaction.type is typ:
+                assert interaction.data is not None
+                custom_id = interaction.data.get("custom_id", "")
+                if match := regex.match(custom_id):
+                    modal_name, data = match.groups()
+                    if rs := mapping.get(modal_name):
+                        await rs.raw_submit(interaction, data)
 
     async def get_context[ContextT: commands.Context[Any]](
         self,

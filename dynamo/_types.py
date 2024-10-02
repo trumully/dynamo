@@ -1,6 +1,7 @@
-from collections.abc import Coroutine, Mapping
+from collections.abc import Callable, Coroutine, Mapping
 from typing import Any, ParamSpec, Protocol, TypeVar
 
+from discord import Interaction as DInter
 from discord import app_commands
 from discord.ext import commands
 
@@ -18,18 +19,9 @@ CommandT = TypeVar("CommandT", bound=commands.Command[Any, ..., Any])
 ContextT = TypeVar("ContextT", bound=commands.Context[Any], covariant=True)
 
 
-class WrappedCoroutine[**P, T](Protocol):
-    """A coroutine that has been wrapped by a decorator."""
-
-    __name__: str
-
-    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> Coroutine[Any, Any, T]: ...
-
-
-class DecoratedCoroutine[**P, T](Protocol):
-    """A decorator that has been applied to a coroutine."""
-
-    def __call__(self, wrapped: WrappedCoroutine[P, T]) -> T: ...
+type Coro[T] = Coroutine[Any, Any, T]
+type WrappedCoro[**P, T] = Callable[P, Coro[T]]
+type DecoratedCoro[**P, T] = Callable[[WrappedCoro[P, T]], T]
 
 
 class NotFoundWithHelp(commands.CommandError): ...
@@ -84,3 +76,16 @@ class _MissingSentinel:
 
 
 MISSING: Any = _MissingSentinel()
+
+
+class RawSubmittableCls(Protocol):
+    @classmethod
+    async def raw_submit(cls, interaction: DInter, data: str) -> Any: ...
+
+
+class RawSubmittableStatic(Protocol):
+    @staticmethod
+    async def raw_submit(interaction: DInter, data: str) -> Any: ...
+
+
+type RawSubmittable = RawSubmittableCls | RawSubmittableStatic

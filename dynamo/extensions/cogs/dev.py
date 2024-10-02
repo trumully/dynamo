@@ -16,9 +16,6 @@ from dynamo.utils.helper import get_cog
 class Dev(DynamoCog):
     """Dev-only commands"""
 
-    def __init__(self, bot: Dynamo) -> None:
-        super().__init__(bot)
-
     @commands.hybrid_group(invoke_without_command=True, name="sync", aliases=("s",))
     @is_owner()
     async def sync(

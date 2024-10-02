@@ -14,9 +14,6 @@ from dynamo.utils.identicon import Identicon, derive_seed, get_colors, get_ident
 class General(DynamoCog):
     """Generic commands"""
 
-    def __init__(self, bot: Dynamo) -> None:
-        super().__init__(bot)
-
     async def generate_identicon(
         self, seed: discord.Member | str | int, guild: discord.Guild | None
     ) -> tuple[discord.Embed, discord.File]:

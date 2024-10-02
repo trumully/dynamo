@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from functools import partial
 from typing import Any, ParamSpec, Protocol, TypeVar, cast, final, overload
 
-from dynamo._types import MISSING, WrappedCoroutine
+from dynamo._types import MISSING, WrappedCoro
 
 P = ParamSpec("P")
 T = TypeVar("T")
@@ -23,7 +23,7 @@ FAST_TYPES: set[type] = {int, str, float, bytes, type(None)}
 
 @final
 class CachedTask[**P, T](Protocol):
-    __wrapped__: Callable[P, WrappedCoroutine[P, T]]
+    __wrapped__: Callable[P, WrappedCoro[P, T]]
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> asyncio.Task[T]: ...
     def cache_info(self) -> CacheInfo: ...
@@ -32,7 +32,7 @@ class CachedTask[**P, T](Protocol):
     def get_containing(self, *args: P.args, **kwargs: P.kwargs) -> asyncio.Task[T] | None: ...
 
 
-DecoratedCoroutine = Callable[[WrappedCoroutine[P, T]], CachedTask[P, T]]
+type DecoratedCoro[**P, T] = Callable[[WrappedCoro[P, T]], CachedTask[P, T]]
 
 
 @final
@@ -63,16 +63,16 @@ class HashedSeq(list[Any]):
 
 
 @overload
-def async_cache[**P, T](*, maxsize: int | None = 128, ttl: float | None = None) -> DecoratedCoroutine[P, T]: ...
+def async_cache[**P, T](*, maxsize: int | None = 128, ttl: float | None = None) -> DecoratedCoro[P, T]: ...
 
 
 @overload
-def async_cache[**P, T](coro: WrappedCoroutine[P, T], /) -> CachedTask[P, T]: ...
+def async_cache[**P, T](coro: WrappedCoro[P, T], /) -> CachedTask[P, T]: ...
 
 
 def async_cache[**P, T](
-    maxsize: int | WrappedCoroutine[P, T] | None = 128, ttl: float | None = None
-) -> CachedTask[P, T] | DecoratedCoroutine[P, T]:
+    maxsize: int | WrappedCoro[P, T] | None = 128, ttl: float | None = None
+) -> CachedTask[P, T] | DecoratedCoro[P, T]:
     """
     Decorator to cache the result of a coroutine.
 
@@ -82,7 +82,7 @@ def async_cache[**P, T](
 
     Parameters
     ----------
-    maxsize : int | WrappedCoroutine[P, T] | None, optional
+    maxsize : int | WrappedCoro[P, T] | None, optional
         The maximum number of items to cache. If a coroutine function is provided directly,
         it is assumed to be the function to be decorated, and `maxsize` defaults to 128.
         If `None`, the cache can grow without bound. Default is 128.
@@ -92,7 +92,7 @@ def async_cache[**P, T](
 
     Returns
     -------
-    CachedTask[P, T] | DecoratedCoroutine[P, T]
+    CachedTask[P, T] | DecoratedCoro[P, T]
         If a coroutine is provided directly, returns the cached task.
         Otherwise, returns a decorator that can be applied to a coroutine.
 
@@ -126,7 +126,7 @@ def async_cache[**P, T](
         error = "Expected first argument to be an integer, a coroutine, or None"
         raise TypeError(error)
 
-    def decorator(coro: WrappedCoroutine[P, T]) -> CachedTask[P, T]:
+    def decorator(coro: WrappedCoro[P, T]) -> CachedTask[P, T]:
         wrapper = _cache_wrapper(coro, maxsize, ttl)
         wrapper.cache_parameters = lambda: {"maxsize": maxsize, "ttl": ttl}
         return update_wrapper(wrapper, coro)
@@ -164,7 +164,7 @@ def _make_key(
 
 def update_wrapper[**P, T](
     wrapper: CachedTask[P, T],
-    wrapped: WrappedCoroutine[P, T],
+    wrapped: WrappedCoro[P, T],
     assigned: tuple[str, ...] = WRAPPER_ASSIGNMENTS,
     updated: tuple[str, ...] = WRAPPER_UPDATES,
 ) -> CachedTask[P, T]:
@@ -175,7 +175,7 @@ def update_wrapper[**P, T](
     ----------
     wrapper : CachedTask[P, T]
         The wrapper function to be updated.
-    wrapped : WrappedCoroutine[P, T]
+    wrapped : WrappedCoro[P, T]
         The original function being wrapped.
     assigned : tuple of str, optional
         Attribute names to assign from the wrapped function. Default is :const:`WRAPPER_ASSIGNMENTS`.
@@ -203,7 +203,7 @@ def update_wrapper[**P, T](
         if hasattr(wrapper, attr) and hasattr(wrapped, attr):
             getattr(wrapper, attr).update(getattr(wrapped, attr))
 
-    wrapper.__wrapped__ = cast(Callable[P, WrappedCoroutine[P, T]], wrapped)
+    wrapper.__wrapped__ = cast(Callable[P, WrappedCoro[P, T]], wrapped)
     return wrapper
 
 
@@ -215,7 +215,7 @@ def task_from_future[T](future: asyncio.Future[T]) -> asyncio.Task[T]:
     return asyncio.create_task(wrap_future(future))
 
 
-def _cache_wrapper[**P, T](coro: WrappedCoroutine[P, T], maxsize: int | None, ttl: float | None) -> CachedTask[P, T]:
+def _cache_wrapper[**P, T](coro: WrappedCoro[P, T], maxsize: int | None, ttl: float | None) -> CachedTask[P, T]:
     sentinel = MISSING
     make_key = _make_key
 

@@ -1,16 +1,15 @@
-from collections.abc import Callable, Coroutine
-from typing import Any
+from collections.abc import Callable
 
 import discord
 from discord import Interaction, app_commands
 from discord.ext import commands
 from rapidfuzz import fuzz
 
-from dynamo._types import NotFoundWithHelp, app_command_error_messages, command_error_messages
+from dynamo._types import Coro, NotFoundWithHelp, app_command_error_messages, command_error_messages
 from dynamo.core import Dynamo, DynamoCog
 from dynamo.utils.context import Context
 
-AppCommandErrorMethod = Callable[[Interaction[Dynamo], app_commands.AppCommandError], Coroutine[Any, Any, None]]
+type AppCommandErrorMethod = Callable[[Interaction[Dynamo], app_commands.AppCommandError], Coro[None]]
 
 
 class Errors(DynamoCog):
