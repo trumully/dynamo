@@ -3,15 +3,11 @@ name: Test and Lint
 on:
   push:
     branches:
-      - '**'
-    paths:
-      - dynamo/**/*.py
-      - tests/**/*.py
+      - main
   pull_request:
     types: [opened, reopened, synchronize]
-    paths:
-      - dynamo/**/*.py
-      - tests/**/*.py
+    branches:
+      - main
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
