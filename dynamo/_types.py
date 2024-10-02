@@ -1,4 +1,4 @@
-from collections.abc import Callable, Coroutine, Mapping
+from collections.abc import Coroutine, Mapping
 from typing import Any, ParamSpec, Protocol, TypeVar
 
 from discord import app_commands
@@ -13,7 +13,6 @@ T_contra = TypeVar("T_contra", contravariant=True)
 S = TypeVar("S", bound=object)
 S_co = TypeVar("S_co", bound=object, covariant=True)
 
-AC = TypeVar("AC", bound=Callable[..., Coroutine[Any, Any, Any]])
 CogT = TypeVar("CogT", bound=commands.Cog)
 CommandT = TypeVar("CommandT", bound=commands.Command[Any, ..., Any])
 ContextT = TypeVar("ContextT", bound=commands.Context[Any], covariant=True)
@@ -23,13 +22,14 @@ class WrappedCoroutine[**P, T](Protocol):
     """A coroutine that has been wrapped by a decorator."""
 
     __name__: str
-    __call__: Callable[P, Coroutine[Any, Any, T]]
+
+    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> Coroutine[Any, Any, T]: ...
 
 
 class DecoratedCoroutine[**P, T](Protocol):
     """A decorator that has been applied to a coroutine."""
 
-    __call__: Callable[[WrappedCoroutine[P, T]], T]
+    def __call__(self, wrapped: WrappedCoroutine[P, T]) -> T: ...
 
 
 class NotFoundWithHelp(commands.CommandError): ...
@@ -60,7 +60,7 @@ app_command_error_messages: Mapping[type[app_commands.AppCommandError], str] = {
 }
 
 
-class MissingSentinel:
+class _MissingSentinel:
     """
     Represents a sentinel value to indicate that something is missing or not provided.
 
@@ -83,4 +83,4 @@ class MissingSentinel:
         return "..."
 
 
-MISSING: Any = MissingSentinel()
+MISSING: Any = _MissingSentinel()

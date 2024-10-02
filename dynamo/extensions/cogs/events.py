@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import contextlib
 from collections.abc import AsyncGenerator
-from typing import Any, cast
+from typing import Any, NoReturn, cast
 
 import discord
 from discord.ext import commands
@@ -65,7 +65,7 @@ class InterestedDropdown(EventsDropdown[EventsView]):
         await interaction.response.send_message(response, ephemeral=True)
 
 
-@async_cache(ttl=1800)
+@async_cache(ttl=900)
 async def get_interested(event: discord.ScheduledEvent) -> str:
     """|coro|
 
@@ -98,7 +98,7 @@ async def fetch_events(guild: discord.Guild) -> list[discord.ScheduledEvent]:
     return sorted(events, key=lambda e: e.start_time)
 
 
-@async_cache(ttl=1800)
+@async_cache(ttl=900)
 async def event_check(guild: discord.Guild, event_id: int | None = None) -> str | list[discord.ScheduledEvent]:
     """|coro|
 
@@ -118,15 +118,13 @@ async def event_check(guild: discord.Guild, event_id: int | None = None) -> str 
     str | list[discord.ScheduledEvent]
         A string if an event is not found, otherwise a list of events
     """
-    if event_id is not None:
-        try:
-            ev = await guild.fetch_scheduled_event(event_id, with_counts=False)
-        except discord.NotFound:
-            return f"No event with id: {event_id}"
-        return await get_interested(ev)
-
-    events = await fetch_events(guild)
-    return events or f"{Context.Status.FAILURE} No events found!"
+    if event_id is None:
+        return await fetch_events(guild) or f"{Context.Status.FAILURE} No events found!"
+    try:
+        event = await guild.fetch_scheduled_event(event_id, with_counts=False)
+    except (discord.NotFound, discord.HTTPException):
+        return f"No event with id: {event_id}"
+    return await get_interested(event)
 
 
 class Events(DynamoCog):
@@ -138,12 +136,12 @@ class Events(DynamoCog):
 
     @commands.hybrid_command(name="event")
     @commands.guild_only()
-    async def event(self, ctx: Context, event: int | None = None) -> None:
+    async def event(self, ctx: Context, event_id: int | None = None) -> None:
         """Get a list of members subscribed to an event
 
         Parameters
         ----------
-        event: int | None, optional
+        event_id: int | None, optional
             The event ID to get attendees of
         """
         if ctx.guild is None or ctx.author.id in self.active_users:
@@ -153,11 +151,11 @@ class Events(DynamoCog):
         self.active_users.add(ctx.author.id)
 
         # Message for when the events are cached or not
-        guild_cached = event_check.get_containing(ctx.guild, event) is not None
+        guild_cached = event_check.get_containing(ctx.guild, event_id) is not None
         fetch_message = "Fetching events..." if guild_cached else "Events not cached, fetching..."
         message = await ctx.send(f"{self.bot.app_emojis.get("loading2", "⏳")}\t{fetch_message}")
 
-        event_exists: str | list[discord.ScheduledEvent] = await event_check(ctx.guild, event)
+        event_exists: str | list[discord.ScheduledEvent] = await event_check(ctx.guild, event_id)
         if isinstance(event_exists, str):
             self.active_users.remove(ctx.author.id)
             await message.edit(content=event_exists)
@@ -171,6 +169,16 @@ class Events(DynamoCog):
         await view.wait()
 
         self.active_users.remove(ctx.author.id)
+
+    @event.error
+    async def event_error(self, ctx: Context, error: Exception) -> NoReturn:
+        """If an unhandled exception ever occurs, remove the user from the active users, send an error message,
+        and raise the error
+        """
+        if ctx.author.id in self.active_users:
+            self.active_users.remove(ctx.author.id)
+        await ctx.send(f"Something went wrong: {error}")
+        raise error
 
 
 async def setup(bot: Dynamo) -> None:
