@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from itertools import chain
-
+import apsw
 import discord
 from base2048 import decode, encode
 from discord import app_commands
@@ -11,6 +10,7 @@ from msgspec import msgpack
 
 from dynamo.core import Dynamo, DynamoCog
 from dynamo.core.bot import Interaction
+from dynamo.utils.cache import Trie, async_cache
 
 
 def b2048_pack(obj: object, /) -> str:
@@ -71,11 +71,27 @@ class TagModal(discord.ui.Modal):
         await itx.followup.send(content="Tag added", ephemeral=True)
 
 
+@async_cache(ttl=300)
+async def _get_trie_matches(conn: apsw.Connection, user_id: int) -> Trie:  # noqa: RUF029
+    cursor = conn.cursor()
+    rows = cursor.execute(
+        """
+        SELECT tag_name
+        FROM user_tags
+        WHERE user_id = ?
+        """,
+        (user_id,),
+    ).fetchall()
+    trie = Trie()
+    for (tag_name,) in rows:
+        trie.insert(str(tag_name))
+    return trie
+
+
 class Tags(commands.GroupCog, DynamoCog, group_name="tag"):
     """Store and recall content"""
 
     def __init__(self, bot: Dynamo) -> None:
-        self._cache: dict[tuple[int, str], list[Choice[str]]] = {}
         super().__init__(bot, raw_modal_submits={"tag": TagModal})
 
     @app_commands.command(name="create")
@@ -89,6 +105,7 @@ class Tags(commands.GroupCog, DynamoCog, group_name="tag"):
         """
         modal = TagModal(tag_name=name, author_id=itx.user.id)
         await itx.response.send_modal(modal)
+        _get_trie_matches.invalidate(itx.client.conn, itx.user.id)
 
     @app_commands.command(name="get")
     async def tag_get(self, itx: Interaction, name: Range[str, 1, 20]) -> None:
@@ -123,6 +140,7 @@ class Tags(commands.GroupCog, DynamoCog, group_name="tag"):
         name : Range[str, 1, 20]
             Name of the tag
         """
+        await itx.response.defer(ephemeral=True)
         cursor = itx.client.conn.cursor()
         row = cursor.execute(
             """
@@ -134,27 +152,14 @@ class Tags(commands.GroupCog, DynamoCog, group_name="tag"):
         ).fetchall()
         msg = "Deleted tag" if row else "Tag not found"
         await itx.followup.send(msg, ephemeral=True)
+        if row:
+            _get_trie_matches.invalidate(itx.client.conn, itx.user.id)
 
     @tag_get.autocomplete("name")
     @tag_delete.autocomplete("name")
     async def tag_autocomplete(self, itx: Interaction, current: str) -> list[Choice[str]]:
-        key = (itx.user.id, current)
-        if (val := self._cache.get(key, None)) is not None:
-            return val
-
-        cursor = itx.client.conn.cursor()
-        it = chain.from_iterable(
-            cursor.execute(
-                """
-            SELECT tag_name
-            FROM user_tags
-            WHERE user_id = ? AND tag_name LIKE ? || '%' LIMIT 25
-            """,
-                key,
-            )
-        )
-        self._cache[key] = r = [Choice(name=c, value=c) for c in it]
-        return r
+        matches = await _get_trie_matches(itx.client.conn, itx.user.id)
+        return [Choice(name=match, value=match) for match in matches.search(current)[:25]]
 
 
 async def setup(bot: Dynamo) -> None:

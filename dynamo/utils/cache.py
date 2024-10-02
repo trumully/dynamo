@@ -5,7 +5,7 @@ import logging
 import threading
 from collections import OrderedDict
 from collections.abc import Callable, Hashable, Sized
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import partial
 from typing import Any, ParamSpec, Protocol, TypeVar, cast, final, overload
 
@@ -15,6 +15,43 @@ P = ParamSpec("P")
 T = TypeVar("T")
 
 log = logging.getLogger(__name__)
+
+
+@dataclass(slots=True)
+class Node:
+    children: dict[str, Node] = field(default_factory=dict)
+    is_end: bool = False
+
+
+@dataclass(slots=True)
+class Trie:
+    root: Node = field(default_factory=Node)
+
+    def insert(self, word: str) -> None:
+        node = self.root
+        for char in word:
+            if char not in node.children:
+                node.children[char] = Node()
+            node = node.children[char]
+        node.is_end = True
+
+    def search(self, prefix: str) -> list[str]:
+        node = self.root
+        for char in prefix:
+            if char not in node.children:
+                return []
+            node = node.children[char]
+
+        results: list[str] = []
+        self._dfs(node, prefix, results)
+        return results
+
+    def _dfs(self, node: Node, current: str, results: list[str]) -> None:
+        if node.is_end:
+            results.append(current)
+        for char, child in node.children.items():
+            self._dfs(child, current + char, results)
+
 
 WRAPPER_ASSIGNMENTS = ("__module__", "__name__", "__qualname__", "__doc__", "__annotations__", "__type_params__")
 WRAPPER_UPDATES = ("__dict__",)
@@ -29,6 +66,7 @@ class CachedTask[**P, T](Protocol):
     def cache_info(self) -> CacheInfo: ...
     def cache_clear(self) -> None: ...
     def cache_parameters(self) -> dict[str, int | float | None]: ...
+    def invalidate(self, *args: P.args, **kwargs: P.kwargs) -> bool: ...
     def get_containing(self, *args: P.args, **kwargs: P.kwargs) -> asyncio.Task[T] | None: ...
 
 
@@ -280,6 +318,12 @@ def _cache_wrapper[**P, T](coro: WrappedCoro[P, T], maxsize: int | None, ttl: fl
             internal_cache.clear()
             _cache_info.clear()
 
+    def invalidate(*args: P.args, **kwargs: P.kwargs) -> bool:
+        key = make_key(args, kwargs)
+        log.debug("Invalidating cache for %s", key)
+        with lock:
+            return internal_cache.pop(key, sentinel) is not sentinel
+
     def get_containing(*args: P.args, **kwargs: P.kwargs) -> asyncio.Task[T] | None:
         key = make_key(args, kwargs)
         with lock:
@@ -289,5 +333,6 @@ def _cache_wrapper[**P, T](coro: WrappedCoro[P, T], maxsize: int | None, ttl: fl
     _wrapper = cast(CachedTask[P, T], wrapper)
     _wrapper.cache_info = cache_info
     _wrapper.cache_clear = cache_clear
+    _wrapper.invalidate = invalidate
     _wrapper.get_containing = get_containing
     return _wrapper
