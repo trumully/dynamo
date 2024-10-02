@@ -3,7 +3,7 @@ name: Test and Lint
 on:
   push:
     branches:
-      - **
+      - '**'
     paths:
       - dynamo/**/*.py
       - tests/**/*.py
