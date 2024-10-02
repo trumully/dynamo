@@ -16,7 +16,7 @@ class Check(Protocol):
 def is_owner() -> Check:
     """Check if the user is the owner of the bot."""
 
-    async def predicate(ctx: Context) -> bool:  # noqa: RUF029
+    async def predicate(ctx: Context) -> bool:
         return ctx.author.id == ctx.bot.owner.id
 
     return commands.check(predicate)

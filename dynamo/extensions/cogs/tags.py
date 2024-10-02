@@ -72,7 +72,7 @@ class TagModal(discord.ui.Modal):
 
 
 @async_cache(ttl=300)
-async def _get_trie_matches(conn: apsw.Connection, user_id: int) -> Trie:  # noqa: RUF029
+async def _get_trie_matches(conn: apsw.Connection, user_id: int) -> Trie:
     cursor = conn.cursor()
     rows = cursor.execute(
         """
