@@ -1,18 +1,20 @@
 from collections.abc import Callable
+from functools import partial
 
 import discord
-from discord import Interaction, app_commands
+from discord import app_commands
 from discord.ext import commands
 from rapidfuzz import fuzz
 
 from dynamo._types import Coro, NotFoundWithHelp, app_command_error_messages, command_error_messages
-from dynamo.core import Dynamo, DynamoCog
+from dynamo.core import Cog, Dynamo
+from dynamo.core.bot import Interaction
 from dynamo.utils.context import Context
 
-type AppCommandErrorMethod = Callable[[Interaction[Dynamo], app_commands.AppCommandError], Coro[None]]
+type AppCommandErrorMethod = Callable[[Interaction, app_commands.AppCommandError], Coro[None]]
 
 
-class Errors(DynamoCog):
+class Errors(Cog):
     """Handles errors for the bot."""
 
     def __init__(self, bot: Dynamo) -> None:
@@ -77,10 +79,11 @@ class Errors(DynamoCog):
             invoked = ctx.invoked_with
             trigger: str = invoked if invoked and isinstance(error, commands.CommandNotFound) else error.args[0]
 
+            is_similar = partial(fuzz.ratio, trigger)
             matches = [
-                f"**{command.qualified_name}** - {command.short_doc or "No description provided"}"
-                for command in self.bot.commands
-                if fuzz.ratio(trigger, command.name) > 70
+                f"**{c.qualified_name}** - {c.short_doc or "No description provided"}"
+                for c in self.bot.commands
+                if is_similar(c.name) > 70
             ]
             matches_string = (
                 f"\n\nDid you mean \N{RIGHT-POINTING MAGNIFYING GLASS}\n>>> {"\n".join(matches)}" if matches else ""
@@ -109,19 +112,15 @@ class Errors(DynamoCog):
             The exception.
         """
         if (command := interaction.command) is None:
-            command_name: str = "Unknown" if interaction.data is None else interaction.data.get("name", "Unknown")
-            self.log.error("Command not found: %s.", command_name)
-            matches = [
-                str(command) for command in self.bot.tree.get_commands() if fuzz.ratio(command_name, command.name) > 70
-            ]
-            msg = f"Command not found: '{command_name}'"
+            name: str = "Unknown" if interaction.data is None else interaction.data.get("name", "Unknown")
+            self.log.error("Command not found: %s.", name)
+            is_similar = partial(fuzz.ratio, name)
+            matches = [str(c) for c in self.bot.tree.get_commands() if is_similar(c.name) > 70]
+            msg = f"Command not found: '{name}'"
             if matches:
                 msg += f"\n\nDid you mean \N{RIGHT-POINTING MAGNIFYING GLASS}\n>>> {"\n".join(matches)}"
 
-            await interaction.response.send_message(
-                ephemeral=True,
-                content=msg,
-            )
+            await interaction.response.send_message(ephemeral=True, content=msg)
             return
 
         self.log.error("%s called by %s raised an exception: %s.", command.name, interaction.user, error)

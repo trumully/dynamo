@@ -171,27 +171,24 @@ class FontFamily:
     bold: Path
 
 
-STATIC_FONT_PATH = Path(ROOT / "assets" / "fonts" / "static")
+def _full_font_path(font: str) -> Path:
+    return resolve_path_with_links(Path(ROOT / "assets" / "fonts" / "static") / font)
 
 
 latin: FontFamily = FontFamily(
-    regular=resolve_path_with_links(STATIC_FONT_PATH / "NotoSans-Regular.ttf"),
-    bold=resolve_path_with_links(STATIC_FONT_PATH / "NotoSans-Bold.ttf"),
+    regular=_full_font_path("NotoSans-Regular.ttf"), bold=_full_font_path("NotoSans-Bold.ttf")
 )
 
 chinese: FontFamily = FontFamily(
-    regular=resolve_path_with_links(STATIC_FONT_PATH / "NotoSansTC-Regular.ttf"),
-    bold=resolve_path_with_links(STATIC_FONT_PATH / "NotoSansTC-Bold.ttf"),
+    regular=_full_font_path("NotoSansTC-Regular.ttf"), bold=_full_font_path("NotoSansTC-Bold.ttf")
 )
 
 japanese: FontFamily = FontFamily(
-    regular=resolve_path_with_links(STATIC_FONT_PATH / "NotoSansJP-Regular.ttf"),
-    bold=resolve_path_with_links(STATIC_FONT_PATH / "NotoSansJP-Bold.ttf"),
+    regular=_full_font_path("NotoSansJP-Regular.ttf"), bold=_full_font_path("NotoSansJP-Bold.ttf")
 )
 
 korean: FontFamily = FontFamily(
-    regular=resolve_path_with_links(STATIC_FONT_PATH / "NotoSansKR-Regular.ttf"),
-    bold=resolve_path_with_links(STATIC_FONT_PATH / "NotoSansKR-Bold.ttf"),
+    regular=_full_font_path("NotoSansKR-Regular.ttf"), bold=_full_font_path("NotoSansKR-Bold.ttf")
 )
 
 FONTS: dict[CJK, FontFamily] = {

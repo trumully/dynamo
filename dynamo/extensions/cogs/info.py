@@ -7,7 +7,7 @@ import psutil
 import pygit2
 from discord.ext import commands
 
-from dynamo.core import Dynamo, DynamoCog
+from dynamo.core import Cog, Dynamo
 from dynamo.utils.context import Context
 from dynamo.utils.time_utils import format_relative, human_timedelta
 
@@ -41,7 +41,7 @@ def embed_from_user(user: discord.Member | discord.User) -> discord.Embed:
     return embed
 
 
-class Info(DynamoCog):
+class Info(Cog):
     """Statistics commands"""
 
     def __init__(self, bot: Dynamo) -> None:
@@ -75,7 +75,7 @@ class Info(DynamoCog):
         await ctx.send(embed=embed, ephemeral=True)
 
     @commands.hybrid_command(name="avatar")
-    async def avatar(self, ctx: Context, user: discord.Member | discord.User) -> None:
+    async def avatar(self, ctx: Context, user: discord.Member | discord.User | None = None) -> None:
         """Get the avatar of a user
 
         Parameters
@@ -83,7 +83,7 @@ class Info(DynamoCog):
         user: discord.Member | discord.User
             The user to get the avatar of
         """
-        await ctx.send(embed=embed_from_user(user), ephemeral=True)
+        await ctx.send(embed=embed_from_user(ctx.author if user is None else user), ephemeral=True)
 
 
 async def setup(bot: Dynamo) -> None:

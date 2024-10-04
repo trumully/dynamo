@@ -7,7 +7,7 @@ from typing import Any, NoReturn, cast
 import discord
 from discord.ext import commands
 
-from dynamo.core import Dynamo, DynamoCog
+from dynamo.core import Cog, Dynamo
 from dynamo.utils.cache import async_cache
 from dynamo.utils.context import Context
 from dynamo.utils.format import shorten_string
@@ -127,7 +127,7 @@ async def event_check(guild: discord.Guild, event_id: int | None = None) -> str 
     return await get_interested(event)
 
 
-class Events(DynamoCog):
+class Events(Cog):
     """Scheduled event related commands"""
 
     def __init__(self, bot: Dynamo) -> None:
@@ -151,8 +151,8 @@ class Events(DynamoCog):
         self.active_users.add(ctx.author.id)
 
         # Message for when the events are cached or not
-        guild_cached = event_check.get_containing(ctx.guild, event_id) is not None
-        fetch_message = "Fetching events..." if guild_cached else "Events not cached, fetching..."
+        is_guild_cached = event_check.get_containing(ctx.guild, event_id) is not None
+        fetch_message = "Fetching events..." if is_guild_cached else "Events not cached, fetching..."
         message = await ctx.send(f"{self.bot.app_emojis.get("loading2", "⏳")}\t{fetch_message}")
 
         event_exists: str | list[discord.ScheduledEvent] = await event_check(ctx.guild, event_id)

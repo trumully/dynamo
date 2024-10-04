@@ -1,17 +1,19 @@
 from io import BytesIO
+from typing import cast
 from urllib.parse import urlparse
 
 import discord
 from discord.ext import commands
 
-from dynamo.core import Dynamo, DynamoCog
+from dynamo._types import MISSING
+from dynamo.core import Cog, Dynamo
 from dynamo.utils import spotify
 from dynamo.utils.context import Context
 from dynamo.utils.converter import MemberLikeConverter
 from dynamo.utils.identicon import Identicon, derive_seed, get_colors, get_identicon, seed_from_time
 
 
-class General(DynamoCog):
+class General(Cog):
     """Generic commands"""
 
     async def generate_identicon(
@@ -33,13 +35,13 @@ class General(DynamoCog):
         tuple[discord.Embed, discord.File]
             The embed and file to send
         """
-        seed_to_use: discord.Member | str | int = seed if seed else seed_from_time()
+        seed_to_use: discord.Member | str | int = seed
         if isinstance(seed_to_use, str) and (parsed := urlparse(seed_to_use)).scheme and parsed.netloc:
             seed_to_use = (parsed.netloc + parsed.path).replace("/", "-")
 
-        display_name = seed_to_use if (isinstance(seed_to_use, str | int)) else seed_to_use.display_name
+        name = seed_to_use if (isinstance(seed_to_use, str | int)) else seed_to_use.display_name
 
-        seed_to_use = derive_seed(display_name)
+        seed_to_use = derive_seed(name)
         fg, bg = get_colors(seed=seed_to_use)
 
         identicon: bytes = await get_identicon(Identicon(5, fg, bg, 0.4, seed_to_use))
@@ -47,10 +49,8 @@ class General(DynamoCog):
 
         cmd_mention = await self.bot.tree.find_mention_for("identicon", guild=guild)
         prefix = "d!" if guild is None else self.bot.prefixes.get(guild.id, ["d!", "d?"])[0]
-        description = (
-            f"**Generate this identicon:**\n" f"> {cmd_mention} {display_name}\n" f"> {prefix}identicon {display_name}"
-        )
-        e = discord.Embed(title=display_name, description=description, color=fg.as_discord_color())
+        description = f"**Generate this identicon:**\n" f"> {cmd_mention} {name}\n" f"> {prefix}identicon {name}"
+        e = discord.Embed(title=name, description=description, color=fg.as_discord_color())
         e.set_image(url="attachment://identicon.png")
         return e, file
 
@@ -63,7 +63,7 @@ class General(DynamoCog):
     async def identicon(
         self,
         ctx: Context,
-        seed: discord.Member | str | int = commands.param(converter=MemberLikeConverter, default=""),
+        seed: discord.Member | str | int = commands.param(default=MISSING, converter=MemberLikeConverter),
     ) -> None:
         """Generate an identicon from a user or string
 
@@ -72,7 +72,7 @@ class General(DynamoCog):
         seed: discord.Member | str | int, optional
             The seed to use. Random seed if empty.
         """
-        embed, file = await self.generate_identicon(seed, ctx.guild)
+        embed, file = await self.generate_identicon(seed_from_time() if seed is MISSING else seed, ctx.guild)
         await ctx.send(embed=embed, file=file)
 
     @commands.hybrid_command(name="spotify", aliases=("sp", "applemusic"))
@@ -85,7 +85,7 @@ class General(DynamoCog):
 
         Parameters
         ----------
-        user : discord.Member | discord.User | None, optional
+        user : discord.User |discord.Member | None, optional
             The user to check. If nothing is provided, check author instead.
         """
         if user is None:
@@ -94,8 +94,8 @@ class General(DynamoCog):
         if user.bot:
             return
 
-        activities = getattr(user, "activities", [])
-        activity: discord.Spotify | None = next(filter(lambda a: isinstance(a, discord.Spotify), activities), None)
+        activities = cast(discord.Member, user).activities
+        activity: discord.Spotify | None = next((a for a in activities if isinstance(a, discord.Spotify)), None)
 
         if activity is None:
             await ctx.send(f"{user!s} is not listening to Spotify.")

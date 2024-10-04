@@ -12,7 +12,9 @@ if TYPE_CHECKING:
     from dynamo.core import Dynamo
 
 
-class DynamoCog(commands.Cog):
+class Cog(commands.Cog):
+    """Dynamo cog. Sets up logging and any existing raw submittables."""
+
     __slots__ = ("bot", "log")
 
     def __init__(

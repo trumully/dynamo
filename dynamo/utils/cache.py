@@ -200,12 +200,7 @@ def _make_key(
     return _finalize_key(key, fast_types)
 
 
-def update_wrapper[**P, T](
-    wrapper: CachedTask[P, T],
-    wrapped: WrappedCoro[P, T],
-    assigned: tuple[str, ...] = WRAPPER_ASSIGNMENTS,
-    updated: tuple[str, ...] = WRAPPER_UPDATES,
-) -> CachedTask[P, T]:
+def update_wrapper[**P, T](wrapper: CachedTask[P, T], wrapped: WrappedCoro[P, T]) -> CachedTask[P, T]:
     """
     Update a wrapper function to look more like the wrapped function.
 
@@ -215,10 +210,6 @@ def update_wrapper[**P, T](
         The wrapper function to be updated.
     wrapped : WrappedCoro[P, T]
         The original function being wrapped.
-    assigned : tuple of str, optional
-        Attribute names to assign from the wrapped function. Default is :const:`WRAPPER_ASSIGNMENTS`.
-    updated : tuple of str, optional
-        Attribute names to update from the wrapped function. Default is :const:`WRAPPER_UPDATES`.
 
     Returns
     -------
@@ -234,10 +225,10 @@ def update_wrapper[**P, T](
     --------
     :func:`functools.update_wrapper` : Similar function for synchronous functions.
     """
-    for attr in assigned:
+    for attr in WRAPPER_ASSIGNMENTS:
         if hasattr(wrapped, attr):
             setattr(wrapper, attr, getattr(wrapped, attr))
-    for attr in updated:
+    for attr in WRAPPER_UPDATES:
         if hasattr(wrapper, attr) and hasattr(wrapped, attr):
             getattr(wrapper, attr).update(getattr(wrapped, attr))
 

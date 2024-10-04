@@ -1,9 +1,9 @@
-from dynamo.core.base_cog import DynamoCog
 from dynamo.core.bot import Dynamo
-from dynamo.core.logging_context import setup_logging
+from dynamo.core.cog import Cog
+from dynamo.core.logger import setup_logging
 
 __all__ = (
+    "Cog",
     "Dynamo",
-    "DynamoCog",
     "setup_logging",
 )

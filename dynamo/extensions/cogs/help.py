@@ -7,7 +7,7 @@ import discord
 from discord.ext import commands
 
 from dynamo._types import CogT, CommandT, NotFoundWithHelp
-from dynamo.core import Dynamo, DynamoCog
+from dynamo.core import Cog, Dynamo
 from dynamo.utils.format import code_block, human_join
 
 log = logging.getLogger(__name__)
@@ -78,15 +78,11 @@ class DynamoHelp(commands.HelpCommand):
 
         embed.add_field(name="Aliases", value=f"`{human_join(command.aliases) or "N/A"}`")
 
-        cog = command.cog
-        if cog and cog.qualified_name not in self.blacklisted:
+        if (cog := command.cog) and cog.qualified_name not in self.blacklisted:
             embed.add_field(name="Category", value=cog.qualified_name)
 
         if (buckets := getattr(command, "_buckets", None)) and (cooldown := getattr(buckets, "_cooldown", None)):
-            embed.add_field(
-                name="Cooldown",
-                value=f"{cooldown.rate} per {cooldown.per:.0f} seconds",
-            )
+            embed.add_field(name="Cooldown", value=f"{cooldown.rate} per {cooldown.per:.0f} seconds")
 
         await self.send(embed=embed)
 
@@ -106,13 +102,10 @@ class DynamoHelp(commands.HelpCommand):
         if category:
             embed.add_field(name="Category", value=category)
 
-        if filtered_commands := await self.filter_commands(commands):
-            sub_commands = [
-                f"**{command.name}** - {command.help or "No help found..."}" for command in filtered_commands
-            ]
+        sub_commands = [f"**{c.name}** - {c.help or "No help found..."}" for c in await self.filter_commands(commands)]
+        if sub_commands:
             subcommand_field_title = "Commands" if title.endswith("Category") else "Subcommands"
-            if sub_commands:
-                embed.add_field(name=subcommand_field_title, value=f">>> {"\n".join(sub_commands)}", inline=False)
+            embed.add_field(name=subcommand_field_title, value=f">>> {"\n".join(sub_commands)}", inline=False)
 
         await self.send(embed=embed)
 
@@ -127,7 +120,7 @@ class DynamoHelp(commands.HelpCommand):
         await self.send_help_embed(f"{title}", code_block(cog.description or "No description"), set(cog.get_commands()))
 
 
-class Help(DynamoCog):
+class Help(Cog):
     def __init__(self, bot: Dynamo) -> None:
         super().__init__(bot)
         self._original_help_command, self.bot.help_command = self.bot.help_command, DynamoHelp()

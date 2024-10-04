@@ -8,7 +8,7 @@ from discord.app_commands import Choice, Range
 from discord.ext import commands
 from msgspec import msgpack
 
-from dynamo.core import Dynamo, DynamoCog
+from dynamo.core import Cog, Dynamo
 from dynamo.core.bot import Interaction
 from dynamo.utils.cache import Trie, async_cache
 
@@ -94,7 +94,7 @@ async def _get_trie_matches(conn: apsw.Connection, user_id: int) -> Trie:
     return trie
 
 
-class Tags(commands.GroupCog, DynamoCog, group_name="tag"):
+class Tags(commands.GroupCog, Cog, group_name="tag"):
     """Store and recall content"""
 
     def __init__(self, bot: Dynamo) -> None:

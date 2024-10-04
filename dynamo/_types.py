@@ -1,6 +1,7 @@
 from collections.abc import Callable, Coroutine, Mapping
 from typing import Any, ParamSpec, Protocol, TypeVar
 
+import discord.abc
 from discord import Interaction as DInter
 from discord import app_commands
 from discord.ext import commands
@@ -16,7 +17,10 @@ S_co = TypeVar("S_co", bound=object, covariant=True)
 
 CogT = TypeVar("CogT", bound=commands.Cog)
 CommandT = TypeVar("CommandT", bound=commands.Command[Any, ..., Any])
-ContextT = TypeVar("ContextT", bound=commands.Context[Any], covariant=True)
+ContextT_co = TypeVar("ContextT_co", bound=commands.Context[Any], covariant=True)
+
+type AppCommandT[CogT: commands.Cog, **P, T] = app_commands.Command[CogT, P, T]
+type MaybeSnowflake = discord.abc.Snowflake | None
 
 
 type Coro[T] = Coroutine[Any, Any, T]

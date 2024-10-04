@@ -1,22 +1,38 @@
 import importlib
 import sys
+from collections.abc import Callable
+from functools import partial
 from typing import Literal
 
 import discord
 from discord.ext import commands
 
-from dynamo.core import Dynamo, DynamoCog
+from dynamo._types import Coro
+from dynamo.core import Cog, Dynamo
+from dynamo.core.bot import Emojis
 from dynamo.utils.checks import is_owner
 from dynamo.utils.context import Context
-from dynamo.utils.emoji import Emojis
 from dynamo.utils.format import code_block
 from dynamo.utils.helper import get_cog
 
 type SyncSpec = Literal["~", "*", "^"]
 
 
-class Dev(DynamoCog):
+class Dev(Cog):
     """Dev-only commands"""
+
+    def __init__(self, bot: Dynamo) -> None:
+        super().__init__(bot)
+        self.try_load_extension = partial(self._cog_try, self.bot.load_extension)
+        self.try_unload_extension = partial(self._cog_try, self.bot.unload_extension)
+
+    async def _cog_try(self, coro: Callable[[str], Coro[None]], cog: str) -> bool:
+        try:
+            await coro(cog)
+        except commands.ExtensionError:
+            self.log.exception("Coroutine %s failed for cog %s", coro.__name__, cog)
+            return False
+        return True
 
     @commands.hybrid_command(name="sync", aliases=("s",))
     @commands.guild_only()
@@ -86,15 +102,8 @@ class Dev(DynamoCog):
         module: str
             The name of the cog to load.
         """
-        message = ctx.message
-        cog = get_cog(module)
-        try:
-            await self.bot.load_extension(cog)
-        except commands.ExtensionError as ex:
-            await ctx.send(f"{ex.__class__.__name__}: {ex}")
-            self.log.exception("Failed to load %s", cog)
-        else:
-            await message.add_reaction(ctx.Status.OK)
+        success = await self.try_load_extension(get_cog(module))
+        await ctx.message.add_reaction(ctx.Status.OK if success else ctx.Status.FAILURE)
 
     @commands.hybrid_command(aliases=("ul",))
     @is_owner()
@@ -106,15 +115,8 @@ class Dev(DynamoCog):
         module: str
             The name of the cog to unload.
         """
-        message = ctx.message
-        cog = get_cog(module)
-        try:
-            await self.bot.unload_extension(cog)
-        except commands.ExtensionError as ex:
-            await ctx.send(f"{ex.__class__.__name__}: {ex}")
-            self.log.exception("Failed to unload %s", cog)
-        else:
-            await message.add_reaction(ctx.Status.OK)
+        success = await self.try_unload_extension(get_cog(module))
+        await ctx.message.add_reaction(ctx.Status.OK if success else ctx.Status.FAILURE)
 
     @commands.hybrid_group(name="reload", aliases=("r",), invoke_without_command=True)
     @is_owner()
@@ -126,17 +128,10 @@ class Dev(DynamoCog):
         module: str
             The name of the cog to reload.
         """
-        message: discord.Message | None = ctx.message
-        cog = get_cog(module)
-        try:
-            await self.bot.reload_extension(cog)
-        except commands.ExtensionError as ex:
-            await ctx.send(f"{ex.__class__.__name__}: {ex}")
-            self.log.exception("Failed to reload %s", cog)
-        else:
-            await message.add_reaction(ctx.Status.OK)
+        success = await self.try_reload_extension(get_cog(module))
+        await ctx.message.add_reaction(ctx.Status.OK if success else ctx.Status.FAILURE)
 
-    async def reload_or_load_extension(self, module: str) -> None:
+    async def try_reload_extension(self, module: str) -> bool:
         try:
             await self.bot.reload_extension(module)
         except commands.ExtensionNotLoaded:
@@ -145,6 +140,8 @@ class Dev(DynamoCog):
                 await self.bot.load_extension(module)
             except commands.ExtensionError:
                 self.log.exception("Failed to load %s", module)
+                return False
+        return True
 
     @_reload.command(name="all")
     @is_owner()
@@ -167,13 +164,8 @@ class Dev(DynamoCog):
         extensions = frozenset(self.bot.extensions)
         statuses: set[tuple[ctx.Status, str]] = set()
         for ext in extensions:
-            try:
-                await self.reload_or_load_extension(ext)
-            except commands.ExtensionError:
-                self.log.exception("Failed to reload extension %s", ext)
-                statuses.add((ctx.Status.FAILURE, ext))
-            else:
-                statuses.add((ctx.Status.SUCCESS, ext))
+            success = await self.try_reload_extension(ext)
+            statuses.add((ctx.Status.SUCCESS if success else ctx.Status.FAILURE, ext))
 
         success_count = sum(1 for status, _ in statuses if status == ctx.Status.SUCCESS)
         self.log.debug("Reloaded %d/%d extensions", success_count, len(extensions))
