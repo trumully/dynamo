@@ -50,7 +50,7 @@ class Dev(DynamoCog):
     async def _sync_commands(
         self, guild: discord.Guild, spec: SyncSpec | None
     ) -> list[discord.app_commands.AppCommand]:
-        # This will sync all guild commands for the current context’s guild.
+        # This will sync all guild commands for the current context's guild.
         if spec == "~":
             return await self.bot.tree.sync(guild=guild)
         # This will copy all global commands to the current guild (within the CommandTree) and syncs.
