@@ -30,7 +30,13 @@ class TagModal(discord.ui.Modal):
     )
 
     def __init__(
-        self, *, title: str = "Add tag", timeout: float | None = 300, custom_id: str = "", tag_name: str, author_id: int
+        self,
+        *,
+        title: str = "Add tag",
+        timeout: float | None = 300,
+        custom_id: str = "",
+        tag_name: str,
+        author_id: int,
     ) -> None:
         discord_safe = b2048_pack((author_id, tag_name))
         custom_id = f"m:tag:{discord_safe}"

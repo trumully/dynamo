@@ -7,7 +7,7 @@ from discord.ext import commands
 from dynamo.core import Dynamo, DynamoCog
 from dynamo.utils import spotify
 from dynamo.utils.context import Context
-from dynamo.utils.converter import SeedConverter
+from dynamo.utils.converter import MemberLikeConverter
 from dynamo.utils.identicon import Identicon, derive_seed, get_colors, get_identicon, seed_from_time
 
 
@@ -63,7 +63,7 @@ class General(DynamoCog):
     async def identicon(
         self,
         ctx: Context,
-        seed: discord.Member | str | int = commands.param(converter=SeedConverter, default=""),
+        seed: discord.Member | str | int = commands.param(converter=MemberLikeConverter, default=""),
     ) -> None:
         """Generate an identicon from a user or string
 
@@ -79,7 +79,7 @@ class General(DynamoCog):
     async def spotify(
         self,
         ctx: Context,
-        user: discord.User | discord.Member | None = commands.param(default=None, converter=commands.MemberConverter),
+        user: discord.User | discord.Member | None = commands.param(default=None, converter=MemberLikeConverter),
     ) -> None:
         """Get the currently playing Spotify track for a user.
 
