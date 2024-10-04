@@ -5,10 +5,15 @@ import os
 import signal
 import socket
 import ssl
+from collections.abc import Callable
 from importlib import metadata
+from pathlib import Path
 from typing import Any
 
 import aiohttp
+import apsw
+import apsw.bestpractice
+import apsw.ext
 import base2048
 import click
 import pygit2
@@ -23,11 +28,14 @@ log = logging.getLogger(__name__)
 
 
 def run_bot() -> None:
+    db_path = platformdir.user_data_path / "dynamo.db"
+    conn = apsw.Connection(str(db_path))
+
     loop = asyncio.new_event_loop()
     policy = get_event_loop_policy()
     asyncio.set_event_loop_policy(policy)
-    asyncio.set_event_loop(loop)
     loop.set_task_factory(asyncio.eager_task_factory)
+    asyncio.set_event_loop(loop)
 
     # https://github.com/aio-libs/aiohttp/issues/8599
     # https://github.com/mikeshardmind/salamander-reloaded
@@ -38,7 +46,7 @@ def run_bot() -> None:
         ssl=truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT),
     )
     session = aiohttp.ClientSession(connector=connector)
-    bot = Dynamo(connector=connector, session=session)
+    bot = Dynamo(connector=connector, conn=conn, session=session)
 
     async def entrypoint() -> None:
         try:
@@ -115,6 +123,9 @@ def run_bot() -> None:
             except KeyboardInterrupt:
                 pass
 
+        conn.pragma("analysis_limit", 400)
+        conn.pragma("optimize")
+
 
 def _load_token() -> str | None:
     token_file_path = resolve_path_with_links(platformdir.user_config_path / "dynamo.token")
@@ -160,6 +171,26 @@ def propagate_updates() -> None:
         click.echo(click.style("You are up to date with the remote branch.", fg="green"))
 
 
+def ensure_schema() -> None:
+    db_path = platformdir.user_data_path / "dynamo.db"
+    conn = apsw.Connection(str(db_path))
+
+    schema_location = (Path(__file__)).with_name("schema.sql")
+    to_execute: list[str] = []
+    with schema_location.open(mode="r", encoding="utf-8") as fp:
+        for line in fp.readlines():
+            if (text := line.strip()).startswith("--"):
+                continue
+            to_execute.append(text)
+
+    for line in (iterator := iter(to_execute)):
+        s = [line]
+        while n := next(iterator, None):
+            s.append(n)
+        statement = "\n".join(s)
+        list(conn.execute(statement))
+
+
 @click.group(invoke_without_command=True, options_metavar="[options]")
 @click.version_option(
     metadata.version("dynamo"),
@@ -174,10 +205,17 @@ def propagate_updates() -> None:
 def main(ctx: click.Context, debug: bool) -> None:
     """Launch the bot"""
     propagate_updates()
+    ensure_schema()
     os.umask(0o077)
+    to_apply: tuple[Callable[[apsw.Connection], None], ...] = (
+        apsw.bestpractice.connection_wal,
+        apsw.bestpractice.connection_busy_timeout,
+        apsw.bestpractice.connection_enable_foreign_keys,
+        apsw.bestpractice.connection_dqs,
+    )
+    apsw.bestpractice.apply(to_apply)  # pyright: ignore[reportUnknownMemberType]
     if ctx.invoked_subcommand is None:
-        log_level = logging.DEBUG if debug else logging.INFO
-        if log_level == logging.DEBUG:
+        if (log_level := logging.DEBUG if debug else logging.INFO) == logging.DEBUG:
             click.echo("Running in DEBUG mode", err=True)
         with setup_logging(log_level=log_level):
             run_bot()

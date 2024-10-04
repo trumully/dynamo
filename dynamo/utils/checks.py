@@ -1,13 +1,14 @@
-from collections.abc import Callable, Coroutine
-from typing import Any, Protocol
+from collections.abc import Callable
+from typing import Protocol
 
 from discord.ext import commands
 
+from dynamo._types import Coro
 from dynamo.utils.context import Context
 
 
 class Check(Protocol):
-    predicate: Callable[..., Coroutine[Any, Any, bool]]
+    predicate: Callable[..., Coro[bool]]
 
     def __call__[T](self, coro_or_commands: T) -> T: ...
 

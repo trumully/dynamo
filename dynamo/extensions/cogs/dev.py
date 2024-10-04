@@ -1,5 +1,6 @@
 import importlib
 import sys
+from typing import Literal
 
 import discord
 from discord.ext import commands
@@ -7,67 +8,73 @@ from discord.ext import commands
 from dynamo.core import Dynamo, DynamoCog
 from dynamo.utils.checks import is_owner
 from dynamo.utils.context import Context
-from dynamo.utils.converter import GuildConverter
 from dynamo.utils.emoji import Emojis
 from dynamo.utils.format import code_block
 from dynamo.utils.helper import get_cog
+
+type SyncSpec = Literal["~", "*", "^"]
 
 
 class Dev(DynamoCog):
     """Dev-only commands"""
 
-    def __init__(self, bot: Dynamo) -> None:
-        super().__init__(bot)
-
-    @commands.hybrid_group(invoke_without_command=True, name="sync", aliases=("s",))
+    @commands.hybrid_command(name="sync", aliases=("s",))
+    @commands.guild_only()
     @is_owner()
-    async def sync(
-        self,
-        ctx: Context,
-        guild: discord.Guild = commands.param(converter=GuildConverter, displayed_name="guild_id"),
-        copy: bool = False,
-    ) -> None:
-        """Sync slash commands
+    async def sync(self, ctx: Context, guilds: commands.Greedy[discord.Object], spec: SyncSpec | None = None) -> None:
+        """Sync application commands globally or with guilds
 
         Parameters
         ----------
-        guild_id: int | None
-            The ID of the guild to sync commands to. Current guild by default.
-        copy: bool
-            Copy global commands to the specified guild. (Default: False)
+        guilds: commands.Greedy[discord.Object]
+            The guilds to sync the commands to
+        spec: SyncSpec | None, optional
+            The sync specification, by default None
+
+        See
+        ---
+        - https://about.abstractumbra.dev/discord.py/2023/01/29/sync-command-example.html
         """
-        if copy:
-            self.bot.tree.copy_global_to(guild=guild)
-
-        commands = await self.bot.tree.sync(guild=guild)
-        await ctx.send(f"Successfully synced {len(commands)} commands")
-
-    @sync.command(name="global", aliases=("g",))
-    @is_owner()
-    async def sync_global(self, ctx: Context) -> None:
-        """Sync global slash commands"""
-        commands = await self.bot.tree.sync(guild=None)
-        await ctx.send(f"Successfully synced {len(commands)} commands")
-
-    @sync.command(name="clear", aliases=("c",))
-    @is_owner()
-    async def clear_commands(
-        self,
-        ctx: Context,
-        guild: discord.Guild = commands.param(converter=GuildConverter, displayed_name="guild_id"),
-    ) -> None:
-        """Clear all slash commands
-
-        Parameters
-        ----------
-        guild_id: int | None
-            The ID of the guild to clear commands from. Current guild by default.
-        """
-        if not await ctx.prompt("Are you sure you want to clear all commands?"):
+        if not ctx.guild:
             return
 
-        self.bot.tree.clear_commands(guild=guild)
-        await ctx.send("Successfully cleared all commands")
+        if not guilds:
+            synced = await self._sync_commands(ctx.guild, spec)
+            scope = "globally" if spec is None else "to the current guild"
+            await ctx.send(f"Synced {len(synced)} commands {scope}.")
+            return
+
+        success = await self._sync_to_guilds(guilds)
+        await ctx.send(f"Synced the tree to {success}/{len(guilds)} guilds.")
+
+    async def _sync_commands(
+        self, guild: discord.Guild, spec: SyncSpec | None
+    ) -> list[discord.app_commands.AppCommand]:
+        # This will sync all guild commands for the current context's guild.
+        if spec == "~":
+            return await self.bot.tree.sync(guild=guild)
+        # This will copy all global commands to the current guild (within the CommandTree) and syncs.
+        if spec == "*":
+            self.bot.tree.copy_global_to(guild=guild)
+            return await self.bot.tree.sync(guild=guild)
+        # This command will remove all guild commands from the CommandTree and syncs,
+        # which effectively removes all commands from the guild.
+        if spec == "^":
+            self.bot.tree.clear_commands(guild=guild)
+            await self.bot.tree.sync(guild=guild)
+            return []
+        # This takes all global commands within the CommandTree and sends them to Discord
+        return await self.bot.tree.sync()
+
+    async def _sync_to_guilds(self, guilds: commands.Greedy[discord.Object]) -> int:
+        success = 0
+        for guild in guilds:
+            try:
+                await self.bot.tree.sync(guild=guild)
+                success += 1
+            except discord.HTTPException:
+                self.log.exception("Failed to sync guild %s", guild.id)
+        return success
 
     @commands.hybrid_command(name="load", aliases=("l",))
     @is_owner()

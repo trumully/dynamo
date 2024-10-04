@@ -4,14 +4,10 @@ on:
   push:
     branches:
       - main
-    paths:
-      - dynamo/**/*.py
-      - tests/**/*.py
   pull_request:
     types: [opened, reopened, synchronize]
-    paths:
-      - dynamo/**/*.py
-      - tests/**/*.py
+    branches:
+      - main
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

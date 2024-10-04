@@ -5,7 +5,7 @@ from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from typing import cast, overload
 
-from dynamo._types import WrappedCoroutine
+from dynamo._types import WrappedCoro
 
 log = logging.getLogger(__name__)
 
@@ -19,14 +19,14 @@ def time_it(func_name: str) -> Generator[None, None, None]:
 
 
 @overload
-def timer[**P, T](func: WrappedCoroutine[P, T]) -> WrappedCoroutine[P, T]: ...
+def timer[**P, T](func: WrappedCoro[P, T]) -> WrappedCoro[P, T]: ...
 
 
 @overload
 def timer[**P, T](func: Callable[P, T]) -> Callable[P, T]: ...
 
 
-def timer[**P, T](func: Callable[P, T] | WrappedCoroutine[P, T]) -> Callable[P, T] | WrappedCoroutine[P, T]:
+def timer[**P, T](func: Callable[P, T] | WrappedCoro[P, T]) -> Callable[P, T] | WrappedCoro[P, T]:
     async def async_wrap(*args: P.args, **kwargs: P.kwargs) -> T:
         with time_it(func.__name__):
             return await func(*args, **kwargs)
