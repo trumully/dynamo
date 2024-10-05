@@ -3,6 +3,8 @@ from __future__ import annotations
 import logging
 import re
 from collections.abc import AsyncGenerator, Generator
+from importlib import import_module
+from pathlib import Path
 from typing import Any, cast
 
 import aiohttp
@@ -199,12 +201,10 @@ class Dynamo(commands.AutoShardedBot):
         self.owner_id = self.bot_app_info.owner.id
 
         self.app_emojis = Emojis(await self.fetch_application_emojis())
+        self.cog_file_times: dict[str, float] = {}
 
         for extension in initial_extensions:
-            try:
-                await self.load_extension(extension)
-            except commands.ExtensionError:
-                log.exception("Failed to load extension %s", extension)
+            await self.load_extension_with_timestamp(extension)
 
         tree_path = resolve_path_with_links(platformdir.user_cache_path / "tree.hash")
         tree_hash = await self.tree.get_hash(self.tree)
@@ -216,6 +216,38 @@ class Dynamo(commands.AutoShardedBot):
             await self.tree.sync(guild=self.dev_guild)
             fp.seek(0)
             fp.write(tree_hash)
+
+    def get_cog_path(self, cog: str) -> Path:
+        module = import_module(cog)
+        if module.__file__ is None:
+            error = f"Could not determine file path for cog {cog}"
+            log.exception(error)
+            raise RuntimeError(error)
+        return Path(module.__file__)
+
+    async def load_extension_with_timestamp(self, extension: str) -> None:
+        try:
+            await self.load_extension(extension)
+            self.cog_file_times[extension] = self.get_cog_path(extension).lstat().st_mtime
+        except commands.ExtensionError:
+            log.exception("Failed to load extension %s", extension)
+
+    async def lazy_load_cog(self, cog_name: str) -> None:
+        """Lazily load a cog if it has been modified."""
+        cog_path = self.get_cog_path(cog_name)
+        current_mtime = cog_path.lstat().st_mtime
+        if current_mtime > self.cog_file_times.get(cog_name, 0):
+            try:
+                await self.reload_extension(cog_name)
+                self.cog_file_times[cog_name] = current_mtime
+                log.info("Reloaded modified cog: %s", cog_name)
+            except commands.ExtensionError:
+                log.exception("Failed to reload cog: %s", cog_name)
+
+    @commands.Cog.listener()
+    async def on_command_completion(self, ctx: Context) -> None:
+        if ctx.cog:
+            await self.lazy_load_cog(ctx.cog.__module__)
 
     @property
     def owner(self) -> discord.User:
@@ -238,7 +270,7 @@ class Dynamo(commands.AutoShardedBot):
 
     async def close(self) -> None:
         await self.session.close()
-        return await super().close()
+        await super().close()
 
     async def on_ready(self) -> None:
         if not hasattr(self, "uptime"):

@@ -9,6 +9,7 @@ from discord.ext import commands
 
 from dynamo.core import Cog, Dynamo
 from dynamo.utils.context import Context
+from dynamo.utils.converter import MemberLikeConverter
 from dynamo.utils.time_utils import format_relative, human_timedelta
 
 PYTHON = "https://s3.dualstack.us-east-2.amazonaws.com/pythondotorg-assets/media/community/logos/python-logo-only.png"
@@ -75,12 +76,16 @@ class Info(Cog):
         await ctx.send(embed=embed, ephemeral=True)
 
     @commands.hybrid_command(name="avatar")
-    async def avatar(self, ctx: Context, user: discord.Member | discord.User | None = None) -> None:
+    async def avatar(
+        self,
+        ctx: Context,
+        user: discord.Member | discord.User | None = commands.param(default=None, converter=MemberLikeConverter),
+    ) -> None:
         """Get the avatar of a user
 
         Parameters
         ----------
-        user: discord.Member | discord.User
+        user: discord.Member | discord.User | None
             The user to get the avatar of
         """
         await ctx.send(embed=embed_from_user(ctx.author if user is None else user), ephemeral=True)
