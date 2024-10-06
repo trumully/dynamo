@@ -8,7 +8,7 @@ from dynamo.utils.context import Context
 
 
 class Check(Protocol):
-    predicate: Callable[..., Coro[bool]]
+    predicate: Callable[[Context], Coro[bool]]
 
     def __call__[T](self, coro_or_commands: T) -> T: ...
 

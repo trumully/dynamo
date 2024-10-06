@@ -19,16 +19,6 @@ class ConfirmationView(View):
     message: discord.Message | None
 
     def __init__(self, *, timeout: float, author_id: int, delete_after: bool) -> None:
-        """
-        Parameters
-        ----------
-        timeout: float
-            The timeout for the view.
-        author_id: int
-            The ID of the author of the view.
-        delete_after: bool
-            Whether to delete the message after the view times out.
-        """
         super().__init__(timeout=timeout)
         self.author_id: int = author_id
         self.delete_after: bool = delete_after
@@ -92,25 +82,10 @@ class Context(commands.Context["Dynamo"]):
         delete_after: bool = True,
         author_id: int | None = None,
     ) -> bool:
-        """|coro|
+        """
+        |coro|
 
         Prompt the user to confirm an action
-
-        Parameters
-        ----------
-        message: str
-            The message to send to the user.
-        timeout: float
-            The timeout for the view.
-        author_id: int | None
-            The ID of the author of the view. If not provided, the author of the context is used.
-        delete_after: bool
-            Whether to delete the message after the view times out.
-
-        Returns
-        -------
-        bool
-            Whether the user confirmed the action.
         """
         author_id = author_id or self.author.id
         view = ConfirmationView(timeout=timeout, author_id=author_id, delete_after=delete_after)

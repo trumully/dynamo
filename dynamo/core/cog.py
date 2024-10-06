@@ -11,6 +11,8 @@ from dynamo.utils.helper import get_cog
 if TYPE_CHECKING:
     from dynamo.core import Dynamo
 
+type Submittables = dict[str, type[RawSubmittable]]
+
 
 class Cog(commands.Cog):
     """Dynamo cog. Sets up logging and any existing raw submittables."""
@@ -20,8 +22,8 @@ class Cog(commands.Cog):
     def __init__(
         self,
         bot: Dynamo,
-        raw_modal_submits: dict[str, type[RawSubmittable]] | None = None,
-        raw_button_submits: dict[str, type[RawSubmittable]] | None = None,
+        raw_modal_submits: Submittables | None = None,
+        raw_button_submits: Submittables | None = None,
     ) -> None:
         self.bot: Dynamo = bot
         self.log = logging.getLogger(get_cog(self.__class__.__name__))

@@ -111,8 +111,7 @@ def async_cache[**P, T](coro: WrappedCoro[P, T], /) -> CachedTask[P, T]: ...
 def async_cache[**P, T](
     maxsize: int | WrappedCoro[P, T] | None = 128, ttl: float | None = None
 ) -> CachedTask[P, T] | DecoratedCoro[P, T]:
-    """
-    Decorator to cache the result of a coroutine.
+    """Decorator to cache the result of a coroutine.
 
     This decorator caches the result of a coroutine to improve performance
     by avoiding redundant computations. It is functionally similar to :func:`functools.cache`

@@ -10,7 +10,7 @@ from dynamo.core import Cog, Dynamo
 from dynamo.utils import spotify
 from dynamo.utils.context import Context
 from dynamo.utils.converter import MemberLikeConverter
-from dynamo.utils.identicon import Identicon, derive_seed, get_colors, get_identicon, seed_from_time
+from dynamo.utils.identicon import derive_seed, get_colors, get_identicon, seed_from_time
 
 
 class General(Cog):
@@ -42,10 +42,10 @@ class General(Cog):
         name = seed_to_use if (isinstance(seed_to_use, str | int)) else seed_to_use.display_name
 
         seed_to_use = derive_seed(name)
-        fg, bg = get_colors(seed=seed_to_use)
 
-        identicon: bytes = await get_identicon(Identicon(5, fg, bg, 0.4, seed_to_use))
+        identicon: bytes = await get_identicon(seed_to_use)
         file = discord.File(BytesIO(identicon), filename="identicon.png")
+        fg, _ = get_colors(seed_to_use)
 
         cmd_mention = await self.bot.tree.find_mention_for("identicon", guild=guild)
         prefix = "d!" if guild is None else self.bot.prefixes.get(guild.id, ["d!", "d?"])[0]
@@ -53,11 +53,6 @@ class General(Cog):
         e = discord.Embed(title=name, description=description, color=fg.as_discord_color())
         e.set_image(url="attachment://identicon.png")
         return e, file
-
-    @commands.hybrid_command(name="ping")
-    async def ping(self, ctx: Context) -> None:
-        """Get the bot's latency"""
-        await ctx.send(f"\N{TABLE TENNIS PADDLE AND BALL} {round(self.bot.latency * 1000)}ms")
 
     @commands.hybrid_command(name="identicon", aliases=("i", "idt"))
     async def identicon(

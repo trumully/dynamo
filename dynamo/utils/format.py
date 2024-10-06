@@ -9,28 +9,7 @@ from dynamo.utils.helper import ROOT, resolve_path_with_links
 
 
 def shorten_string(string: str, max_len: int = 50, placeholder: str = "Nothing provided") -> str:
-    """
-    Truncate a string to a maximum length.
-
-    Parameters
-    ----------
-    string : str
-        The string to truncate.
-    max_len : int, optional
-        Maximum length of the truncated string, by default 50.
-    placeholder : str, optional
-        String to return if input is empty, by default "Nothing provided".
-
-    Returns
-    -------
-    str
-        The truncated string.
-
-    Examples
-    --------
-    >>> shorten_string("Very very very long text way over the max yada yada yada")
-    'Very very very long text way over the max...'
-    """
+    """Truncate a string to a maximum length."""
     if not string:
         return placeholder
 
@@ -39,36 +18,12 @@ def shorten_string(string: str, max_len: int = 50, placeholder: str = "Nothing p
 
 @dataclass(frozen=True)
 class plural:
-    """
-    A class to handle plural formatting of values.
-
-    Parameters
-    ----------
-    value : int
-        The numeric value to format.
-
-    Methods
-    -------
-    __format__(format_spec: str) -> str
-        Format the value with singular or plural form based on the format specification.
-    """
+    """A class to handle plural formatting of values."""
 
     value: int
 
     def __format__(self, format_spec: str) -> str:
-        """
-        Format the value with singular or plural form.
-
-        Parameters
-        ----------
-        format_spec : str
-            The format specification string.
-
-        Returns
-        -------
-        str
-            Formatted string with appropriate singular or plural form.
-        """
+        """Format the value with singular or plural form."""
         v = self.value
         skip_value = format_spec.endswith("!")
         if skip_value:
@@ -90,32 +45,7 @@ def format_dt(dt: datetime.datetime, style: str | None = None) -> str:
 
 
 def human_join(seq: Sequence[str], sep: str = ", ", conjunction: str = "or", *, oxford_comma: bool = True) -> str:
-    """
-    Join a sequence of strings into a human-readable format.
-
-    Parameters
-    ----------
-    seq : Sequence[str]
-        The sequence of strings to join.
-    sep : str, optional
-        The separator to use between the strings, by default ", ".
-    conjunction : str, optional
-        The word to use before the last string, by default "or".
-    oxford_comma : bool, optional
-        Whether to use an oxford comma, by default True.
-
-    Returns
-    -------
-    str
-        A human-readable string.
-
-    Examples
-    --------
-    >>> human_join(["apple", "banana", "cherry"])
-    'apple, banana, or cherry'
-    >>> human_join(["dog", "cat"], conjunction="and")
-    'dog and cat'
-    """
+    """Join a sequence of strings into a human-readable format."""
     if (size := len(seq)) == 0:
         return ""
 
@@ -140,19 +70,7 @@ class CJK(StrEnum):
 
 
 def is_cjk(text: str) -> CJK:
-    """
-    Check if a string contains any CJK characters.
-
-    Parameters
-    ----------
-    text : str
-        The string to check.
-
-    Returns
-    -------
-    CJK
-        The CJK language of the string.
-    """
+    """Check if a string contains any CJK characters."""
     if re.search(r"[\u4e00-\u9fff\u3400-\u4dbf]", text):
         return CJK.CHINESE
 
@@ -171,29 +89,17 @@ class FontFamily:
     bold: Path
 
 
-def _full_font_path(font: str) -> Path:
+def _font_path(font: str) -> Path:
     return resolve_path_with_links(Path(ROOT / "assets" / "fonts" / "static") / font)
 
 
-latin: FontFamily = FontFamily(
-    regular=_full_font_path("NotoSans-Regular.ttf"), bold=_full_font_path("NotoSans-Bold.ttf")
-)
+def _get_fonts(font_name: str) -> FontFamily:
+    return FontFamily(regular=_font_path(f"{font_name}-Regular.ttf"), bold=_font_path(f"{font_name}-Bold.ttf"))
 
-chinese: FontFamily = FontFamily(
-    regular=_full_font_path("NotoSansTC-Regular.ttf"), bold=_full_font_path("NotoSansTC-Bold.ttf")
-)
-
-japanese: FontFamily = FontFamily(
-    regular=_full_font_path("NotoSansJP-Regular.ttf"), bold=_full_font_path("NotoSansJP-Bold.ttf")
-)
-
-korean: FontFamily = FontFamily(
-    regular=_full_font_path("NotoSansKR-Regular.ttf"), bold=_full_font_path("NotoSansKR-Bold.ttf")
-)
 
 FONTS: dict[CJK, FontFamily] = {
-    CJK.NONE: latin,
-    CJK.CHINESE: chinese,
-    CJK.JAPANESE: japanese,
-    CJK.KOREAN: korean,
+    CJK.NONE: _get_fonts("NotoSans"),
+    CJK.CHINESE: _get_fonts("NotoSansTC"),
+    CJK.JAPANESE: _get_fonts("NotoSansJP"),
+    CJK.KOREAN: _get_fonts("NotoSansKR"),
 }

@@ -54,8 +54,7 @@ class EventsView(discord.ui.View):
         for i in self.children:
             item = cast(EventsDropdown[EventsView], i)
             item.disabled = True
-        await self.message.edit(content="Expired!", view=self)
-        await self.message.delete(delay=10)
+        await self.message.edit(content="Expired!", view=self, delete_after=10)
 
 
 class InterestedDropdown(EventsDropdown[EventsView]):
@@ -70,11 +69,6 @@ async def get_interested(event: discord.ScheduledEvent) -> str:
     """|coro|
 
     Get a list of users interested in an event
-
-    Parameters
-    ----------
-    event : discord.ScheduledEvent
-        The event to get interested users of
 
     Returns
     -------
@@ -158,8 +152,7 @@ class Events(Cog):
         event_exists: str | list[discord.ScheduledEvent] = await event_check(ctx.guild, event_id)
         if isinstance(event_exists, str):
             self.active_users.remove(ctx.author.id)
-            await message.edit(content=event_exists)
-            await message.delete(delay=10)
+            await message.edit(content=event_exists, delete_after=10)
             return
 
         view = EventsView(ctx.author.id, event_exists, InterestedDropdown, timeout=25)
@@ -177,7 +170,7 @@ class Events(Cog):
         """
         if ctx.author.id in self.active_users:
             self.active_users.remove(ctx.author.id)
-        await ctx.send(f"Something went wrong: {error}")
+        await ctx.send(f"Something went wrong: {error!s}")
         raise error
 
 

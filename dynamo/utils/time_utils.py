@@ -12,35 +12,7 @@ def human_timedelta(
     brief: bool = False,
     suffix: bool = True,
 ) -> str:
-    """Format a datetime.datetime object into a human-readable string.
-
-    Parameters
-    ----------
-    dt : datetime.datetime
-        The datetime to format.
-    source : datetime.datetime | None, optional
-        The source datetime to use for the relative time. Defaults to the current datetime.
-    accuracy : int | None, optional
-        The number of time units to include in the output. Defaults to 3.
-    brief : bool, optional
-        Whether to use a brief format. Defaults to False.
-    suffix : bool, optional
-        Whether to include the suffix (e.g. "ago"). Defaults to True.
-
-    Returns
-    -------
-    str
-        A human-readable string representing the time delta.
-
-    Examples
-    --------
-    >>> human_timedelta(datetime.datetime(2024, 1, 1), accuracy=2)
-    '1 year and 2 months ago'
-    >>> human_timedelta(datetime.datetime(2024, 1, 1), accuracy=2, brief=True)
-    '1y 2mo ago'
-    >>> human_timedelta(datetime.datetime(2024, 1, 1), accuracy=2, suffix=False)
-    '1 year and 2 months'
-    """
+    """Format a datetime.datetime object into a human-readable string."""
     if accuracy is not None and accuracy < 1:
         accuracy = 1
 

@@ -26,7 +26,8 @@ ROOT = resolve_path_with_links(Path(__file__).parent.parent.parent, folder=True)
 
 
 def valid_token(token: str) -> bool:
-    """Validate a discord bot token
+    """
+    Validate a discord bot token
 
     A discord bot token is a string that matches the following pattern:
     >>> "[M|N|O]XXXXXXXXXXXXXXXXXXXXXXX[XX].XXXXXX.XXXXXXXXXXXXXXXXXXXXXXXXXXX"

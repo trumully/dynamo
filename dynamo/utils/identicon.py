@@ -85,31 +85,12 @@ def get_colors(seed: int) -> tuple[RGB, RGB]:
     return fg, bg
 
 
-@dataclass(slots=True, frozen=True)
-class Identicon:
-    """An identicon is a visual representation of a random seed."""
-
-    size: int
-    fg: RGB
-    bg: RGB
-    fg_weight: float
-    seed: int
-
-    @property
-    def icon(self) -> NDArray[np.int_]:
-        rng = np.random.default_rng(seed=self.seed)
-        pattern = rng.choice(
-            [self.fg.as_tuple(), self.bg.as_tuple()],
-            size=(self.size * 2, self.size),
-            p=[self.fg_weight, 1 - self.fg_weight],
-        )
-        return np.hstack((pattern, np.fliplr(pattern)))
-
-    def __eq__(self, other: object) -> bool:
-        return isinstance(other, Identicon) and hash(self) == hash(other)
-
-    def __hash__(self) -> int:
-        return hash(frozenset((self.size, self.fg.as_tuple(), self.bg.as_tuple(), self.fg_weight, self.seed)))
+def make_identicon(seed: int, size: int, *, fg_weight: float = 0.6) -> NDArray[np.int_]:
+    """Make an identicon from a seed"""
+    rng = np.random.default_rng(seed=seed)
+    fg, bg = get_colors(seed)
+    pattern = rng.choice([fg.as_tuple(), bg.as_tuple()], size=(size * 2, size), p=[fg_weight, 1 - fg_weight])
+    return np.hstack((pattern, np.fliplr(pattern)))
 
 
 def seed_from_time() -> int:
@@ -118,19 +99,20 @@ def seed_from_time() -> int:
 
 
 @async_cache
-async def get_identicon(idt: Identicon, size: int = 256) -> bytes:
+async def get_identicon(seed: int, size: int = 256) -> bytes:
     """|coro|
 
     Get an identicon as bytes
     """
 
-    def _buffer(idt: Identicon, size: int) -> bytes:
+    def _buffer(seed: int, size: int) -> bytes:
         buffer = BytesIO()
-        Image.fromarray(idt.icon.astype("uint8")).convert("RGB").resize((size, size), Image.Resampling.NEAREST).save(
+        array = make_identicon(seed, size)
+        Image.fromarray(array.astype("uint8")).convert("RGB").resize((size, size), Image.Resampling.NEAREST).save(
             buffer, format="png"
         )
         buffer.seek(0)
         return buffer.getvalue()
 
-    result: bytes = await asyncio.to_thread(_buffer, idt, size)
+    result: bytes = await asyncio.to_thread(_buffer, seed, size)
     return result

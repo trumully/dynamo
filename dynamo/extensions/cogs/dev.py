@@ -1,5 +1,7 @@
 import contextlib
 import importlib
+import importlib.abc
+import importlib.metadata
 import sys
 from collections.abc import AsyncGenerator, Callable
 from typing import Literal, cast
@@ -28,7 +30,7 @@ class Dev(Cog):
         try:
             await action(get_cog(cog))
         except commands.ExtensionError:
-            self.log.exception("Extension %s failed for cog %s", action.__name__, cog)
+            self.log.exception("Action '%s' failed for cog %s", action.__name__, cog)
             return False
         return True
 
@@ -97,57 +99,63 @@ class Dev(Cog):
         await ctx.message.add_reaction(ctx.Status.OK if success else ctx.Status.FAILURE)
 
     async def _reload_extension(self, module: str) -> bool:
-        try:
-            await self.bot.reload_extension(module)
-        except commands.ExtensionNotLoaded:
-            self.log.warning("Extension %s is not loaded. Attempting to load...", module)
-            return await self._execute_extension_action(self.bot.load_extension, module)
-        return True
+        result = await self._execute_extension_action(self.bot.reload_extension, module)
+        if not result:
+            result = await self._execute_extension_action(self.bot.load_extension, module)
+        return result
+
+    def _reload_utils(self) -> list[tuple[Context.Status, str]]:
+        modules_to_reload = frozenset(sys.modules[m] for m in sys.modules if m.startswith("dynamo.utils."))
+        result: list[tuple[Context.Status, str]] = []
+        for module in modules_to_reload:
+            try:
+                importlib.reload(module)
+                result.append((Context.Status.SUCCESS, module.__name__))
+            except Exception:
+                self.log.exception("Failed to reload module %s. Never imported?", module.__name__)
+                result.append((Context.Status.FAILURE, module.__name__))
+        return result
+
+    async def _reload_extensions(self) -> list[tuple[Context.Status, str]]:
+        extensions = frozenset(self.bot.cogs)
+        result: list[tuple[Context.Status, str]] = []
+        for extension in extensions:
+            try:
+                await self._reload_extension(extension)
+                result.append((Context.Status.SUCCESS, extension))
+            except Exception:
+                self.log.exception("Failed to reload extension %s", extension)
+                result.append((Context.Status.FAILURE, extension))
+        return result
 
     @_reload.command(name="all")
     @is_owner()
-    async def _reload_all(self, ctx: Context) -> None:
-        """Reload all cogs"""
-        if not await ctx.prompt("Are you sure you want to reload all cogs?"):
+    async def reload_all(self, ctx: Context) -> None:
+        """Reload extensions and utils"""
+        confirm = await ctx.prompt("Are you sure you want to reload all extensions and utils?")
+        if not confirm:
             return
 
-        utils_modules = self._reload_utils_modules()
-        extensions_status = await self._reload_all_extensions()
+        extensions = await self._reload_extensions()
+        utils = self._reload_utils()
 
-        await ctx.send(self._format_reload_results(utils_modules, extensions_status))
+        if not extensions and not utils:
+            await ctx.send("No extensions or utils to reload.")
+            return
 
-    def _reload_utils_modules(self) -> tuple[int, int]:
-        utils_modules = [mod for mod in sys.modules if mod.startswith("dynamo.utils.")]
-        success = sum(self._reload_module(mod) for mod in utils_modules)
-        return success, len(utils_modules)
+        await ctx.send(self._pretty_results(extensions, utils))
 
-    def _reload_module(self, module: str) -> bool:
-        try:
-            importlib.reload(sys.modules[module])
-        except (KeyError, ModuleNotFoundError, NameError):
-            self.log.exception("Failed to reload %s", module)
-            return False
-        return True
-
-    async def _reload_all_extensions(self) -> list[tuple[Context.Status, str]]:
-        extensions = list(self.bot.extensions)
-        success = Context.Status.SUCCESS
-        failure = Context.Status.FAILURE
-        return [(success if await self._reload_extension(ext) else failure, ext) for ext in extensions]
-
-    def _format_reload_results(
-        self, utils_result: tuple[int, int], extensions_status: list[tuple[Context.Status, str]]
-    ) -> str:
-        utils_success, utils_total = utils_result
-        extensions_success = sum(1 for status, _ in extensions_status if status == Context.Status.SUCCESS)
-        extensions_total = len(extensions_status)
-
-        result = [
-            f"Reloaded {utils_success}/{utils_total} utilities",
-            f"Reloaded {extensions_success}/{extensions_total} extensions",
-            "\n".join(f"{status} `{ext}`" for status, ext in extensions_status),
-        ]
-        return "\n".join(result)
+    @staticmethod
+    def _pretty_results(extensions: list[tuple[Context.Status, str]], utils: list[tuple[Context.Status, str]]) -> str:
+        result = ""
+        if extensions:
+            result += "### Extensions\n"
+            result += "\n".join(f"> {status.value}\t`{get_cog(name)}`" for status, name in extensions)
+        if utils:
+            result += f"{'\n' if extensions else ''}"
+            result += "### Utils\n"
+            result += "\n".join(f"> {status.value}\t`{name}`" for status, name in utils)
+        return result
 
     @commands.hybrid_command(name="quit", aliases=("exit", "shutdown", "q"))
     @is_owner()

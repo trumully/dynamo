@@ -1,5 +1,7 @@
 import datetime
 import itertools
+import os
+import time
 from importlib import metadata
 
 import discord
@@ -48,7 +50,16 @@ class Info(Cog):
     def __init__(self, bot: Dynamo) -> None:
         super().__init__(bot)
 
-        self.process = psutil.Process()
+        self.process = psutil.Process(os.getpid())
+
+    @commands.hybrid_command(name="ping")
+    async def ping(self, ctx: Context) -> None:
+        """Get the bot's latency"""
+        before = time.monotonic()
+        before_ws = int(round(self.bot.latency * 1000, 1))
+        message = await ctx.send("\N{TABLE TENNIS PADDLE AND BALL} Pong")
+        ping = (time.monotonic() - before) * 1000
+        await message.edit(content=f"\N{TABLE TENNIS PADDLE AND BALL} WS: `{before_ws}ms`\t|\tREST: `{int(ping)}ms`")
 
     @commands.hybrid_command(name="about")
     async def about(self, ctx: Context) -> None:
