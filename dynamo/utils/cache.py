@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from functools import partial
 from typing import Any, ParamSpec, Protocol, TypeVar, cast, final, overload
 
-from dynamo._types import MISSING, WrappedCoro
+from dynamo.typedefs import MISSING, WrappedCoro
 
 P = ParamSpec("P")
 T = TypeVar("T")

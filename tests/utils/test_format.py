@@ -2,7 +2,7 @@ import hypothesis.strategies as st
 import pytest
 from hypothesis import assume, given
 
-import dynamo.utils.format
+from dynamo.utils import format as dynamo_format
 
 
 @st.composite
@@ -22,7 +22,7 @@ format_spec_strategy = st.one_of(
 @given(string=text_block(10, 100), max_len=st.integers(min_value=1, max_value=100))
 def test_shorten_string(string: str, max_len: int) -> None:
     """Test the shorten_string function"""
-    text = dynamo.utils.format.shorten_string(string, max_len=max_len)
+    text = dynamo_format.shorten_string(string, max_len=max_len)
     assert len(text) <= max_len + 3
     assert text.endswith("...") if len(string) > max_len else not text.endswith("...")
 
@@ -30,7 +30,7 @@ def test_shorten_string(string: str, max_len: int) -> None:
 @given(string=text_block(50, 100), max_len=st.integers(min_value=50, max_value=100))
 def test_shorten_string_long(string: str, max_len: int) -> None:
     """Test the shorten_string function with a long string"""
-    text = dynamo.utils.format.shorten_string(string, max_len=max_len)
+    text = dynamo_format.shorten_string(string, max_len=max_len)
     assert len(text) <= max_len + 3
     assert text.endswith("...") if len(string) > max_len else not text.endswith("...")
 
@@ -38,13 +38,13 @@ def test_shorten_string_long(string: str, max_len: int) -> None:
 @given(string=text_block(0, 0), max_len=st.integers(min_value=1, max_value=100))
 def test_shorten_string_empty(string: str, max_len: int) -> None:
     """Test the shorten_string function with an empty string"""
-    assert dynamo.utils.format.shorten_string(string, max_len=max_len) == "Nothing provided"
+    assert dynamo_format.shorten_string(string, max_len=max_len) == "Nothing provided"
 
 
 @given(value=st.integers(), format_spec=format_spec_strategy, skip_value=st.booleans())
 def test_plural_format(value: int, format_spec: str, skip_value: bool) -> None:
     """Test the plural format function"""
-    p = dynamo.utils.format.plural(value)
+    p = dynamo_format.plural(value)
     if skip_value:
         format_spec += "!"
 
@@ -68,7 +68,7 @@ def test_plural_format(value: int, format_spec: str, skip_value: bool) -> None:
 @given(value=st.integers())
 def test_plural_value_immutable(value: int) -> None:
     """Test the plural value is immutable"""
-    p = dynamo.utils.format.plural(value)
+    p = dynamo_format.plural(value)
     with pytest.raises(AttributeError):
         p.value = value + 1  # type: ignore
 
@@ -84,7 +84,7 @@ def test_plural_value_immutable(value: int) -> None:
 )
 def test_plural_specific_cases(value: int, format_spec: str, expected: str) -> None:
     """Test the plural format function with unique plural cases"""
-    p = dynamo.utils.format.plural(value)
+    p = dynamo_format.plural(value)
     assert format(p, format_spec) == expected
 
 
@@ -97,7 +97,7 @@ def test_human_join(seq: list[str], conjunction: str, oxford_comma: bool) -> Non
     """Test the human_join function"""
     assume(not [s for s in seq if s == conjunction])
 
-    result = dynamo.utils.format.human_join(seq, conjunction=conjunction, oxford_comma=oxford_comma)
+    result = dynamo_format.human_join(seq, conjunction=conjunction, oxford_comma=oxford_comma)
     assert isinstance(result, str)
 
     if len(seq) == 0:

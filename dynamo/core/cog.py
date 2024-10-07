@@ -5,11 +5,10 @@ from typing import TYPE_CHECKING
 
 from discord.ext import commands
 
-from dynamo._types import RawSubmittable
-from dynamo.utils.helper import get_cog
+from dynamo.typedefs import RawSubmittable
 
 if TYPE_CHECKING:
-    from dynamo.core import Dynamo
+    from dynamo import Dynamo
 
 type Submittables = dict[str, type[RawSubmittable]]
 
@@ -26,7 +25,7 @@ class Cog(commands.Cog):
         raw_button_submits: Submittables | None = None,
     ) -> None:
         self.bot: Dynamo = bot
-        self.log = logging.getLogger(get_cog(self.__class__.__name__))
+        self.log = logging.getLogger(self.bot.get_cog_name(self.__class__.__name__))
         if raw_modal_submits is not None:
             self.bot.raw_modal_submits.update(raw_modal_submits)
         if raw_button_submits is not None:

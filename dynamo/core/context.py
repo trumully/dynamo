@@ -9,7 +9,7 @@ from discord.ext import commands
 from discord.ui import View
 
 if TYPE_CHECKING:
-    from dynamo.core.bot import Dynamo
+    from dynamo.core.bot import Dynamo, Interaction  # noqa: F401
 
 
 class ConfirmationView(View):
@@ -28,7 +28,7 @@ class ConfirmationView(View):
         """Check if the interaction is from the author of the view"""
         return bool(interaction.user and interaction.user.id == self.author_id)
 
-    async def _defer_and_stop(self, interaction: discord.Interaction[Dynamo]) -> None:
+    async def _defer_and_stop(self, interaction: Interaction) -> None:
         """Defer the interaction and stop the view."""
         await interaction.response.defer()
         if self.delete_after and self.message:
@@ -45,19 +45,19 @@ class ConfirmationView(View):
             await self.message.delete()
 
     @discord.ui.button(label="Confirm", style=discord.ButtonStyle.green)
-    async def confirm[V: View](self, interaction: discord.Interaction[Dynamo], button: discord.ui.Button[V]) -> None:
+    async def confirm[V: View](self, interaction: Interaction, button: discord.ui.Button[V]) -> None:
         """Confirm the action"""
         self.value = True
         await self._defer_and_stop(interaction)
 
     @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red)
-    async def cancel[V: View](self, interaction: discord.Interaction[Dynamo], button: discord.ui.Button[V]) -> None:
+    async def cancel[V: View](self, interaction: Interaction, button: discord.ui.Button[V]) -> None:
         """Cancel the action"""
         await self._defer_and_stop(interaction)
 
 
 class Context(commands.Context["Dynamo"]):
-    bot: Dynamo
+    interaction: Interaction | None
 
     class Status(StrEnum):
         """Status emojis for the bot"""

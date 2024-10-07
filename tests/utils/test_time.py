@@ -4,9 +4,7 @@ import hypothesis.strategies as st
 from dateutil.relativedelta import relativedelta
 from hypothesis import given
 
-import dynamo.utils.time_utils
-
-UTC = datetime.timezone.utc
+from dynamo.utils import time_utils
 
 
 def aware_datetime(*args: int) -> datetime.datetime:
@@ -22,7 +20,7 @@ def aware_datetime(*args: int) -> datetime.datetime:
     datetime.datetime
         An aware datetime with UTC timezone.
     """
-    return datetime.datetime(*args, tzinfo=UTC)
+    return datetime.datetime(*args, tzinfo=datetime.UTC)
 
 
 def test_human_timedelta_basic() -> None:
@@ -31,15 +29,15 @@ def test_human_timedelta_basic() -> None:
     some_datetime = (2023, 1, 1, 12, 0, 0)
     now = aware_datetime(*some_datetime)
 
-    assert dynamo.utils.time_utils.human_timedelta(now, now) == "now"
-    assert dynamo.utils.time_utils.human_timedelta(now + datetime.timedelta(seconds=5), now) == "5 seconds"
-    assert dynamo.utils.time_utils.human_timedelta(now - datetime.timedelta(minutes=5), now) == "5 minutes ago"
-    assert dynamo.utils.time_utils.human_timedelta(now + relativedelta(years=1, months=2), now) == "1 year and 2 months"
+    assert time_utils.human_timedelta(now, now) == "now"
+    assert time_utils.human_timedelta(now + datetime.timedelta(seconds=5), now) == "5 seconds"
+    assert time_utils.human_timedelta(now - datetime.timedelta(minutes=5), now) == "5 minutes ago"
+    assert time_utils.human_timedelta(now + relativedelta(years=1, months=2), now) == "1 year and 2 months"
 
 
 @given(
-    dt=st.datetimes(timezones=st.just(UTC)),
-    source=st.datetimes(timezones=st.just(UTC)),
+    dt=st.datetimes(timezones=st.just(datetime.UTC)),
+    source=st.datetimes(timezones=st.just(datetime.UTC)),
     accuracy=st.integers() | st.none(),
     brief=st.booleans(),
     suffix=st.booleans(),
@@ -48,7 +46,7 @@ def test_human_timedelta_properties(
     dt: datetime.datetime, source: datetime.datetime, accuracy: int | None, brief: bool, suffix: bool
 ) -> None:
     """Tests that all the properties of human_timedelta work as expected."""
-    result = dynamo.utils.time_utils.human_timedelta(dt, source, accuracy, brief, suffix)
+    result = time_utils.human_timedelta(dt, source, accuracy, brief, suffix)
 
     # Validate output
     assert isinstance(result, str)

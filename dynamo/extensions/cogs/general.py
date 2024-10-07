@@ -5,19 +5,18 @@ from urllib.parse import urlparse
 import discord
 from discord.ext import commands
 
-from dynamo._types import MISSING
-from dynamo.core import Cog, Dynamo
+from dynamo import Cog, Context, Dynamo
+from dynamo.typedefs import MISSING
 from dynamo.utils import spotify
-from dynamo.utils.context import Context
 from dynamo.utils.converter import MemberLikeConverter
-from dynamo.utils.identicon import derive_seed, get_colors, get_identicon, seed_from_time
+from dynamo.utils.identicon import as_discord_color, derive_seed, get_colors, get_identicon, seed_from_time
 
 
-class General(Cog):
+class General(Cog, name="general"):
     """Generic commands"""
 
     async def generate_identicon(
-        self, seed: discord.Member | str | int, guild: discord.Guild | None
+        self, seed: discord.Member | str | int, pattern_size: int, fg_weight: float, guild: discord.Guild | None
     ) -> tuple[discord.Embed, discord.File]:
         """|coro|
 
@@ -43,14 +42,14 @@ class General(Cog):
 
         seed_to_use = derive_seed(name)
 
-        identicon: bytes = await get_identicon(seed_to_use)
+        identicon: bytes = await get_identicon(seed_to_use, pattern_size, fg_weight)
         file = discord.File(BytesIO(identicon), filename="identicon.png")
         fg, _ = get_colors(seed_to_use)
 
         cmd_mention = await self.bot.tree.find_mention_for("identicon", guild=guild)
         prefix = "d!" if guild is None else self.bot.prefixes.get(guild.id, ["d!", "d?"])[0]
         description = f"**Generate this identicon:**\n" f"> {cmd_mention} {name}\n" f"> {prefix}identicon {name}"
-        e = discord.Embed(title=name, description=description, color=fg.as_discord_color())
+        e = discord.Embed(title=name, description=description, color=as_discord_color(fg))
         e.set_image(url="attachment://identicon.png")
         return e, file
 
@@ -59,6 +58,8 @@ class General(Cog):
         self,
         ctx: Context,
         seed: discord.Member | str | int = commands.param(default=MISSING, converter=MemberLikeConverter),
+        pattern_size: commands.Range[int, 1, 32] = commands.param(default=6),
+        fg_weight: commands.Range[float, 0, 1] = commands.param(default=0.6),
     ) -> None:
         """Generate an identicon from a user or string
 
@@ -66,8 +67,13 @@ class General(Cog):
         ----------
         seed: discord.Member | str | int, optional
             The seed to use. Random seed if empty.
+        pattern_size: int, optional
+            The size of the pattern.
+        fg_weight: float, optional
+            The weight of the foreground color.
         """
-        embed, file = await self.generate_identicon(seed_from_time() if seed is MISSING else seed, ctx.guild)
+        seed_to_use = seed_from_time() if seed is MISSING else seed
+        embed, file = await self.generate_identicon(seed_to_use, pattern_size, fg_weight, ctx.guild)
         await ctx.send(embed=embed, file=file)
 
     @commands.hybrid_command(name="spotify", aliases=("sp", "applemusic"))

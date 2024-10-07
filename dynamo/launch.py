@@ -19,8 +19,8 @@ import click
 import pygit2
 import truststore
 
+from dynamo import Dynamo, setup_logging
 from dynamo._evt_policy import get_event_loop_policy
-from dynamo.core import Dynamo, setup_logging
 from dynamo.utils.format import plural
 from dynamo.utils.helper import platformdir, resolve_path_with_links, valid_token
 
@@ -106,11 +106,13 @@ def run_bot() -> None:
         for task in tasks:
             try:
                 if (exc := task.exception()) is not None:
-                    loop.call_exception_handler({
-                        "message": "Unhandled exception in task during shutdown.",
-                        "exception": exc,
-                        "task": task,
-                    })
+                    loop.call_exception_handler(
+                        {
+                            "message": "Unhandled exception in task during shutdown.",
+                            "exception": exc,
+                            "task": task,
+                        }
+                    )
             except (asyncio.InvalidStateError, asyncio.CancelledError):
                 pass
 

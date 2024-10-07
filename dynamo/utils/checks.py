@@ -3,8 +3,8 @@ from typing import Protocol
 
 from discord.ext import commands
 
-from dynamo._types import Coro
-from dynamo.utils.context import Context
+from dynamo import Context
+from dynamo.typedefs import Coro
 
 
 class Check(Protocol):

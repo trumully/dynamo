@@ -6,15 +6,13 @@ from discord import app_commands
 from discord.ext import commands
 from rapidfuzz import fuzz
 
-from dynamo._types import Coro, NotFoundWithHelp, app_command_error_messages, command_error_messages
-from dynamo.core import Cog, Dynamo
-from dynamo.core.bot import Interaction
-from dynamo.utils.context import Context
+from dynamo import Cog, Context, Dynamo, Interaction
+from dynamo.typedefs import Coro, NotFoundWithHelp, app_command_error_messages, command_error_messages
 
 type AppCommandErrorMethod = Callable[[Interaction, app_commands.AppCommandError], Coro[None]]
 
 
-class Errors(Cog):
+class Errors(Cog, name="errors"):
     """Handles errors for the bot."""
 
     def __init__(self, bot: Dynamo) -> None:

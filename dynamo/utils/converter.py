@@ -7,7 +7,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from dynamo.core.bot import Interaction
-from dynamo.utils.context import Context
+from dynamo.core.context import Context
 
 BotT_co = TypeVar("BotT_co", bound=commands.Bot | commands.AutoShardedBot, covariant=True)
 GuildLike_co = TypeVar("GuildLike_co", bound=discord.Guild | str, covariant=True)

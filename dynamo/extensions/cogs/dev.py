@@ -1,26 +1,23 @@
-import contextlib
 import importlib
 import importlib.abc
 import importlib.metadata
 import sys
-from collections.abc import AsyncGenerator, Callable
+from collections.abc import Callable
 from typing import Literal, cast
 
 import discord
 from discord.ext import commands
 
-from dynamo._types import Coro
-from dynamo.core import Cog, Dynamo
+from dynamo import Cog, Context, Dynamo
 from dynamo.core.bot import Emojis
+from dynamo.typedefs import Coro
 from dynamo.utils.checks import is_owner
-from dynamo.utils.context import Context
 from dynamo.utils.format import code_block
-from dynamo.utils.helper import get_cog
 
 type SyncSpec = Literal["~", "*", "^"]
 
 
-class Dev(Cog):
+class Dev(Cog, name="dev"):
     """Dev-only commands"""
 
     def __init__(self, bot: Dynamo) -> None:
@@ -28,7 +25,7 @@ class Dev(Cog):
 
     async def _execute_extension_action(self, action: Callable[[str], Coro[None]], cog: str) -> bool:
         try:
-            await action(get_cog(cog))
+            await action(self.bot.get_cog_name(cog))
         except commands.ExtensionError:
             self.log.exception("Action '%s' failed for cog %s", action.__name__, cog)
             return False
@@ -65,8 +62,7 @@ class Dev(Cog):
         return await self.bot.tree.sync()
 
     async def _sync_to_guilds(self, guilds: commands.Greedy[discord.Object]) -> int:
-        async with contextlib.aclosing(cast(AsyncGenerator[discord.Guild], guilds)) as gen:
-            results: list[bool] = [await self._sync_guild(guild) async for guild in gen]
+        results: list[bool] = [await self._sync_guild(cast(discord.Guild, guild)) for guild in guilds]
         return sum(results)
 
     async def _sync_guild(self, guild: discord.Guild) -> bool:
@@ -132,8 +128,7 @@ class Dev(Cog):
     @is_owner()
     async def reload_all(self, ctx: Context) -> None:
         """Reload extensions and utils"""
-        confirm = await ctx.prompt("Are you sure you want to reload all extensions and utils?")
-        if not confirm:
+        if not await ctx.prompt("Are you sure you want to reload all extensions and utils?"):
             return
 
         extensions = await self._reload_extensions()
@@ -145,12 +140,13 @@ class Dev(Cog):
 
         await ctx.send(self._pretty_results(extensions, utils))
 
-    @staticmethod
-    def _pretty_results(extensions: list[tuple[Context.Status, str]], utils: list[tuple[Context.Status, str]]) -> str:
+    def _pretty_results(
+        self, extensions: list[tuple[Context.Status, str]], utils: list[tuple[Context.Status, str]]
+    ) -> str:
         result = ""
         if extensions:
             result += "### Extensions\n"
-            result += "\n".join(f"> {status.value}\t`{get_cog(name)}`" for status, name in extensions)
+            result += "\n".join(f"> {status.value}\t`{self.bot.get_cog_name(name)}`" for status, name in extensions)
         if utils:
             result += f"{'\n' if extensions else ''}"
             result += "### Utils\n"

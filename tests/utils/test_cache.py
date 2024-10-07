@@ -4,7 +4,7 @@ import pytest
 from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 
-import dynamo.utils.cache
+from dynamo.utils.cache import async_cache
 
 
 @pytest.mark.asyncio
@@ -14,7 +14,7 @@ async def test_future_lru_cache_basic(first: int, second: int) -> None:
     """Tests that functions are cached and hits/misses are counted correctly."""
     assume(first != second)
 
-    @dynamo.utils.cache.async_cache
+    @async_cache
     async def async_cacheable(x: int) -> int:
         await asyncio.sleep(0.001)
         return x * 2
@@ -39,7 +39,7 @@ async def test_future_lru_cache_basic(first: int, second: int) -> None:
 async def test_future_lru_cache_property(inputs: list[int]) -> None:
     """Tests that the cache properties are correctly updated."""
 
-    @dynamo.utils.cache.async_cache(maxsize=5)
+    @async_cache(maxsize=5)
     async def async_cacheable_sized(x: int) -> int:
         await asyncio.sleep(0.001)
         return x * 2
@@ -64,7 +64,7 @@ async def test_future_lru_cache_property(inputs: list[int]) -> None:
 async def test_future_lru_cache_clear(inputs: list[int]) -> None:
     """Tests that the cache can be cleared."""
 
-    @dynamo.utils.cache.async_cache(maxsize=5)
+    @async_cache(maxsize=5)
     async def async_cacheable_sized(x: int) -> int:
         await asyncio.sleep(0.001)
         return x * 2
@@ -85,7 +85,7 @@ async def test_future_lru_cache_clear(inputs: list[int]) -> None:
 async def test_maxsize_enforcement(inputs: list[int]) -> None:
     """Test that the cache enforces the maxsize."""
 
-    @dynamo.utils.cache.async_cache(maxsize=5)
+    @async_cache(maxsize=5)
     async def async_cacheable_sized(x: int) -> int:
         await asyncio.sleep(0.001)
         return x * 2
@@ -106,7 +106,7 @@ async def test_future_lru_cache_stampede_resistance(inputs: list[int]) -> None:
 
     call_count = 0
 
-    @dynamo.utils.cache.async_cache
+    @async_cache
     async def slow_function(x: int) -> int:
         nonlocal call_count
         call_count += 1

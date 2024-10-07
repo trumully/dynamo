@@ -1,16 +1,14 @@
 from __future__ import annotations
 
-import contextlib
-from collections.abc import AsyncGenerator
 from typing import Any, NoReturn, cast
 
 import discord
 from discord.ext import commands
 
-from dynamo.core import Cog, Dynamo
+from dynamo import Cog, Context, Dynamo
 from dynamo.utils.cache import async_cache
-from dynamo.utils.context import Context
 from dynamo.utils.format import shorten_string
+from dynamo.utils.helper import process_async_iterable
 
 
 def event_to_option(event: discord.ScheduledEvent) -> discord.SelectOption:
@@ -77,9 +75,7 @@ async def get_interested(event: discord.ScheduledEvent) -> str:
         `[Event Name](Event URL) <@User1> <@User2> ...`
         Designed to be copied and pasted.
     """
-    # https://peps.python.org/pep-0533/
-    async with contextlib.aclosing(cast(AsyncGenerator[discord.User], event.users())) as gen:
-        users: list[discord.User] = [u async for u in gen]
+    users = await process_async_iterable(event.users())
     return f"`[{event.name}]({event.url}) {" ".join(u.mention for u in users) or "No users found"}`"
 
 
@@ -121,7 +117,7 @@ async def event_check(guild: discord.Guild, event_id: int | None = None) -> str 
     return await get_interested(event)
 
 
-class Events(Cog):
+class Events(Cog, name="events"):
     """Scheduled event related commands"""
 
     def __init__(self, bot: Dynamo) -> None:

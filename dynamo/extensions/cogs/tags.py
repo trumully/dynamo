@@ -8,8 +8,7 @@ from discord.app_commands import Choice, Range
 from discord.ext import commands
 from msgspec import msgpack
 
-from dynamo.core import Cog, Dynamo
-from dynamo.core.bot import Interaction
+from dynamo import Cog, Dynamo, Interaction
 from dynamo.utils.cache import Trie, async_cache
 
 

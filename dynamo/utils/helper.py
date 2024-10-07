@@ -1,5 +1,8 @@
 import re
+from collections.abc import AsyncGenerator, AsyncIterable
+from contextlib import aclosing
 from pathlib import Path
+from typing import cast
 
 import platformdirs
 
@@ -40,6 +43,12 @@ def valid_token(token: str) -> bool:
     pattern = re.compile(r"[MNO][a-zA-Z\d_-]{23,25}\.[a-zA-Z\d_-]{6}\.[a-zA-Z\d_-]{27}")
     return bool(pattern.match(token))
 
+async def process_async_iterable[T](seq: AsyncIterable[T]) -> list[T]:
+    """Safely process an async iterable
 
-def get_cog(name: str) -> str:
-    return f"dynamo.extensions.cogs.{name.lower()}"
+    See
+    ---
+    - https://peps.python.org/pep-0533/
+    """
+    async with aclosing(cast(AsyncGenerator[T, None], seq)) as gen:
+        return [item async for item in gen]

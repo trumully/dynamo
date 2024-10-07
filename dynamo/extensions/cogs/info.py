@@ -9,8 +9,7 @@ import psutil
 import pygit2
 from discord.ext import commands
 
-from dynamo.core import Cog, Dynamo
-from dynamo.utils.context import Context
+from dynamo import Cog, Context, Dynamo
 from dynamo.utils.converter import MemberLikeConverter
 from dynamo.utils.time_utils import format_relative, human_timedelta
 
@@ -44,7 +43,7 @@ def embed_from_user(user: discord.Member | discord.User) -> discord.Embed:
     return embed
 
 
-class Info(Cog):
+class Info(Cog, name="info"):
     """Statistics commands"""
 
     def __init__(self, bot: Dynamo) -> None:

@@ -58,7 +58,12 @@ def human_join(seq: Sequence[str], sep: str = ", ", conjunction: str = "or", *, 
     return f"{sep.join(seq[:-1])}{sep if oxford_comma else " "}{conjunction} {seq[-1]}"
 
 
-def code_block(content: str, language: str = "") -> str:
+def code_block(content: str, language: str = "", *, line_numbers: bool = False) -> str:
+    if line_numbers:
+        lines = content.split("\n")
+        numbered_lines = [f"{i+1:3d} {line}" for i, line in enumerate(lines)]
+        numbered_content = "\n".join(numbered_lines)
+        return f"```{language}\n{numbered_content}\n```"
     return f"```{language}\n{content}\n```"
 
 
