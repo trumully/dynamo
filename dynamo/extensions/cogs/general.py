@@ -80,7 +80,7 @@ class General(Cog, name="general"):
     async def spotify(
         self,
         ctx: Context,
-        user: discord.User | discord.Member | None = commands.param(default=None, converter=MemberLikeConverter),
+        user: discord.User | discord.Member | str | None = commands.param(default=None, converter=MemberLikeConverter),
     ) -> None:
         """Get the currently playing Spotify track for a user.
 
@@ -92,7 +92,7 @@ class General(Cog, name="general"):
         if user is None:
             user = ctx.author
 
-        if user.bot:
+        if isinstance(user, str) or user.bot:
             return
 
         activities = cast(discord.Member, user).activities

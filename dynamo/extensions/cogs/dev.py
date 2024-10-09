@@ -97,7 +97,7 @@ class Dev(Cog, name="dev"):
     async def _reload_extension(self, module: str) -> bool:
         result = await self._execute_extension_action(self.bot.reload_extension, module)
         if not result:
-            result = await self._execute_extension_action(self.bot.load_extension, module)
+            return await self._execute_extension_action(self.bot.load_extension, module)
         return result
 
     def _reload_utils(self) -> list[tuple[Context.Status, str]]:
@@ -134,11 +134,7 @@ class Dev(Cog, name="dev"):
         extensions = await self._reload_extensions()
         utils = self._reload_utils()
 
-        if not extensions and not utils:
-            await ctx.send("No extensions or utils to reload.")
-            return
-
-        await ctx.send(self._pretty_results(extensions, utils))
+        await ctx.send(self._pretty_results(extensions, utils) or "No extensions or utils to reload.")
 
     def _pretty_results(
         self, extensions: list[tuple[Context.Status, str]], utils: list[tuple[Context.Status, str]]

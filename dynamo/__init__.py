@@ -6,7 +6,6 @@ __all__ = (
     "Dynamo",
     "Context",
     "Interaction",
-    "Tree",
     "setup_logging",
     "utils",
 )
@@ -14,4 +13,3 @@ __all__ = (
 from dynamo.core.bot import Dynamo, Interaction
 from dynamo.core.cog import Cog
 from dynamo.core.context import Context
-from dynamo.core.tree import Tree

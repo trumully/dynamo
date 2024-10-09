@@ -1,6 +1,7 @@
 PRAGMA foreign_keys = ON;
 PRAGMA journal_mode = "wal";
 PRAGMA synchronous = "NORMAL";
+PRAGMA temp_store = "memory";
 
 CREATE TABLE IF NOT EXISTS discord_users (
     user_id INTEGER PRIMARY KEY NOT NULL,

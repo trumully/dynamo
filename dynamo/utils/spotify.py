@@ -57,9 +57,11 @@ PROGRESS_BAR_HEIGHT: int = 6
 PROGRESS_BAR_Y: int = LAYOUT["height"] - LAYOUT["padding"] - LAYOUT["border"] - PROGRESS_BAR_HEIGHT - 30
 PROGRESS_TEXT_Y: int = LAYOUT["height"] - LAYOUT["padding"] - LAYOUT["border"] - 24
 
-SLIDING_SPEED: int = 6  # pixels per frame
-MAX_FRAMES: int = 480  # number of frames for sliding animation
-FRAME_DURATION: int = 50  # duration of each frame in milliseconds
+BASE_SLIDING_SPEED: int = 2
+MAX_SLIDING_SPEED: int = 10
+TOTAL_ANIMATION_TIME: int = 1000
+MIN_FRAME_DURATION: int = 30
+MAX_FRAME_DURATION: int = 100
 
 
 @contextmanager
@@ -160,8 +162,21 @@ def draw_animated_image(
     artist_font: ImageFont.FreeTypeFont,
     available_width: int,
 ) -> tuple[BytesIO, str]:
-    frames = list(create_animated_frames(base, args, title_font, artist_font, available_width))
-    return save_image(frames[0], "GIF", save_all=True, append_images=frames[1:], duration=FRAME_DURATION, loop=0)
+    text_frames = list(draw_text_scroll(title_font, args.name, available_width))
+    spotify_logo = Image.open(SPOTIFY_LOGO_PATH).resize((LAYOUT["logo_size"], LAYOUT["logo_size"]))
+    static_args = StaticDrawArgs(args.artists, artist_font, args.duration, args.end, spotify_logo)
+
+    frames: list[Image.Image] = []
+    for text_frame in text_frames:
+        frame = base.copy()
+        frame.paste(text_frame, (CONTENT_START_X, TITLE_START_Y), text_frame)
+        draw_static_elements(ImageDraw.Draw(frame), frame, static_args)
+        frames.append(frame)
+
+    # Calculate frame duration based on the number of frames
+    frame_duration = min(max(TOTAL_ANIMATION_TIME // len(frames), MIN_FRAME_DURATION), MAX_FRAME_DURATION)
+
+    return save_image(frames[0], "GIF", save_all=True, append_images=frames[1:], duration=frame_duration, loop=0)
 
 
 def save_image(image: Image.Image, image_format: str, **kwargs: Any) -> tuple[BytesIO, str]:
@@ -278,19 +293,29 @@ def draw_text_scroll(font: ImageFont.FreeTypeFont, text: str, width: int) -> Gen
         yield create_text_frame(text, width, text_height, font)
         return
 
-    full_text = text + "   " + text
-    full_text_width = int(font.getbbox(full_text)[2])
+    # Add padding to ensure smooth transition
+    padded_text = text + "   " + text
+    full_width = int(font.getbbox(padded_text)[2])
 
-    total_frames = 30 + (full_text_width // SLIDING_SPEED)
+    # Calculate the number of frames based on TOTAL_ANIMATION_TIME and MIN_FRAME_DURATION
+    max_frames = TOTAL_ANIMATION_TIME // MIN_FRAME_DURATION
 
-    for i in range(total_frames):
-        x_pos = 0 if i < 30 else -((i - 30) * SLIDING_SPEED) % full_text_width
-        yield create_text_frame(full_text, width, text_height, font, x_pos)
+    # Calculate the sliding speed based on text length
+    sliding_speed = min(MAX_SLIDING_SPEED, max(BASE_SLIDING_SPEED, full_width // max_frames))
+
+    # Calculate the number of frames needed for one complete cycle
+    num_frames = min(max_frames, full_width // sliding_speed)
+
+    for i in range(num_frames):
+        x_pos = -i * sliding_speed % full_width
+        yield create_text_frame(padded_text, width, text_height, font, x_pos)
 
 
 def create_text_frame(text: str, width: int, height: int, font: ImageFont.FreeTypeFont, x_pos: int = 0) -> Image.Image:
     frame = Image.new("RGBA", (width, height))
-    ImageDraw.Draw(frame).text((x_pos, 0), text, fill=COLORS["text"], font=font)  # type: ignore
+    draw = ImageDraw.Draw(frame)
+    draw.text((x_pos, 0), text, fill=COLORS["text"], font=font)  # type: ignore
+    draw.text((x_pos + font.getbbox(text)[2], 0), text, fill=COLORS["text"], font=font)  # type: ignore
     return frame
 
 

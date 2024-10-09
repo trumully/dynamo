@@ -21,7 +21,7 @@ def derive_seed(precursor: str | int) -> int:
     """Generate a seed from a string or int"""
     encoded_precursor = str(precursor).encode()
     hashed = hashlib.sha256(encoded_precursor).digest()
-    return int.from_bytes(hashed[:8], byteorder="big", signed=True)
+    return int.from_bytes(hashed[:8], byteorder="big", signed=False)
 
 
 # Maximum distances (derived from distance between black and white)

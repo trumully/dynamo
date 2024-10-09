@@ -53,6 +53,34 @@ class Trie:
             self._dfs(child, current + char, results)
 
 
+@final
+class LRU[K, V]:
+    def __init__(self, maxsize: int, /) -> None:
+        self.cache: OrderedDict[K, V] = OrderedDict()
+        self.maxsize = maxsize
+
+    def get[T](self, key: K, default: T, /) -> V | T:
+        if key not in self.cache:
+            return default
+        self.cache.move_to_end(key)
+        return self.cache[key]
+
+    def __getitem__(self, key: K, /) -> V:
+        value = self.cache[key]
+        self.cache.move_to_end(key)
+        return value
+
+    def __setitem__(self, key: K, value: V, /) -> None:
+        if key in self.cache:
+            del self.cache[key]
+        elif len(self.cache) >= self.maxsize:
+            self.cache.popitem(last=False)
+        self.cache[key] = value
+
+    def remove(self, key: K, /) -> None:
+        self.cache.pop(key, None)
+
+
 WRAPPER_ASSIGNMENTS = ("__module__", "__name__", "__qualname__", "__doc__", "__annotations__", "__type_params__")
 WRAPPER_UPDATES = ("__dict__",)
 FAST_TYPES: set[type] = {int, str, float, bytes, type(None)}
@@ -255,14 +283,21 @@ def _cache_wrapper[**P, T](coro: WrappedCoro[P, T], maxsize: int | None, ttl: fl
 
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> asyncio.Task[T]:
         key: Hashable = make_key(args, kwargs)
+        to_log = (
+            f"{coro.__name__}("
+            f"{', '.join(map(str, args))}"
+            f"{', ' if kwargs else ''}"
+            f"{', '.join(f'{k}={v!r}' for k, v in kwargs.items())}"
+            f")"
+        )
 
         with lock:
             future = cache_get(key, sentinel)
             if future is not sentinel:
-                log.debug("Cache hit for %s", args)
+                log.debug("Cache hit for %s", to_log)
                 _cache_info.hits += 1
                 return task_from_future(future)
-        log.debug("Cache miss for %s", args)
+        log.debug("Cache miss for %s", to_log)
         _cache_info.misses += 1
         future: asyncio.Future[T] = asyncio.get_running_loop().create_future()
 
@@ -294,7 +329,7 @@ def _cache_wrapper[**P, T](coro: WrappedCoro[P, T], maxsize: int | None, ttl: fl
                 future.set_result(result)
             except Exception as e:
                 future.set_exception(e)
-                log.exception("Error in cached coroutine %s", coro.__name__)
+                log.exception("Error in cached coroutine %s", to_log)
                 raise
             return result
 
