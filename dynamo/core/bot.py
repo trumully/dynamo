@@ -141,7 +141,7 @@ class Tree(app_commands.CommandTree["Dynamo"]):
 
     def _walk_children[CogT: commands.Cog, **P, T](
         self, commands: list[AppCommandT[CogT, P, T]]
-    ) -> Generator[AppCommandT[CogT, P, T], None, None]:
+    ) -> Generator[AppCommandT[CogT, P, T]]:
         for command in commands:
             if isinstance(command, app_commands.Group):
                 cmds: list[AppCommandT[CogT, P, T]] = cast(list[AppCommandT[CogT, P, T]], command.commands)
@@ -151,7 +151,7 @@ class Tree(app_commands.CommandTree["Dynamo"]):
 
     async def walk_mentions[CogT: commands.Cog, **P, T](
         self, *, guild: MaybeSnowflake = None
-    ) -> AsyncGenerator[tuple[AppCommandT[CogT, P, T], str], None]:
+    ) -> AsyncGenerator[tuple[AppCommandT[CogT, P, T], str]]:
         commands = cast(
             list[AppCommandT[CogT, P, T]], self.get_commands(guild=guild, type=discord.AppCommandType.chat_input)
         )

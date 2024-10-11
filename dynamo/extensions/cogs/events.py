@@ -127,12 +127,14 @@ class Events(Cog, name="events"):
     @commands.hybrid_command(name="event")
     @commands.guild_only()
     async def event(self, ctx: Context, event_id: int | None = None) -> None:
-        """Get a list of members subscribed to an event
+        """Get attendees of an event
+
+        A dropdown of guild events is shown by default.
 
         Parameters
         ----------
         event_id: int | None, optional
-            The event ID to get attendees of
+            The ID of the event.
         """
         if ctx.guild is None or ctx.author.id in self.active_users:
             return
@@ -167,7 +169,7 @@ class Events(Cog, name="events"):
         if ctx.author.id in self.active_users:
             self.active_users.remove(ctx.author.id)
         await ctx.send(f"Something went wrong: {error!s}")
-        raise error
+        raise error from None
 
 
 async def setup(bot: Dynamo) -> None:

@@ -61,7 +61,7 @@ def human_join(seq: Sequence[str], sep: str = ", ", conjunction: str = "or", *, 
 def code_block(content: str, language: str = "", *, line_numbers: bool = False) -> str:
     if line_numbers:
         lines = content.split("\n")
-        numbered_lines = [f"{i+1:2d} {line}" for i, line in enumerate(lines)]
+        numbered_lines = [f"{i + 1:2d} {line}" for i, line in enumerate(lines)]
         numbered_content = "\n".join(numbered_lines)
         return f"```{language}\n{numbered_content}\n```"
     return f"```{language}\n{content}\n```"

@@ -12,7 +12,7 @@ log = logging.getLogger(__name__)
 
 
 @contextmanager
-def time_it(func_name: str) -> Generator[None, None, None]:
+def time_it(func_name: str) -> Generator[None]:
     start = time.perf_counter()
     yield
     end = time.perf_counter()

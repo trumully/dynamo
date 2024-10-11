@@ -76,21 +76,39 @@ class Dev(Cog, name="dev"):
     @commands.hybrid_command(name="load", aliases=("l",))
     @is_owner()
     async def load(self, ctx: Context, *, module: str) -> None:
-        """Load a cog"""
+        """Load a cog
+
+        Parameters
+        ----------
+        module : str
+            The name of the module to load
+        """
         success = await self._execute_extension_action(self.bot.load_extension, module)
         await ctx.message.add_reaction(ctx.Status.OK if success else ctx.Status.FAILURE)
 
     @commands.hybrid_command(aliases=("ul",))
     @is_owner()
     async def unload(self, ctx: Context, *, module: str) -> None:
-        """Unload a cog"""
+        """Unload a cog
+
+        Parameters
+        ----------
+        module : str
+            The name of the module to unload
+        """
         success = await self._execute_extension_action(self.bot.unload_extension, module)
         await ctx.message.add_reaction(ctx.Status.OK if success else ctx.Status.FAILURE)
 
     @commands.hybrid_group(name="reload", aliases=("r",), invoke_without_command=True)
     @is_owner()
     async def _reload(self, ctx: Context, *, module: str) -> None:
-        """Reload a cog."""
+        """Reload a cog.
+
+        Parameters
+        ----------
+        module : str
+            The name of the module to reload
+        """
         success = await self._reload_extension(module)
         await ctx.message.add_reaction(ctx.Status.OK if success else ctx.Status.FAILURE)
 
@@ -144,7 +162,7 @@ class Dev(Cog, name="dev"):
             result += "### Extensions\n"
             result += "\n".join(f"> {status.value}\t`{self.bot.get_cog_name(name)}`" for status, name in extensions)
         if utils:
-            result += f"{'\n' if extensions else ''}"
+            result += f"{"\n" if extensions else ""}"
             result += "### Utils\n"
             result += "\n".join(f"> {status.value}\t`{name}`" for status, name in utils)
         return result

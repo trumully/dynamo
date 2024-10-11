@@ -65,7 +65,7 @@ MAX_FRAME_DURATION: int = 100
 
 
 @contextmanager
-def open_image_bytes(image: bytes) -> Generator[Image.Image, None, None]:
+def open_image_bytes(image: bytes) -> Generator[Image.Image]:
     buffer = BytesIO(image)
     buffer.seek(0)
     try:
@@ -274,7 +274,7 @@ def create_animated_frames(
     title_font: ImageFont.FreeTypeFont,
     artist_font: ImageFont.FreeTypeFont,
     available_width: int,
-) -> Generator[Image.Image, None, None]:
+) -> Generator[Image.Image]:
     text_frames = list(draw_text_scroll(title_font, args.name, available_width))
     spotify_logo = Image.open(SPOTIFY_LOGO_PATH).resize((LAYOUT["logo_size"], LAYOUT["logo_size"]))
     static_args = StaticDrawArgs(args.artists, artist_font, args.duration, args.end, spotify_logo)
@@ -286,7 +286,7 @@ def create_animated_frames(
         yield frame
 
 
-def draw_text_scroll(font: ImageFont.FreeTypeFont, text: str, width: int) -> Generator[Image.Image, None, None]:
+def draw_text_scroll(font: ImageFont.FreeTypeFont, text: str, width: int) -> Generator[Image.Image]:
     text_width, text_height = (int(x) for x in font.getbbox(text)[2:4])
 
     if text_width <= width:

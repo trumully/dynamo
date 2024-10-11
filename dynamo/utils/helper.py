@@ -43,6 +43,7 @@ def valid_token(token: str) -> bool:
     pattern = re.compile(r"[MNO][a-zA-Z\d_-]{23,25}\.[a-zA-Z\d_-]{6}\.[a-zA-Z\d_-]{27}")
     return bool(pattern.match(token))
 
+
 async def process_async_iterable[T](seq: AsyncIterable[T]) -> list[T]:
     """Safely process an async iterable
 
@@ -50,5 +51,5 @@ async def process_async_iterable[T](seq: AsyncIterable[T]) -> list[T]:
     ---
     - https://peps.python.org/pep-0533/
     """
-    async with aclosing(cast(AsyncGenerator[T, None], seq)) as gen:
+    async with aclosing(cast(AsyncGenerator[T], seq)) as gen:
         return [item async for item in gen]

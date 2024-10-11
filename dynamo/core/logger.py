@@ -18,7 +18,7 @@ class RemoveNoise(logging.Filter):
 
 
 @contextmanager
-def setup_logging(log_level: int = logging.INFO) -> Generator[None, Any, None]:
+def setup_logging(log_level: int = logging.INFO) -> Generator[None, Any]:
     q: queue.SimpleQueue[Any] = queue.SimpleQueue()
     q_handler = logging.handlers.QueueHandler(q)
     q_handler.addFilter(RemoveNoise())
