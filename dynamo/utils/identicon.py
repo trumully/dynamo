@@ -16,20 +16,18 @@ from dynamo.utils.wrappers import executor_function
 # 0.0 = same color | 1.0 = different color
 COLOR_THRESHOLD = 0.4
 
+# Maximum distances (derived from distance between black and white)
+MAX_PERCEIVED_DISTANCE = 764.83
+MAX_EUCLIDEAN_DISTANCE = 441.67
+
+type RGB = tuple[int, int, int]
+
 
 def derive_seed(precursor: str | int) -> int:
     """Generate a seed from a string or int"""
     encoded_precursor = str(precursor).encode()
     hashed = hashlib.sha256(encoded_precursor).digest()
     return int.from_bytes(hashed[:8], byteorder="big", signed=False)
-
-
-# Maximum distances (derived from distance between black and white)
-MAX_PERCEIVED_DISTANCE = 764.83
-MAX_EUCLIDEAN_DISTANCE = 441.67
-
-
-type RGB = tuple[int, int, int]
 
 
 def clamp_rgb(r: int, g: int, b: int) -> RGB:

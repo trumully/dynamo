@@ -27,8 +27,8 @@ type MaybeSnowflake = discord.abc.Snowflake | None
 
 
 type Coro[T] = Coroutine[Any, Any, T]
-type WrappedCoro[**P, T] = Callable[P, Coro[T]]
-type DecoratedCoro[**P, T] = Callable[[WrappedCoro[P, T]], T]
+type CoroFunction[**P, T] = Callable[P, Coro[T]]
+type DecoratedCoro[**P, T] = Callable[[CoroFunction[P, T]], T]
 
 
 class NotFoundWithHelp(commands.CommandError): ...

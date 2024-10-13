@@ -2,7 +2,6 @@ import importlib
 import importlib.abc
 import importlib.metadata
 import sys
-from collections.abc import Callable
 from typing import Literal, cast
 
 import discord
@@ -10,7 +9,7 @@ from discord.ext import commands
 
 from dynamo import Cog, Context, Dynamo
 from dynamo.core.bot import Emojis
-from dynamo.typedefs import Coro
+from dynamo.typedefs import CoroFunction
 from dynamo.utils.checks import is_owner
 from dynamo.utils.format import code_block
 
@@ -23,7 +22,7 @@ class Dev(Cog, name="dev"):
     def __init__(self, bot: Dynamo) -> None:
         super().__init__(bot)
 
-    async def _execute_extension_action(self, action: Callable[[str], Coro[None]], cog: str) -> bool:
+    async def _execute_extension_action(self, action: CoroFunction[[str], None], cog: str) -> bool:
         try:
             await action(self.bot.get_cog_name(cog))
         except commands.ExtensionError:

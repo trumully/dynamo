@@ -1,3 +1,4 @@
+import importlib.resources
 import re
 from collections.abc import AsyncGenerator, AsyncIterable
 from contextlib import aclosing
@@ -25,7 +26,7 @@ def resolve_path_with_links(path: Path, /, folder: bool = False) -> Path:
         return path.resolve(strict=True)
 
 
-ROOT = resolve_path_with_links(Path(__file__).parent.parent.parent, folder=True)
+ROOT = Path(str(importlib.resources.files("dynamo"))).parent.parent
 
 
 def valid_token(token: str) -> bool:
@@ -38,7 +39,6 @@ def valid_token(token: str) -> bool:
     See
     ---
     - https://discord.com/developers/docs/reference#authentication
-    - https://github.com/Yelp/detect-secrets/blob/master/detect_secrets/plugins/discord.py
     """
     pattern = re.compile(r"[MNO][a-zA-Z\d_-]{23,25}\.[a-zA-Z\d_-]{6}\.[a-zA-Z\d_-]{27}")
     return bool(pattern.match(token))

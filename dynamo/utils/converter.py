@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, TypeVar, cast
+from typing import Any, cast
 
 import discord
 from discord import app_commands
@@ -9,16 +9,13 @@ from discord.ext import commands
 from dynamo.core.bot import Interaction
 from dynamo.core.context import Context
 
-BotT_co = TypeVar("BotT_co", bound=commands.Bot | commands.AutoShardedBot, covariant=True)
-GuildLike_co = TypeVar("GuildLike_co", bound=discord.Guild | str, covariant=True)
-MemberLike_co = TypeVar("MemberLike_co", bound=discord.Member | str, covariant=True)
-T_co = TypeVar("T_co", bound=Any, covariant=True)
+type BotT = commands.Bot | commands.AutoShardedBot
 
 
-class ConverterMixin(commands.Converter[T_co], app_commands.Transformer):
-    """A mixin for converting values."""
+class ConverterMixin[T: Any](commands.Converter[T], app_commands.Transformer):
+    """A mixin of a converter and a transformer."""
 
-    async def transform(self, interaction: discord.Interaction, value: Any, /) -> T_co:
+    async def transform(self, interaction: discord.Interaction, value: Any, /) -> T:
         ctx = await Context.from_interaction(cast(Interaction, interaction))
         return await self.convert(ctx, value)
 
@@ -27,31 +24,31 @@ class ConverterMixin(commands.Converter[T_co], app_commands.Transformer):
         return NotImplemented
 
 
-class GuildConverter(ConverterMixin[GuildLike_co]):
+class GuildConverter[GuildLike: discord.Guild | str](ConverterMixin[GuildLike]):
     """Convert an argument to a guild. If not found, return the current guild. If there's no guild at all,
     return the argument."""
 
-    async def convert(self, ctx: commands.Context[BotT_co], argument: str) -> GuildLike_co:
+    async def convert(self, ctx: commands.Context[BotT], argument: str) -> GuildLike:
         try:
             result = await commands.GuildConverter().convert(ctx, argument)
         except commands.GuildNotFound:
             result = argument if ctx.guild is None else ctx.guild
-        return cast(GuildLike_co, result)
+        return cast(GuildLike, result)
 
     @property
     def type(self) -> discord.AppCommandOptionType:
         return discord.AppCommandOptionType.number
 
 
-class MemberLikeConverter(ConverterMixin[MemberLike_co]):
+class MemberLikeConverter[MemberLike: discord.Member | str](ConverterMixin[MemberLike]):
     """Convert a given string to a member type if it is valid."""
 
-    async def convert(self, ctx: commands.Context[BotT_co], argument: str | discord.Member) -> MemberLike_co:
+    async def convert(self, ctx: commands.Context[BotT], argument: str | discord.Member) -> MemberLike:
         try:
             result = await commands.MemberConverter().convert(ctx, str(argument))
         except commands.MemberNotFound:
             result = argument
-        return cast(MemberLike_co, result)
+        return cast(MemberLike, result)
 
     @property
     def type(self) -> discord.AppCommandOptionType:

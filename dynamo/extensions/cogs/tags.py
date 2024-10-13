@@ -39,7 +39,7 @@ class TagModal(discord.ui.Modal):
     ) -> None:
         discord_safe = b2048_pack((author_id, tag_name))
         custom_id = f"m:tag:{discord_safe}"
-        super().__init__(title=title, timeout=10, custom_id=custom_id)
+        super().__init__(title=title, timeout=timeout, custom_id=custom_id)
 
     @staticmethod
     async def raw_submit(itx: Interaction, data: str) -> None:

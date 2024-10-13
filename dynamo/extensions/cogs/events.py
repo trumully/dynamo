@@ -4,6 +4,7 @@ from typing import Any, NoReturn, cast
 
 import discord
 from discord.ext import commands
+from discord.ui import View
 
 from dynamo import Cog, Context, Dynamo
 from dynamo.utils.cache import async_cache
@@ -17,7 +18,7 @@ def event_to_option(event: discord.ScheduledEvent) -> discord.SelectOption:
     return discord.SelectOption(label=event.name, value=str(event.id), description=description)
 
 
-class EventsDropdown[V: discord.ui.View](discord.ui.Select[V]):
+class EventsDropdown[V: View](discord.ui.Select[V]):
     """Base dropdown for selecting an event. Functionality can be defined with callback."""
 
     def __init__(self, events: list[discord.ScheduledEvent], *args: Any, **kwargs: Any) -> None:
@@ -28,7 +29,7 @@ class EventsDropdown[V: discord.ui.View](discord.ui.Select[V]):
         super().__init__(*args, placeholder="Select an event", min_values=1, max_values=1, options=options, **kwargs)
 
 
-class EventsView(discord.ui.View):
+class EventsView(View):
     """View for selecting an event"""
 
     message: discord.Message

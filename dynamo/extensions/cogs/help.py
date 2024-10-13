@@ -60,7 +60,7 @@ class DynamoHelp(commands.HelpCommand):
 
     def command_not_found(self, string: str) -> Never:
         log.debug("Command not found: %s", string)
-        raise NotFoundWithHelp(string)
+        raise NotFoundWithHelp(string) from None
 
     async def add_cog_commands_to_embed(self, cog: commands.Cog, commands: list[CommandT]) -> EmbedField | None:
         name = cog.qualified_name if cog else "None"

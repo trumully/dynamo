@@ -22,12 +22,11 @@ from dynamo.utils.helper import platformdir, resolve_path_with_links
 
 log = logging.getLogger(__name__)
 
-description = """
-Quantum entanglement.
-"""
+MODAL_REGEX = re.compile(r"^m:(.{1,10}):(.*)$", flags=re.DOTALL)
+BUTTON_REGEX = re.compile(r"^b:(.{1,10}):(.*)$", flags=re.DOTALL)
+COG_SPEC = "dynamo.extensions.cogs"
 
-modal_regex = re.compile(r"^m:(.{1,10}):(.*)$", flags=re.DOTALL)
-button_regex = re.compile(r"^b:(.{1,10}):(.*)$", flags=re.DOTALL)
+type Interaction = discord.Interaction["Dynamo"]
 
 
 def _prefix_callable(bot: Dynamo, msg: discord.Message) -> list[str]:
@@ -46,9 +45,6 @@ class Emojis(dict[str, str]):
 
         for emoji in emojis:
             self[emoji.name] = f"<{"a" if emoji.animated else ""}:{emoji.name}:{emoji.id}>"
-
-
-type Interaction = discord.Interaction["Dynamo"]
 
 
 class Tree(app_commands.CommandTree["Dynamo"]):
@@ -172,13 +168,6 @@ class Tree(app_commands.CommandTree["Dynamo"]):
 
 
 class Dynamo(commands.AutoShardedBot):
-    session: aiohttp.ClientSession
-    connector: aiohttp.TCPConnector
-    conn: apsw.Connection
-    context: Context
-    logging_handler: Any
-    bot_app_info: discord.AppInfo
-
     def __init__(self, connector: aiohttp.TCPConnector, conn: apsw.Connection, session: aiohttp.ClientSession) -> None:
         self.session = session
         self.conn = conn
@@ -187,7 +176,7 @@ class Dynamo(commands.AutoShardedBot):
         super().__init__(
             connector=connector,
             command_prefix=_prefix_callable,
-            description=description,
+            description="Personal bot.",
             pm_help=None,
             help_attrs={"hidden": True},
             chunk_guilds_at_startup=False,
@@ -211,7 +200,7 @@ class Dynamo(commands.AutoShardedBot):
         self.app_emojis = Emojis(await self.fetch_application_emojis())
         self.extension_files: dict[Path, float] = {}
 
-        self.cog_spec = find_spec("dynamo.extensions.cogs")
+        self.cog_spec = find_spec(COG_SPEC)
         if self.cog_spec is None or self.cog_spec.origin is None:
             log.critical("Failed to find cog spec! Loading without cogs.")
             return
@@ -270,8 +259,8 @@ class Dynamo(commands.AutoShardedBot):
 
     async def on_interaction(self, interaction: Interaction) -> None:
         for relevant_type, regex, mapping in (
-            (discord.InteractionType.modal_submit, modal_regex, self.raw_modal_submits),
-            (discord.InteractionType.component, button_regex, self.raw_button_submits),
+            (discord.InteractionType.modal_submit, MODAL_REGEX, self.raw_modal_submits),
+            (discord.InteractionType.component, BUTTON_REGEX, self.raw_button_submits),
         ):
             if interaction.type is relevant_type:
                 assert interaction.data is not None

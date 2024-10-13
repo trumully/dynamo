@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from functools import wraps
 from typing import cast, overload
 
-from dynamo.typedefs import WrappedCoro
+from dynamo.typedefs import CoroFunction
 
 log = logging.getLogger(__name__)
 
@@ -20,14 +20,14 @@ def time_it(func_name: str) -> Generator[None]:
 
 
 @overload
-def timer[**P, T](func: WrappedCoro[P, T]) -> WrappedCoro[P, T]: ...
+def timer[**P, T](func: CoroFunction[P, T]) -> CoroFunction[P, T]: ...
 
 
 @overload
 def timer[**P, T](func: Callable[P, T]) -> Callable[P, T]: ...
 
 
-def timer[**P, T](func: Callable[P, T] | WrappedCoro[P, T]) -> Callable[P, T] | WrappedCoro[P, T]:
+def timer[**P, T](func: Callable[P, T] | CoroFunction[P, T]) -> Callable[P, T] | CoroFunction[P, T]:
     """Time execution of a function or coroutine"""
 
     async def async_wrap(*args: P.args, **kwargs: P.kwargs) -> T:
@@ -41,7 +41,7 @@ def timer[**P, T](func: Callable[P, T] | WrappedCoro[P, T]) -> Callable[P, T] | 
     return async_wrap if asyncio.iscoroutinefunction(func) else wrapper
 
 
-def executor_function[**P, T](func: Callable[P, T]) -> WrappedCoro[P, T]:
+def executor_function[**P, T](func: Callable[P, T]) -> CoroFunction[P, T]:
     """Send sync function to thread"""
 
     @wraps(func)

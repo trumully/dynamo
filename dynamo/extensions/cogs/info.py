@@ -106,5 +106,5 @@ async def setup(bot: Dynamo) -> None:
     await bot.add_cog(Info(bot))
 
 
-async def teardown(bot: Dynamo) -> None:
+async def teardown(bot: Dynamo) -> None:    
     await bot.remove_cog(Info.__name__)
