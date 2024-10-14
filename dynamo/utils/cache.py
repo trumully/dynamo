@@ -10,6 +10,7 @@ from functools import partial, wraps
 from typing import Any, ParamSpec, Protocol, TypeVar, cast, overload
 
 from dynamo.typedefs import MISSING, CoroFunction
+from dynamo.utils.format import shorten_string
 
 P = ParamSpec("P")
 T = TypeVar("T")
@@ -176,7 +177,7 @@ def _cache_wrapper[**P, T](coro: CoroFunction[P, T], maxsize: int | None, ttl: f
     @wraps(coro)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> asyncio.Task[T]:
         key: Hashable = make_key(args, kwargs)
-        to_log = (
+        to_log = shorten_string(
             f"{coro.__name__}("
             f"{', '.join(map(str, args))}"
             f"{', ' if kwargs else ''}"
