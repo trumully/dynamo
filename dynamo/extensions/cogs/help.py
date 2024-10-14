@@ -13,12 +13,6 @@ from dynamo.utils.format import code_block, human_join
 log = logging.getLogger(__name__)
 
 
-help_footer = (
-    "Use help [command] or help [category] for more information\n"
-    "Required parameters: <required> | Optional parameters: [optional]"
-)
-
-
 @dataclass
 class EmbedField(TypedDict):
     name: str
@@ -28,13 +22,13 @@ class EmbedField(TypedDict):
 class HelpEmbed(discord.Embed):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        self.set_footer(text=help_footer)
+        self.set_footer(text="Use help [command] or help [category] for more information")
         self.colour = discord.Color.dark_embed()
 
 
 def wrap_with_braces(param: commands.Parameter, with_description: bool = True) -> str:
     name = f"<{param.name}>" if param.default is commands.Parameter.empty else f"[{param.name}]"
-    return f"  {name}\n    {param.description or 'No description provided.'}" if with_description else name
+    return f"  {name}\n    {param.description or "No description provided."}" if with_description else name
 
 
 class DynamoHelp(commands.HelpCommand):
@@ -45,7 +39,7 @@ class DynamoHelp(commands.HelpCommand):
                 "aliases": ["commands", "h"],
             }
         )
-        self.blacklisted = [Help.__name__]
+        self.blacklisted: set[str] = {"help"}
 
     async def send(self, **kwargs: Any) -> None:
         await self.get_destination().send(**kwargs)
@@ -66,7 +60,7 @@ class DynamoHelp(commands.HelpCommand):
 
     def command_not_found(self, string: str) -> Never:
         log.debug("Command not found: %s", string)
-        raise NotFoundWithHelp(string)
+        raise NotFoundWithHelp(string) from None
 
     async def add_cog_commands_to_embed(self, cog: commands.Cog, commands: list[CommandT]) -> EmbedField | None:
         name = cog.qualified_name if cog else "None"
@@ -81,11 +75,15 @@ class DynamoHelp(commands.HelpCommand):
         description = command.help or "No help found..."
         params = [wrap_with_braces(p) for p in command.params.values()]
         if params:
-            description += f"\n\nParameters:\n{'\n'.join(params)}"
+            description += f"\n\nParameters:\n{"\n".join(params)}"
 
         params_no_description = [wrap_with_braces(p, with_description=False) for p in command.params.values()]
-        command_name = f"{command.qualified_name} {' '.join(params_no_description)}"
-        embed = HelpEmbed(title=command_name, description=code_block(description, line_numbers=True))
+        command_name = f"{command.qualified_name} {" ".join(params_no_description)}"
+        colored_description = "\n".join(f"\u001b[1;33m{line}\u001b[0m" for line in description.split("\n"))
+        full_description = (
+            f"**`<required> | [optional]`**\n{code_block(colored_description, "ansi", line_numbers=True)}"
+        )
+        embed = HelpEmbed(title=command_name, description=full_description)
 
         embed.add_field(name="Aliases", value=f"`{human_join(command.aliases) or "N/A"}`")
 

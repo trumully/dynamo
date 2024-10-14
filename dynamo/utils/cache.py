@@ -6,15 +6,89 @@ import threading
 from collections import OrderedDict
 from collections.abc import Callable, Hashable, Sized
 from dataclasses import dataclass, field
-from functools import partial
-from typing import Any, ParamSpec, Protocol, TypeVar, cast, final, overload
+from functools import partial, wraps
+from typing import Any, ParamSpec, Protocol, TypeVar, cast, overload
 
-from dynamo.typedefs import MISSING, WrappedCoro
+from dynamo.typedefs import MISSING, CoroFunction
 
 P = ParamSpec("P")
 T = TypeVar("T")
 
 log = logging.getLogger(__name__)
+
+WRAPPER_ASSIGNMENTS = ("__module__", "__name__", "__qualname__", "__doc__", "__annotations__", "__type_params__")
+WRAPPER_UPDATES = ("__dict__",)
+FAST_TYPES: set[type] = {int, str, float, bytes, type(None)}
+
+
+@dataclass(slots=True)
+class CacheInfo:
+    """Cache info for the async_cache decorator."""
+
+    hits: int = 0
+    misses: int = 0
+    currsize: int = 0
+    full: bool = False
+
+    def clear(self) -> None:
+        """Reset all counters to zero."""
+        self.hits = self.misses = self.currsize = 0
+        self.full = False
+
+
+type WrappedCoro[**P, T] = Callable[P, CoroFunction[P, T]]
+
+
+class CachedTask[**P, T](Protocol):
+    __wrapped__: WrappedCoro[P, T]
+
+    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> asyncio.Task[T]: ...
+    def cache_info(self) -> CacheInfo: ...
+    def cache_clear(self) -> None: ...
+    def cache_parameters(self) -> dict[str, int | float | None]: ...
+    def invalidate(self, *args: P.args, **kwargs: P.kwargs) -> bool: ...
+    def get_containing(self, *args: P.args, **kwargs: P.kwargs) -> asyncio.Task[T] | None: ...
+
+
+type DecoratedCoro[**P, T] = Callable[[CoroFunction[P, T]], CachedTask[P, T]]
+
+
+class HashedSeq(list[Any]):
+    __slots__: tuple[str, ...] = ("hash_value",)
+
+    def __init__(self, /, *args: Any, _hash: Callable[[object], int] = hash) -> None:
+        self[:] = args
+        self.hash_value: int = _hash(args)
+
+    def __hash__(self) -> int:  # type: ignore
+        return self.hash_value
+
+
+class LRU[K, V]:
+    def __init__(self, maxsize: int, /) -> None:
+        self.cache: OrderedDict[K, V] = OrderedDict()
+        self.maxsize = maxsize
+
+    def get[T](self, key: K, default: T, /) -> V | T:
+        if key not in self.cache:
+            return default
+        self.cache.move_to_end(key)
+        return self.cache[key]
+
+    def __getitem__(self, key: K, /) -> V:
+        value = self.cache[key]
+        self.cache.move_to_end(key)
+        return value
+
+    def __setitem__(self, key: K, value: V, /) -> None:
+        if key in self.cache:
+            del self.cache[key]
+        elif len(self.cache) >= self.maxsize:
+            self.cache.popitem(last=False)
+        self.cache[key] = value
+
+    def remove(self, key: K, /) -> None:
+        self.cache.pop(key, None)
 
 
 @dataclass(slots=True)
@@ -53,152 +127,6 @@ class Trie:
             self._dfs(child, current + char, results)
 
 
-@final
-class LRU[K, V]:
-    def __init__(self, maxsize: int, /) -> None:
-        self.cache: OrderedDict[K, V] = OrderedDict()
-        self.maxsize = maxsize
-
-    def get[T](self, key: K, default: T, /) -> V | T:
-        if key not in self.cache:
-            return default
-        self.cache.move_to_end(key)
-        return self.cache[key]
-
-    def __getitem__(self, key: K, /) -> V:
-        value = self.cache[key]
-        self.cache.move_to_end(key)
-        return value
-
-    def __setitem__(self, key: K, value: V, /) -> None:
-        if key in self.cache:
-            del self.cache[key]
-        elif len(self.cache) >= self.maxsize:
-            self.cache.popitem(last=False)
-        self.cache[key] = value
-
-    def remove(self, key: K, /) -> None:
-        self.cache.pop(key, None)
-
-
-WRAPPER_ASSIGNMENTS = ("__module__", "__name__", "__qualname__", "__doc__", "__annotations__", "__type_params__")
-WRAPPER_UPDATES = ("__dict__",)
-FAST_TYPES: set[type] = {int, str, float, bytes, type(None)}
-
-
-@final
-class CachedTask[**P, T](Protocol):
-    __wrapped__: Callable[P, WrappedCoro[P, T]]
-
-    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> asyncio.Task[T]: ...
-    def cache_info(self) -> CacheInfo: ...
-    def cache_clear(self) -> None: ...
-    def cache_parameters(self) -> dict[str, int | float | None]: ...
-    def invalidate(self, *args: P.args, **kwargs: P.kwargs) -> bool: ...
-    def get_containing(self, *args: P.args, **kwargs: P.kwargs) -> asyncio.Task[T] | None: ...
-
-
-type DecoratedCoro[**P, T] = Callable[[WrappedCoro[P, T]], CachedTask[P, T]]
-
-
-@final
-@dataclass(slots=True)
-class CacheInfo:
-    """Cache info for the async_cache decorator."""
-
-    hits: int = 0
-    misses: int = 0
-    currsize: int = 0
-    full: bool = False
-
-    def clear(self) -> None:
-        """Reset all counters to zero."""
-        self.hits = self.misses = self.currsize = 0
-        self.full = False
-
-
-class HashedSeq(list[Any]):
-    __slots__: tuple[str, ...] = ("hash_value",)
-
-    def __init__(self, /, *args: Any, _hash: Callable[[object], int] = hash) -> None:
-        self[:] = args
-        self.hash_value: int = _hash(args)
-
-    def __hash__(self) -> int:  # type: ignore
-        return self.hash_value
-
-
-@overload
-def async_cache[**P, T](*, maxsize: int | None = 128, ttl: float | None = None) -> DecoratedCoro[P, T]: ...
-
-
-@overload
-def async_cache[**P, T](coro: WrappedCoro[P, T], /) -> CachedTask[P, T]: ...
-
-
-def async_cache[**P, T](
-    maxsize: int | WrappedCoro[P, T] | None = 128, ttl: float | None = None
-) -> CachedTask[P, T] | DecoratedCoro[P, T]:
-    """Decorator to cache the result of a coroutine.
-
-    This decorator caches the result of a coroutine to improve performance
-    by avoiding redundant computations. It is functionally similar to :func:`functools.cache`
-    and :func:`functools.lru_cache` but designed for coroutines.
-
-    Parameters
-    ----------
-    maxsize : int | WrappedCoro[P, T] | None, optional
-        The maximum number of items to cache. If a coroutine function is provided directly,
-        it is assumed to be the function to be decorated, and `maxsize` defaults to 128.
-        If `None`, the cache can grow without bound. Default is 128.
-    ttl : float | None, optional
-        The time-to-live for cached items in seconds. If `None`, items do not expire.
-        Default is None.
-
-    Returns
-    -------
-    CachedTask[P, T] | DecoratedCoro[P, T]
-        If a coroutine is provided directly, returns the cached task.
-        Otherwise, returns a decorator that can be applied to a coroutine.
-
-    Examples
-    --------
-    Using the decorator with default parameters:
-
-    >>> @async_cache
-    ... async def fetch_data(url: str) -> str:
-    ...     # Simulate a network request
-    ...     await asyncio.sleep(1)
-    ...     return f"Data from {url}"
-
-    Using the decorator with custom parameters:
-
-    >>> @async_cache(maxsize=256, ttl=60.0)
-    ... async def fetch_data(url: str) -> str:
-    ...     # Simulate a network request
-    ...     await asyncio.sleep(1)
-    ...     return f"Data from {url}"
-
-    """
-    if isinstance(maxsize, int):
-        maxsize = max(maxsize, 0)
-    elif callable(maxsize):
-        coro, maxsize = maxsize, 128
-        wrapper = _cache_wrapper(coro, maxsize, ttl)
-        wrapper.cache_parameters = lambda: {"maxsize": maxsize, "ttl": ttl}
-        return update_wrapper(wrapper, coro)
-    else:
-        error = "Expected first argument to be an integer, a coroutine, or None"
-        raise TypeError(error)
-
-    def decorator(coro: WrappedCoro[P, T]) -> CachedTask[P, T]:
-        wrapper = _cache_wrapper(coro, maxsize, ttl)
-        wrapper.cache_parameters = lambda: {"maxsize": maxsize, "ttl": ttl}
-        return update_wrapper(wrapper, coro)
-
-    return decorator
-
-
 def _create_key(args: tuple[Any, ...], kwargs: dict[Any, Any], kwargs_mark: tuple[object]) -> tuple[Any, ...]:
     key = args
     if kwargs:
@@ -227,42 +155,6 @@ def _make_key(
     return _finalize_key(key, fast_types)
 
 
-def update_wrapper[**P, T](wrapper: CachedTask[P, T], wrapped: WrappedCoro[P, T]) -> CachedTask[P, T]:
-    """
-    Update a wrapper function to look more like the wrapped function.
-
-    Parameters
-    ----------
-    wrapper : CachedTask[P, T]
-        The wrapper function to be updated.
-    wrapped : WrappedCoro[P, T]
-        The original function being wrapped.
-
-    Returns
-    -------
-    CachedTask[P, T]
-        The updated wrapper function.
-
-    Notes
-    -----
-    Typically used in decorators to ensure the wrapper function retains the metadata
-    of the wrapped function.
-
-    See Also
-    --------
-    :func:`functools.update_wrapper` : Similar function for synchronous functions.
-    """
-    for attr in WRAPPER_ASSIGNMENTS:
-        if hasattr(wrapped, attr):
-            setattr(wrapper, attr, getattr(wrapped, attr))
-    for attr in WRAPPER_UPDATES:
-        if hasattr(wrapper, attr) and hasattr(wrapped, attr):
-            getattr(wrapper, attr).update(getattr(wrapped, attr))
-
-    wrapper.__wrapped__ = cast(Callable[P, WrappedCoro[P, T]], wrapped)
-    return wrapper
-
-
 async def wrap_future[T](future: asyncio.Future[T]) -> T:
     return await future
 
@@ -271,7 +163,7 @@ def task_from_future[T](future: asyncio.Future[T]) -> asyncio.Task[T]:
     return asyncio.create_task(wrap_future(future))
 
 
-def _cache_wrapper[**P, T](coro: WrappedCoro[P, T], maxsize: int | None, ttl: float | None) -> CachedTask[P, T]:
+def _cache_wrapper[**P, T](coro: CoroFunction[P, T], maxsize: int | None, ttl: float | None) -> CachedTask[P, T]:
     sentinel = MISSING
     make_key = _make_key
 
@@ -281,6 +173,7 @@ def _cache_wrapper[**P, T](coro: WrappedCoro[P, T], maxsize: int | None, ttl: fl
     lock = threading.Lock()
     _cache_info = CacheInfo()
 
+    @wraps(coro)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> asyncio.Task[T]:
         key: Hashable = make_key(args, kwargs)
         to_log = (
@@ -361,3 +254,74 @@ def _cache_wrapper[**P, T](coro: WrappedCoro[P, T], maxsize: int | None, ttl: fl
     _wrapper.invalidate = invalidate
     _wrapper.get_containing = get_containing
     return _wrapper
+
+
+@overload
+def async_cache[**P, T](*, maxsize: int | None = 128, ttl: float | None = None) -> DecoratedCoro[P, T]: ...
+
+
+@overload
+def async_cache[**P, T](coro: CoroFunction[P, T], /) -> CachedTask[P, T]: ...
+
+
+def async_cache[**P, T](
+    maxsize: int | CoroFunction[P, T] | None = 128, ttl: float | None = None
+) -> CachedTask[P, T] | DecoratedCoro[P, T]:
+    """Decorator to cache the result of a coroutine.
+
+    This decorator caches the result of a coroutine to improve performance
+    by avoiding redundant computations. It is functionally similar to :func:`functools.cache`
+    and :func:`functools.lru_cache` but designed for coroutines.
+
+    Parameters
+    ----------
+    maxsize : int | CoroFunction[P, T] | None, optional
+        The maximum number of items to cache. If a coroutine function is provided directly,
+        it is assumed to be the function to be decorated, and `maxsize` defaults to 128.
+        If `None`, the cache can grow without bound. Default is 128.
+    ttl : float | None, optional
+        The time-to-live for cached items in seconds. If `None`, items do not expire.
+        Default is None.
+
+    Returns
+    -------
+    CachedTask[P, T] | DecoratedCoro[P, T]
+        If a coroutine is provided directly, returns the cached task.
+        Otherwise, returns a decorator that can be applied to a coroutine.
+
+    Examples
+    --------
+    Using the decorator with default parameters:
+
+    >>> @async_cache
+    ... async def fetch_data(url: str) -> str:
+    ...     # Simulate a network request
+    ...     await asyncio.sleep(1)
+    ...     return f"Data from {url}"
+
+    Using the decorator with custom parameters:
+
+    >>> @async_cache(maxsize=256, ttl=60.0)
+    ... async def fetch_data(url: str) -> str:
+    ...     # Simulate a network request
+    ...     await asyncio.sleep(1)
+    ...     return f"Data from {url}"
+
+    """
+    if isinstance(maxsize, int):
+        maxsize = max(maxsize, 0)
+    elif callable(maxsize):
+        coro, maxsize = maxsize, 128
+        wrapper = _cache_wrapper(coro, maxsize, ttl)
+        wrapper.cache_parameters = lambda: {"maxsize": maxsize, "ttl": ttl}
+        return wrapper
+    else:
+        error = "Expected first argument to be an integer, a coroutine, or None"
+        raise TypeError(error) from None
+
+    def decorator(coro: CoroFunction[P, T]) -> CachedTask[P, T]:
+        wrapper = _cache_wrapper(coro, maxsize, ttl)
+        wrapper.cache_parameters = lambda: {"maxsize": maxsize, "ttl": ttl}
+        return wrapper
+
+    return decorator

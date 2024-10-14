@@ -1,6 +1,7 @@
 import datetime
 import itertools
 import os
+import platform
 import time
 from importlib import metadata
 
@@ -67,7 +68,6 @@ class Info(Cog, name="info"):
         bot_name = self.bot.user.display_name
         revision = get_latest_commits()
         avatar_url = self.bot.user.display_avatar.with_static_format("png")
-        discord_version = metadata.version("discord.py")
 
         embed = discord.Embed(description=f"Latest changes:\n{revision}")
         embed.title = f"About {bot_name}"
@@ -79,7 +79,8 @@ class Info(Cog, name="info"):
         embed.add_field(name="Process", value=f"{memory_usage:.2f} MiB\n{cpu_usage:.2f}% CPU")
 
         embed.add_field(name="Uptime", value=human_timedelta(dt=self.bot.uptime, brief=True, suffix=False))
-        embed.set_footer(text=f"Made using discord.py v{discord_version}", icon_url=PYTHON)
+        versions = f"Python {platform.python_version()} | discord.py v{metadata.version("discord.py")}"
+        embed.set_footer(text=versions, icon_url=PYTHON)
 
         embed.timestamp = discord.utils.utcnow()
 
@@ -105,5 +106,5 @@ async def setup(bot: Dynamo) -> None:
     await bot.add_cog(Info(bot))
 
 
-async def teardown(bot: Dynamo) -> None:
+async def teardown(bot: Dynamo) -> None:    
     await bot.remove_cog(Info.__name__)

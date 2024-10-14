@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from enum import StrEnum, auto
 from pathlib import Path
 
-from dynamo.utils.helper import ROOT, resolve_path_with_links
+from dynamo.utils.helper import ROOT
 
 
 def shorten_string(string: str, max_len: int = 50, placeholder: str = "Nothing provided") -> str:
@@ -25,8 +25,7 @@ class plural:
     def __format__(self, format_spec: str) -> str:
         """Format the value with singular or plural form."""
         v = self.value
-        skip_value = format_spec.endswith("!")
-        if skip_value:
+        if skip_value := format_spec.endswith("!"):
             format_spec = format_spec[:-1]
 
         singular, _, plural = format_spec.partition("|")
@@ -37,7 +36,7 @@ class plural:
         return f"{v} {plural}" if abs(v) != 1 else f"{v} {singular}"
 
 
-def format_dt(dt: datetime.datetime, style: str | None = None) -> str:
+def format_datetime(dt: datetime.datetime, style: str | None = None) -> str:
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=datetime.UTC)
 
@@ -61,7 +60,7 @@ def human_join(seq: Sequence[str], sep: str = ", ", conjunction: str = "or", *, 
 def code_block(content: str, language: str = "", *, line_numbers: bool = False) -> str:
     if line_numbers:
         lines = content.split("\n")
-        numbered_lines = [f"{i+1:2d} {line}" for i, line in enumerate(lines)]
+        numbered_lines = [f"{i + 1:2d} {line}" for i, line in enumerate(lines)]
         numbered_content = "\n".join(numbered_lines)
         return f"```{language}\n{numbered_content}\n```"
     return f"```{language}\n{content}\n```"
@@ -95,7 +94,7 @@ class FontFamily:
 
 
 def _font_path(font: str) -> Path:
-    return resolve_path_with_links(Path(ROOT / "assets" / "fonts" / "static") / font)
+    return Path(ROOT / "assets" / "fonts" / "static") / font
 
 
 def _get_fonts(font_name: str) -> FontFamily:

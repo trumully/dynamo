@@ -2,7 +2,7 @@ import datetime
 
 from dateutil.relativedelta import relativedelta
 
-from dynamo.utils.format import format_dt, human_join, plural
+from dynamo.utils.format import format_datetime, human_join, plural
 
 
 def human_timedelta(
@@ -56,4 +56,4 @@ def human_timedelta(
 
 
 def format_relative(dt: datetime.datetime) -> str:
-    return format_dt(dt, "R")
+    return format_datetime(dt, "R")

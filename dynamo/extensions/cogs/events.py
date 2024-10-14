@@ -4,6 +4,7 @@ from typing import Any, NoReturn, cast
 
 import discord
 from discord.ext import commands
+from discord.ui import View
 
 from dynamo import Cog, Context, Dynamo
 from dynamo.utils.cache import async_cache
@@ -17,7 +18,7 @@ def event_to_option(event: discord.ScheduledEvent) -> discord.SelectOption:
     return discord.SelectOption(label=event.name, value=str(event.id), description=description)
 
 
-class EventsDropdown[V: discord.ui.View](discord.ui.Select[V]):
+class EventsDropdown[V: View](discord.ui.Select[V]):
     """Base dropdown for selecting an event. Functionality can be defined with callback."""
 
     def __init__(self, events: list[discord.ScheduledEvent], *args: Any, **kwargs: Any) -> None:
@@ -28,7 +29,7 @@ class EventsDropdown[V: discord.ui.View](discord.ui.Select[V]):
         super().__init__(*args, placeholder="Select an event", min_values=1, max_values=1, options=options, **kwargs)
 
 
-class EventsView(discord.ui.View):
+class EventsView(View):
     """View for selecting an event"""
 
     message: discord.Message
@@ -127,12 +128,14 @@ class Events(Cog, name="events"):
     @commands.hybrid_command(name="event")
     @commands.guild_only()
     async def event(self, ctx: Context, event_id: int | None = None) -> None:
-        """Get a list of members subscribed to an event
+        """Get attendees of an event
+
+        A dropdown of guild events is shown by default.
 
         Parameters
         ----------
         event_id: int | None, optional
-            The event ID to get attendees of
+            The ID of the event.
         """
         if ctx.guild is None or ctx.author.id in self.active_users:
             return
@@ -167,7 +170,7 @@ class Events(Cog, name="events"):
         if ctx.author.id in self.active_users:
             self.active_users.remove(ctx.author.id)
         await ctx.send(f"Something went wrong: {error!s}")
-        raise error
+        raise error from None
 
 
 async def setup(bot: Dynamo) -> None:

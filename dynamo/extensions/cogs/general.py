@@ -96,14 +96,12 @@ class General(Cog, name="general"):
             return
 
         activities = cast(discord.Member, user).activities
-        activity: discord.Spotify | None = next((a for a in activities if isinstance(a, discord.Spotify)), None)
 
-        if activity is None:
+        if (activity := next((a for a in activities if isinstance(a, discord.Spotify)), None)) is None:
             await ctx.send(f"{user!s} is not listening to Spotify.")
             return
 
-        album_cover: bytes | None = await spotify.fetch_album_cover(activity.album_cover_url, self.bot.session)
-        if album_cover is None:
+        if (album_cover := await spotify.fetch_album_cover(activity.album_cover_url, ctx.session)) is None:
             await ctx.send("Failed to fetch album cover.")
             return
 

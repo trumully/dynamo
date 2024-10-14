@@ -1,4 +1,3 @@
-from collections.abc import Callable
 from functools import partial
 
 import discord
@@ -7,9 +6,9 @@ from discord.ext import commands
 from rapidfuzz import fuzz
 
 from dynamo import Cog, Context, Dynamo, Interaction
-from dynamo.typedefs import Coro, NotFoundWithHelp, app_command_error_messages, command_error_messages
+from dynamo.typedefs import CoroFunction, NotFoundWithHelp, app_command_error_messages, command_error_messages
 
-type AppCommandErrorMethod = Callable[[Interaction, app_commands.AppCommandError], Coro[None]]
+type AppCommandErrorMethod = CoroFunction[[Interaction, app_commands.AppCommandError], None]
 
 
 class Errors(Cog, name="errors"):
@@ -29,46 +28,16 @@ class Errors(Cog, name="errors"):
         await super().cog_unload()
 
     def get_command_error_message(self, error: commands.CommandError) -> str:
-        """Get the error message for the given error.
-
-        Parameters
-        ----------
-        error : commands.CommandError
-            The error.
-
-        Returns
-        -------
-        str
-            The error message.
-        """
+        """Get the error message for the given error."""
         return self.command_error_messages.get(type(error), "An unknown error occurred.")
 
     def get_app_command_error_message(self, error: app_commands.AppCommandError) -> str:
-        """
-        Get the error message for the given error.
-
-        Parameters
-        ----------
-        error : app_commands.AppCommandError
-            The error.
-
-        Returns
-        -------
-        str
-            The error message.
-        """
+        """Get the error message for the given error."""
         return self.app_command_error_messages.get(type(error), "An unknown error occurred.")
 
     @commands.Cog.listener()
     async def on_command_error(self, ctx: Context, error: commands.CommandError) -> None:
-        """
-        Event that triggers when a command fails.
-
-        Parameters
-        ----------
-        error : commands.CommandError
-            The error.
-        """
+        """Event that triggers when a command fails."""
         self.log.exception("%s called by %s raised an exception: %s", ctx.command, ctx.author, ctx.message)
 
         error_message = self.get_command_error_message(error)
@@ -98,19 +67,10 @@ class Errors(Cog, name="errors"):
         await ctx.reply(error_message)
 
     @commands.Cog.listener()
-    async def on_app_command_error(self, interaction: Interaction, error: app_commands.AppCommandError) -> None:
-        """
-        Event that triggers when a command fails.
-
-        Parameters
-        ----------
-        interaction : Interaction
-            The interaction object.
-        error : app_commands.AppCommandError
-            The exception.
-        """
-        if (command := interaction.command) is None:
-            name: str = "Unknown" if interaction.data is None else interaction.data.get("name", "Unknown")
+    async def on_app_command_error(self, itx: Interaction, error: app_commands.AppCommandError) -> None:
+        """Event that triggers when a command fails."""
+        if (command := itx.command) is None:
+            name: str = "Unknown" if itx.data is None else itx.data.get("name", "Unknown")
             self.log.error("Command not found: %s.", name)
             is_similar = partial(fuzz.ratio, name)
             matches = [str(c) for c in self.bot.tree.get_commands() if is_similar(c.name) > 70]
@@ -118,10 +78,10 @@ class Errors(Cog, name="errors"):
             if matches:
                 msg += f"\n\nDid you mean \N{RIGHT-POINTING MAGNIFYING GLASS}\n>>> {"\n".join(matches)}"
 
-            await interaction.response.send_message(ephemeral=True, content=msg)
+            await itx.response.send_message(ephemeral=True, content=msg)
             return
 
-        self.log.error("%s called by %s raised an exception: %s.", command.name, interaction.user, error)
+        self.log.error("%s called by %s raised an exception: %s.", command.name, itx.user, error)
 
         error_message = self.get_app_command_error_message(error)
 
@@ -132,9 +92,9 @@ class Errors(Cog, name="errors"):
             error_message = error_message.format(error.retry_after)
 
         try:
-            await interaction.response.send_message(error_message, ephemeral=True)
+            await itx.response.send_message(error_message, ephemeral=True)
         except (discord.HTTPException, discord.InteractionResponded, TypeError, ValueError):
-            await interaction.followup.send(error_message, ephemeral=True)
+            await itx.followup.send(error_message, ephemeral=True)
 
 
 async def setup(bot: Dynamo) -> None:
