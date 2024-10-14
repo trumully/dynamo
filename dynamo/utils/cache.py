@@ -182,7 +182,8 @@ def _cache_wrapper[**P, T](coro: CoroFunction[P, T], maxsize: int | None, ttl: f
             f"{', '.join(map(str, args))}"
             f"{', ' if kwargs else ''}"
             f"{', '.join(f'{k}={v!r}' for k, v in kwargs.items())}"
-            f")"
+            f")",
+            max_len=100,
         )
 
         with lock:

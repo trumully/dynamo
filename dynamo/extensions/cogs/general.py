@@ -1,4 +1,3 @@
-import asyncio
 from io import BytesIO
 from typing import cast
 from urllib.parse import urlparse
@@ -7,11 +6,17 @@ import discord
 from discord.ext import commands
 
 from dynamo import Cog, Context, Dynamo
-from dynamo.typedefs import MISSING
+from dynamo.typedefs import MISSING, CoroFunction
 from dynamo.utils import spotify
 from dynamo.utils.aura import get_aura
+from dynamo.utils.cache import async_cache
 from dynamo.utils.converter import MemberLikeConverter
 from dynamo.utils.identicon import as_discord_color, derive_seed, get_colors, get_identicon, seed_from_time
+
+
+@async_cache(ttl=3600)
+async def fetch_user(coro: CoroFunction[[int], discord.User], user_id: int) -> discord.User:
+    return await coro(user_id)
 
 
 class General(Cog, name="general"):
@@ -131,28 +136,18 @@ class General(Cog, name="general"):
         if isinstance(user, str):
             return
 
-        fetched_user = await self.bot.fetch_user(user.id)
+        # Required to get the banner
+        fetched_user = await fetch_user(self.bot.fetch_user, user.id)
 
         async with ctx.typing():
-            avatar_bytes = await user.display_avatar.read()
+            avatar_bytes = await fetched_user.display_avatar.read()
             banner_bytes = await fetched_user.banner.read() if fetched_user.banner else None
 
-            avatar_task = get_aura(avatar_bytes, ctx.session)
-            banner_task = get_aura(banner_bytes, ctx.session) if banner_bytes else None
-
-            if banner_task:
-                avatar_result, banner_result = await asyncio.gather(avatar_task, banner_task)
-                avatar_score, avatar_description = avatar_result
-                banner_score, _ = banner_result
-            else:
-                avatar_score, avatar_description = await avatar_task
-                banner_score, _ = 0, "No banner"
-
-            combined_score = (avatar_score + banner_score) / 2 if banner_task else avatar_score
+            score, description = await get_aura(avatar_bytes, banner_bytes, ctx.session)
 
             embed = discord.Embed(
                 title=f"{user.display_name}'s aura is...",
-                description=f"### {avatar_description.lower()}\n" f"Score: {combined_score:.1f}",
+                description=f"### {description}\n" f"Score: **{score:.1f}** / 10",
                 color=user.color,
             )
 
@@ -160,7 +155,7 @@ class General(Cog, name="general"):
             if fetched_user.banner:
                 embed.set_image(url=fetched_user.banner.url)
 
-            await ctx.send(embed=embed)
+        await ctx.send(embed=embed)
 
 
 async def setup(bot: Dynamo) -> None:
