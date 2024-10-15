@@ -55,7 +55,7 @@ type DecoratedCoro[**P, T] = Callable[[CoroFunction[P, T]], CachedTask[P, T]]
 
 
 class HashedSeq(list[Any]):
-    __slots__: tuple[str, ...] = ("hash_value",)
+    __slots__: tuple[str] = ("hash_value",)
 
     def __init__(self, /, *args: Any, _hash: Callable[[object], int] = hash) -> None:
         self[:] = args

@@ -71,7 +71,7 @@ def open_image_bytes(image: bytes) -> Generator[Image.Image]:
 
 
 @executor_function
-def color_palette_from_image(image: bytes, n: int = 10, *, iterations: int = 100) -> list[RGB]:
+def color_palette_from_image(image: bytes, n: int = 20, *, iterations: int = 100) -> list[RGB]:
     """Extract a color palette from an image using K-means clustering."""
     with open_image_bytes(image) as img:
         img.resize((200, 200))

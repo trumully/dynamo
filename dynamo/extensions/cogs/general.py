@@ -87,7 +87,7 @@ class General(Cog, name="general"):
     async def spotify(
         self,
         ctx: Context,
-        user: discord.User | discord.Member | str | None = commands.param(default=None, converter=MemberLikeConverter),
+        user: discord.User | discord.Member | None = commands.param(default=None, converter=MemberLikeConverter),
     ) -> None:
         """Get the currently playing Spotify track for a user.
 
@@ -151,7 +151,7 @@ class General(Cog, name="general"):
                 color=user.color,
             )
 
-            embed.set_thumbnail(url=user.display_avatar.url)
+            embed.set_thumbnail(url=fetched_user.display_avatar.url)
             if fetched_user.banner:
                 embed.set_image(url=fetched_user.banner.url)
 

@@ -61,7 +61,7 @@ async def get_palette_description(palette: list[RGB], session: aiohttp.ClientSes
         4. Exclude ALL punctuation marks.
         5. Omit conjunctions, articles, and prepositions.
         6. Ensure both words are distinct and meaningful.
-        7. Avoid these specific words: dusty, vibes, aura, palette, mix, blend, harmony.
+        7. Avoid these specific words: dusty, vibes, aura, palette, mix, blend, harmony, twilight.
         8. Do not use color names directly (e.g., "blue", "red", etc.).
         9. Focus on the mood, feeling, or association evoked by the colors, not the colors themselves.
         10. If you cannot follow ALL guidelines, respond with "INVALID REQUEST".
