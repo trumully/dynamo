@@ -9,14 +9,14 @@ def rgb(draw: st.DrawFn) -> color.RGB:
     return draw(st.tuples(st.integers(0, 255), st.integers(0, 255), st.integers(0, 255)))
 
 
-@given(rgb=rgb())
-def test_rgb_class(rgb: color.RGB) -> None:
-    r, g, b = rgb
+@given(some_color=rgb())
+def test_rgb_class(some_color: color.RGB) -> None:
+    r, g, b = some_color
     assert 0 <= r <= 255
     assert 0 <= g <= 255
     assert 0 <= b <= 255
 
-    assert color.color_is_similar(rgb, rgb)
+    assert color.color_is_similar(some_color, some_color)
 
 
 @given(seed=st.integers(min_value=1))
