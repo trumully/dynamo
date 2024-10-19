@@ -1,22 +1,22 @@
 from hypothesis import given
 from hypothesis import strategies as st
 
-from dynamo.utils import identicon
+from dynamo.utils import color, identicon
 
 
 @st.composite
-def rgb(draw: st.DrawFn) -> identicon.RGB:
+def rgb(draw: st.DrawFn) -> color.RGB:
     return draw(st.tuples(st.integers(0, 255), st.integers(0, 255), st.integers(0, 255)))
 
 
-@given(color=rgb())
-def test_rgb_class(color: identicon.RGB) -> None:
-    r, g, b = color
+@given(rgb=rgb())
+def test_rgb_class(rgb: color.RGB) -> None:
+    r, g, b = rgb
     assert 0 <= r <= 255
     assert 0 <= g <= 255
     assert 0 <= b <= 255
 
-    assert identicon.color_is_similar(color, color)
+    assert color.color_is_similar(rgb, rgb)
 
 
 @given(seed=st.integers(min_value=1))
@@ -25,8 +25,8 @@ def test_get_colors(seed: int) -> None:
     assert all(0 <= c <= 255 for c in fg)
     assert all(0 <= c <= 255 for c in bg)
     perceived, euclidean = (
-        identicon.perceived_distance(fg, bg),
-        identicon.euclidean_distance(fg, bg),
+        color.perceived_distance(fg, bg),
+        color.euclidean_distance(fg, bg),
     )
     assert not identicon.color_is_similar(
         fg, bg
@@ -34,7 +34,7 @@ def test_get_colors(seed: int) -> None:
 
 
 @given(color_a=rgb(), color_b=rgb())
-def test_color_distance(color_a: identicon.RGB, color_b: identicon.RGB) -> None:
-    distance = identicon.perceived_distance(color_a, color_b)
+def test_color_distance(color_a: color.RGB, color_b: color.RGB) -> None:
+    distance = color.perceived_distance(color_a, color_b)
     assert isinstance(distance, float)
     assert distance >= 0
