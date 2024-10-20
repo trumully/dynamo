@@ -163,7 +163,7 @@ class Tags(commands.GroupCog, Cog, group_name="tag"):
     @tag_get.autocomplete("name")
     @tag_delete.autocomplete("name")
     async def tag_autocomplete(self, itx: Interaction, current: str) -> list[Choice[str]]:
-        matches = await _get_trie_matches(itx.client.conn, itx.user.id)
+        matches: Trie = await _get_trie_matches(itx.client.conn, itx.user.id)
         return [Choice(name=match, value=match) for match in matches.search(current)[:25]]
 
 
