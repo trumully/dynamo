@@ -151,13 +151,13 @@ def _get_token() -> str | None:
 
 def check_for_updates() -> tuple[int, int]:
     try:
-        repo = pygit2.Repository(".")
-        repo.remotes["origin"].fetch()
+        repo = pygit2.repository.Repository(".")
+        repo.remotes["origin"].fetch()  # type: ignore
         local_branch = repo.head.shorthand
         local_commit = repo.revparse_single(local_branch).short_id
         remote_commit = repo.revparse_single(f"origin/{local_branch}").short_id
 
-        ahead, behind = repo.ahead_behind(local_commit, remote_commit)
+        ahead, behind = repo.ahead_behind(local_commit, remote_commit)  # type: ignore
     except (pygit2.GitError, KeyError):
         return 0, 0
     return ahead, behind

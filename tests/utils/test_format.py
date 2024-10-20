@@ -52,7 +52,7 @@ def test_plural_format(value: int, format_spec: str, skip_value: bool) -> None:
 
     # Check basic properties
     assert isinstance(result, str)
-    assert result != ""
+    assert result
 
     # Check if value is included when not skipped
     if not skip_value:
@@ -107,4 +107,4 @@ def test_human_join(seq: list[str], conjunction: str, oxford_comma: bool) -> Non
     elif len(seq) == 2:
         assert result == f"{seq[0]} {conjunction} {seq[1]}"
     else:
-        assert result == f"{', '.join(seq[:-1])}{', ' if oxford_comma else ' '}{conjunction} {seq[-1]}"
+        assert result == f"{", ".join(seq[:-1])}{", " if oxford_comma else " "}{conjunction} {seq[-1]}"

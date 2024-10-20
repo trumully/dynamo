@@ -148,8 +148,8 @@ class Dev(Cog, name="dev"):
         if not await ctx.prompt("Are you sure you want to reload all extensions and utils?"):
             return
 
-        extensions = await self._reload_extensions()
         utils = self._reload_utils()
+        extensions = await self._reload_extensions()
 
         await ctx.send(self._pretty_results(extensions, utils) or "No extensions or utils to reload.")
 

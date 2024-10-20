@@ -24,31 +24,31 @@ class ConverterMixin[T: Any](commands.Converter[T], app_commands.Transformer):
         return NotImplemented
 
 
-class GuildConverter[GuildLike: discord.Guild | str](ConverterMixin[GuildLike]):
+class GuildConverter(ConverterMixin[discord.Guild | str]):
     """Convert an argument to a guild. If not found, return the current guild. If there's no guild at all,
     return the argument."""
 
-    async def convert(self, ctx: commands.Context[BotT], argument: str) -> GuildLike:
+    async def convert(self, ctx: commands.Context[BotT], argument: str) -> discord.Guild | str:
         try:
             result = await commands.GuildConverter().convert(ctx, argument)
         except commands.GuildNotFound:
-            result = argument if ctx.guild is None else ctx.guild
-        return cast(GuildLike, result)
+            return argument if ctx.guild is None else ctx.guild
+        return result
 
     @property
     def type(self) -> discord.AppCommandOptionType:
         return discord.AppCommandOptionType.number
 
 
-class MemberLikeConverter[MemberLike: discord.Member | str](ConverterMixin[MemberLike]):
+class MemberLikeConverter(ConverterMixin[discord.Member | str]):
     """Convert a given string to a member type if it is valid."""
 
-    async def convert(self, ctx: commands.Context[BotT], argument: str | discord.Member) -> MemberLike:
+    async def convert(self, ctx: commands.Context[BotT], argument: str) -> discord.Member | str:
         try:
-            result = await commands.MemberConverter().convert(ctx, str(argument))
+            result = await commands.MemberConverter().convert(ctx, argument)
         except commands.MemberNotFound:
-            result = argument
-        return cast(MemberLike, result)
+            return argument
+        return result
 
     @property
     def type(self) -> discord.AppCommandOptionType:

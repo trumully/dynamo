@@ -6,10 +6,17 @@ import discord
 from discord.ext import commands
 
 from dynamo import Cog, Context, Dynamo
-from dynamo.typedefs import MISSING
+from dynamo.typedefs import MISSING, CoroFunction
 from dynamo.utils import spotify
+from dynamo.utils.aura import get_aura
+from dynamo.utils.cache import async_cache
 from dynamo.utils.converter import MemberLikeConverter
 from dynamo.utils.identicon import as_discord_color, derive_seed, get_colors, get_identicon, seed_from_time
+
+
+@async_cache(ttl=3600)
+async def fetch_user(coro: CoroFunction[[int], discord.User], user_id: int) -> discord.User:
+    return await coro(user_id)
 
 
 class General(Cog, name="general"):
@@ -80,7 +87,7 @@ class General(Cog, name="general"):
     async def spotify(
         self,
         ctx: Context,
-        user: discord.User | discord.Member | str | None = commands.param(default=None, converter=MemberLikeConverter),
+        user: discord.User | discord.Member | None = commands.param(default=None, converter=MemberLikeConverter),
     ) -> None:
         """Get the currently playing Spotify track for a user.
 
@@ -109,6 +116,46 @@ class General(Cog, name="general"):
         embed, file = spotify.make_embed(user, activity, buffer, self.bot.app_emojis.get("spotify", "🎧"), ext=ext)
 
         await ctx.send(embed=embed, file=file)
+
+    @commands.hybrid_command(name="aura", aliases=("a",))
+    async def aura(
+        self,
+        ctx: Context,
+        user: discord.User | discord.Member | None = commands.param(default=None, converter=MemberLikeConverter),
+    ) -> None:
+        """Get the aura of a user's profile picture and banner.
+
+        Parameters
+        ----------
+        user : discord.User | discord.Member | None, optional
+            The user to check. If nothing is provided, check author instead.
+        """
+        if user is None:
+            user = ctx.author
+
+        if isinstance(user, str):
+            return
+
+        # Required to get the banner
+        fetched_user = await fetch_user(self.bot.fetch_user, user.id)
+
+        async with ctx.typing():
+            avatar_bytes = await fetched_user.display_avatar.read()
+            banner_bytes = await fetched_user.banner.read() if fetched_user.banner else None
+
+            score, description = await get_aura(avatar_bytes, banner_bytes, ctx.session)
+
+            embed = discord.Embed(
+                title=f"{user.display_name}'s aura is...",
+                description=f"### {description}\n" f"Score: **{score:.1f}** / 10",
+                color=user.color,
+            )
+
+            embed.set_thumbnail(url=fetched_user.display_avatar.url)
+            if fetched_user.banner:
+                embed.set_image(url=fetched_user.banner.url)
+
+        await ctx.send(embed=embed)
 
 
 async def setup(bot: Dynamo) -> None:

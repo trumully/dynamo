@@ -7,17 +7,13 @@ from collections import OrderedDict
 from collections.abc import Callable, Hashable, Sized
 from dataclasses import dataclass, field
 from functools import partial, wraps
-from typing import Any, ParamSpec, Protocol, TypeVar, cast, overload
+from typing import Any, Protocol, cast, overload
 
 from dynamo.typedefs import MISSING, CoroFunction
-
-P = ParamSpec("P")
-T = TypeVar("T")
+from dynamo.utils.format import shorten_string
 
 log = logging.getLogger(__name__)
 
-WRAPPER_ASSIGNMENTS = ("__module__", "__name__", "__qualname__", "__doc__", "__annotations__", "__type_params__")
-WRAPPER_UPDATES = ("__dict__",)
 FAST_TYPES: set[type] = {int, str, float, bytes, type(None)}
 
 
@@ -39,22 +35,19 @@ class CacheInfo:
 type WrappedCoro[**P, T] = Callable[P, CoroFunction[P, T]]
 
 
-class CachedTask[**P, T](Protocol):
-    __wrapped__: WrappedCoro[P, T]
+class CachedTask[T](Protocol):
+    __wrapped__: Callable[..., CoroFunction[..., T]]
+    __call__: Callable[..., asyncio.Task[T]]
 
-    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> asyncio.Task[T]: ...
-    def cache_info(self) -> CacheInfo: ...
-    def cache_clear(self) -> None: ...
-    def cache_parameters(self) -> dict[str, int | float | None]: ...
-    def invalidate(self, *args: P.args, **kwargs: P.kwargs) -> bool: ...
-    def get_containing(self, *args: P.args, **kwargs: P.kwargs) -> asyncio.Task[T] | None: ...
-
-
-type DecoratedCoro[**P, T] = Callable[[CoroFunction[P, T]], CachedTask[P, T]]
+    cache_info: Callable[[], CacheInfo]
+    cache_clear: Callable[[], None]
+    cache_parameters: Callable[[], dict[str, int | float | None]]
+    invalidate: Callable[..., bool]
+    get_containing: Callable[..., asyncio.Task[T] | None]
 
 
 class HashedSeq(list[Any]):
-    __slots__: tuple[str, ...] = ("hash_value",)
+    __slots__: tuple[str] = ("hash_value",)
 
     def __init__(self, /, *args: Any, _hash: Callable[[object], int] = hash) -> None:
         self[:] = args
@@ -163,7 +156,7 @@ def task_from_future[T](future: asyncio.Future[T]) -> asyncio.Task[T]:
     return asyncio.create_task(wrap_future(future))
 
 
-def _cache_wrapper[**P, T](coro: CoroFunction[P, T], maxsize: int | None, ttl: float | None) -> CachedTask[P, T]:
+def _cache_wrapper[**P, T](coro: CoroFunction[P, T], maxsize: int | None, ttl: float | None) -> CachedTask[T]:
     sentinel = MISSING
     make_key = _make_key
 
@@ -176,20 +169,20 @@ def _cache_wrapper[**P, T](coro: CoroFunction[P, T], maxsize: int | None, ttl: f
     @wraps(coro)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> asyncio.Task[T]:
         key: Hashable = make_key(args, kwargs)
-        to_log = (
+        to_log = shorten_string(
             f"{coro.__name__}("
             f"{', '.join(map(str, args))}"
             f"{', ' if kwargs else ''}"
             f"{', '.join(f'{k}={v!r}' for k, v in kwargs.items())}"
-            f")"
+            f")",
+            max_len=100,
         )
 
         with lock:
-            future = cache_get(key, sentinel)
-            if future is not sentinel:
+            if (maybe_future := cache_get(key, sentinel)) is not sentinel:
                 log.debug("Cache hit for %s", to_log)
                 _cache_info.hits += 1
-                return task_from_future(future)
+                return task_from_future(maybe_future)
         log.debug("Cache miss for %s", to_log)
         _cache_info.misses += 1
         future: asyncio.Future[T] = asyncio.get_running_loop().create_future()
@@ -248,7 +241,7 @@ def _cache_wrapper[**P, T](coro: CoroFunction[P, T], maxsize: int | None, ttl: f
             future = cache_get(key, sentinel)
             return task_from_future(future) if future is not sentinel else None
 
-    _wrapper = cast(CachedTask[P, T], wrapper)
+    _wrapper = cast(CachedTask[T], wrapper)
     _wrapper.cache_info = cache_info
     _wrapper.cache_clear = cache_clear
     _wrapper.invalidate = invalidate
@@ -257,16 +250,18 @@ def _cache_wrapper[**P, T](coro: CoroFunction[P, T], maxsize: int | None, ttl: f
 
 
 @overload
-def async_cache[**P, T](*, maxsize: int | None = 128, ttl: float | None = None) -> DecoratedCoro[P, T]: ...
+def async_cache[T](
+    *, maxsize: int | None = 128, ttl: float | None = None
+) -> Callable[[CoroFunction[..., T]], CachedTask[T]]: ...
 
 
 @overload
-def async_cache[**P, T](coro: CoroFunction[P, T], /) -> CachedTask[P, T]: ...
+def async_cache[T](coro: CoroFunction[..., T], /) -> CachedTask[T]: ...
 
 
-def async_cache[**P, T](
-    maxsize: int | CoroFunction[P, T] | None = 128, ttl: float | None = None
-) -> CachedTask[P, T] | DecoratedCoro[P, T]:
+def async_cache[T](
+    maxsize: int | CoroFunction[..., T] | None = 128, ttl: float | None = None
+) -> CachedTask[T] | Callable[[CoroFunction[..., T]], CachedTask[T]]:
     """Decorator to cache the result of a coroutine.
 
     This decorator caches the result of a coroutine to improve performance
@@ -275,7 +270,7 @@ def async_cache[**P, T](
 
     Parameters
     ----------
-    maxsize : int | CoroFunction[P, T] | None, optional
+    maxsize : int | CoroFunction[..., T] | None, optional
         The maximum number of items to cache. If a coroutine function is provided directly,
         it is assumed to be the function to be decorated, and `maxsize` defaults to 128.
         If `None`, the cache can grow without bound. Default is 128.
@@ -285,7 +280,7 @@ def async_cache[**P, T](
 
     Returns
     -------
-    CachedTask[P, T] | DecoratedCoro[P, T]
+    CachedTask[T] | Callable[[CoroFunction[..., T]], CachedTask[T]]
         If a coroutine is provided directly, returns the cached task.
         Otherwise, returns a decorator that can be applied to a coroutine.
 
@@ -319,7 +314,7 @@ def async_cache[**P, T](
         error = "Expected first argument to be an integer, a coroutine, or None"
         raise TypeError(error) from None
 
-    def decorator(coro: CoroFunction[P, T]) -> CachedTask[P, T]:
+    def decorator(coro: CoroFunction[..., T]) -> CachedTask[T]:
         wrapper = _cache_wrapper(coro, maxsize, ttl)
         wrapper.cache_parameters = lambda: {"maxsize": maxsize, "ttl": ttl}
         return wrapper
