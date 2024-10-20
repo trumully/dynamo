@@ -30,7 +30,7 @@ def format_commit(commit: pygit2.Commit) -> str:
 def get_latest_commits(count: int = 3) -> str:
     """Get (count) latest commits from the git repository"""
     repo = pygit2.repository.Repository(".git")
-    commits = list(itertools.islice(repo.walk(repo.head.target, pygit2.GIT_SORT_TOPOLOGICAL), count))  # type: ignore
+    commits = list(itertools.islice(repo.walk(repo.head.target, pygit2.enums.SortMode.TOPOLOGICAL), count))  # type: ignore
     return "\n".join(format_commit(c) for c in commits)
 
 

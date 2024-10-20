@@ -35,9 +35,9 @@ class CacheInfo:
 type WrappedCoro[**P, T] = Callable[P, CoroFunction[P, T]]
 
 
-class CachedTask[T](Protocol):
-    __wrapped__: Callable[..., CoroFunction[..., T]]
-    __call__: Callable[..., asyncio.Task[T]]
+class CachedTask[**P, T](Protocol):
+    __wrapped__: Callable[P, CoroFunction[P, T]]
+    __call__: Callable[P, asyncio.Task[T]]
 
     cache_info: Callable[[], CacheInfo]
     cache_clear: Callable[[], None]
@@ -156,7 +156,7 @@ def task_from_future[T](future: asyncio.Future[T]) -> asyncio.Task[T]:
     return asyncio.create_task(wrap_future(future))
 
 
-def _cache_wrapper[**P, T](coro: CoroFunction[P, T], maxsize: int | None, ttl: float | None) -> CachedTask[T]:
+def _cache_wrapper[**P, T](coro: CoroFunction[P, T], maxsize: int | None, ttl: float | None) -> CachedTask[P, T]:
     sentinel = MISSING
     make_key = _make_key
 
@@ -195,9 +195,9 @@ def _cache_wrapper[**P, T](coro: CoroFunction[P, T], maxsize: int | None, ttl: f
                 internal_cache[key] = future
                 internal_cache.move_to_end(key)
                 _cache_info.full = cache_len() >= maxsize
-                _cache_info.currsize = cache_len()
             else:
                 internal_cache[key] = future
+            _cache_info.currsize = cache_len()
 
         if ttl is not None:
 
@@ -241,7 +241,7 @@ def _cache_wrapper[**P, T](coro: CoroFunction[P, T], maxsize: int | None, ttl: f
             future = cache_get(key, sentinel)
             return task_from_future(future) if future is not sentinel else None
 
-    _wrapper = cast(CachedTask[T], wrapper)
+    _wrapper = cast(CachedTask[P, T], wrapper)
     _wrapper.cache_info = cache_info
     _wrapper.cache_clear = cache_clear
     _wrapper.invalidate = invalidate
@@ -249,19 +249,16 @@ def _cache_wrapper[**P, T](coro: CoroFunction[P, T], maxsize: int | None, ttl: f
     return _wrapper
 
 
-@overload
-def async_cache[T](
-    *, maxsize: int | None = 128, ttl: float | None = None
-) -> Callable[[CoroFunction[..., T]], CachedTask[T]]: ...
+type DecoratedCoro[**P, T] = Callable[[CoroFunction[P, T]], CachedTask[P, T]]
 
 
 @overload
-def async_cache[T](coro: CoroFunction[..., T], /) -> CachedTask[T]: ...
-
-
-def async_cache[T](
-    maxsize: int | CoroFunction[..., T] | None = 128, ttl: float | None = None
-) -> CachedTask[T] | Callable[[CoroFunction[..., T]], CachedTask[T]]:
+def async_cache[**P, T](*, maxsize: int | None = 128, ttl: float | None = None) -> DecoratedCoro[P, T]: ...
+@overload
+def async_cache[**P, T](coro: CoroFunction[P, T], /) -> CachedTask[P, T]: ...
+def async_cache[**P, T](
+    maxsize: int | CoroFunction[P, T] | None = 128, ttl: float | None = None
+) -> DecoratedCoro[P, T] | CachedTask[P, T]:
     """Decorator to cache the result of a coroutine.
 
     This decorator caches the result of a coroutine to improve performance
@@ -303,18 +300,15 @@ def async_cache[T](
     ...     return f"Data from {url}"
 
     """
-    if isinstance(maxsize, int):
-        maxsize = max(maxsize, 0)
-    elif callable(maxsize):
+    if callable(maxsize):
         coro, maxsize = maxsize, 128
         wrapper = _cache_wrapper(coro, maxsize, ttl)
         wrapper.cache_parameters = lambda: {"maxsize": maxsize, "ttl": ttl}
         return wrapper
-    else:
-        error = "Expected first argument to be an integer, a coroutine, or None"
-        raise TypeError(error) from None
 
-    def decorator(coro: CoroFunction[..., T]) -> CachedTask[T]:
+    maxsize = max(maxsize, 0) if isinstance(maxsize, int) else None
+
+    def decorator(coro: CoroFunction[P, T]) -> CachedTask[P, T]:
         wrapper = _cache_wrapper(coro, maxsize, ttl)
         wrapper.cache_parameters = lambda: {"maxsize": maxsize, "ttl": ttl}
         return wrapper
