@@ -75,7 +75,7 @@ async def test_async_cache_clear(inputs: set[int]) -> None:
         results.append(result)
 
     assert async_cacheable_sized.cache_info().currsize > 0
-    async_cacheable_sized.cache_clear()
+    await async_cacheable_sized.cache_clear()
     assert async_cacheable_sized.cache_info().currsize == 0
 
 

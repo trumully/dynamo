@@ -144,7 +144,7 @@ class Events(Cog, name="events"):
         self.active_users.add(ctx.author.id)
 
         # Message for when the events are cached or not
-        is_guild_cached = event_check.get_containing(ctx.guild, event_id) is not None
+        is_guild_cached = await event_check.get_containing(ctx.guild, event_id) is not None
         fetch_message = "Fetching events..." if is_guild_cached else "Events not cached, fetching..."
         message = await ctx.send(f"{self.bot.app_emojis.get("loading2", "⏳")}\t{fetch_message}")
 

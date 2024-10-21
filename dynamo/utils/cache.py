@@ -2,15 +2,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import threading
-from collections import OrderedDict
-from collections.abc import Callable, Hashable, Sized
+from collections.abc import Callable, Hashable, Iterable, MutableMapping, Sized
 from dataclasses import dataclass, field
 from functools import partial, wraps
-from typing import Any, Protocol, cast, overload
+from typing import Any, Protocol, TypeVar, cast, overload
 
 from dynamo.typedefs import MISSING, CoroFunction
-from dynamo.utils.format import shorten_string
 
 log = logging.getLogger(__name__)
 
@@ -40,80 +37,133 @@ class CachedTask[**P, T](Protocol):
     __call__: Callable[P, asyncio.Task[T]]
 
     cache_info: Callable[[], CacheInfo]
-    cache_clear: Callable[[], None]
+    cache_clear: CoroFunction[[], None]
     cache_parameters: Callable[[], dict[str, int | float | None]]
-    invalidate: Callable[..., bool]
-    get_containing: Callable[..., asyncio.Task[T] | None]
+    invalidate: CoroFunction[..., bool]
+    get_containing: CoroFunction[P, T | None]
 
 
-class HashedSeq(list[Any]):
-    __slots__: tuple[str] = ("hash_value",)
+T_co = TypeVar("T_co", covariant=True)
 
-    def __init__(self, /, *args: Any, _hash: Callable[[object], int] = hash) -> None:
-        self[:] = args
-        self.hash_value: int = _hash(args)
 
-    def __hash__(self) -> int:  # type: ignore
+class HashedSeq(tuple[T_co, ...]):
+    hash_value: int
+
+    def __new__(cls, iterable: Iterable[T_co], hash_function: Callable[[object], int] = hash) -> HashedSeq[T_co]:
+        self = super().__new__(cls, iterable)
+        self.hash_value = hash_function(self)
+        return self
+
+    def __hash__(self) -> int:
         return self.hash_value
-
-
-class LRU[K, V]:
-    def __init__(self, maxsize: int, /) -> None:
-        self.cache: OrderedDict[K, V] = OrderedDict()
-        self.maxsize = maxsize
-
-    def get[T](self, key: K, default: T, /) -> V | T:
-        if key not in self.cache:
-            return default
-        self.cache.move_to_end(key)
-        return self.cache[key]
-
-    def __getitem__(self, key: K, /) -> V:
-        value = self.cache[key]
-        self.cache.move_to_end(key)
-        return value
-
-    def __setitem__(self, key: K, value: V, /) -> None:
-        if key in self.cache:
-            del self.cache[key]
-        elif len(self.cache) >= self.maxsize:
-            self.cache.popitem(last=False)
-        self.cache[key] = value
-
-    def remove(self, key: K, /) -> None:
-        self.cache.pop(key, None)
 
 
 @dataclass(slots=True)
 class Node:
-    children: dict[str, Node] = field(default_factory=dict)
+    key: Any
+    value: Any
+    prev_node: Node | None = None
+    next_node: Node | None = None
+
+
+class LRU[K, V]:
+    def __init__(self, maxsize: int | None, /) -> None:
+        self.cache: MutableMapping[K, Node] = {}
+        self.maxsize = maxsize
+        self.head: Node | None = None
+        self.tail: Node | None = None
+
+    def get[T](self, key: K, default: T, /) -> V | T:
+        if key not in self.cache:
+            return default
+        node = self.cache[key]
+        self._move_to_front(node)
+        return node.value
+
+    def __getitem__(self, key: K, /) -> V:
+        node = self.cache[key]
+        self._move_to_front(node)
+        return node.value
+
+    def __setitem__(self, key: K, value: V, /) -> None:
+        if key in self.cache:
+            node = self.cache[key]
+            node.value = value
+            self._move_to_front(node)
+        else:
+            node = Node(key, value)
+            self.cache[key] = node
+            self._add_to_front(node)
+            if self.maxsize is not None and len(self.cache) > self.maxsize:
+                self._remove_tail()
+
+    def remove(self, key: K, /) -> None:
+        if key in self.cache:
+            node = self.cache[key]
+            self._remove_node(node)
+            del self.cache[key]
+
+    def _add_to_front(self, node: Node) -> None:
+        node.next_node = self.head
+        node.prev_node = None
+        if self.head:
+            self.head.prev_node = node
+        self.head = node
+        if self.tail is None:
+            self.tail = node
+
+    def _remove_node(self, node: Node) -> None:
+        if node.prev_node:
+            node.prev_node.next_node = node.next_node
+        else:
+            self.head = node.next_node
+        if node.next_node:
+            node.next_node.prev_node = node.prev_node
+        else:
+            self.tail = node.prev_node
+
+    def _move_to_front(self, node: Node) -> None:
+        if self.head != node:
+            self._remove_node(node)
+            self._add_to_front(node)
+
+    def _remove_tail(self) -> None:
+        if self.tail:
+            del self.cache[self.tail.key]
+            self._remove_node(self.tail)
+
+
+@dataclass(slots=True)
+class Branch:
+    children: MutableMapping[str, Branch] = field(default_factory=dict)
     is_end: bool = False
 
 
 @dataclass(slots=True)
 class Trie:
-    root: Node = field(default_factory=Node)
+    root: Branch = field(default_factory=Branch)
 
     def insert(self, word: str) -> None:
         node = self.root
         for char in word:
             if char not in node.children:
-                node.children[char] = Node()
+                node.children[char] = Branch()
             node = node.children[char]
         node.is_end = True
 
     def search(self, prefix: str) -> list[str]:
         node = self.root
+        results: list[str] = []
+
         for char in prefix:
             if char not in node.children:
-                return []
+                return results
             node = node.children[char]
 
-        results: list[str] = []
         self._dfs(node, prefix, results)
         return results
 
-    def _dfs(self, node: Node, current: str, results: list[str]) -> None:
+    def _dfs(self, node: Branch, current: str, results: list[str]) -> None:
         if node.is_end:
             results.append(current)
         for char, child in node.children.items():
@@ -148,98 +198,69 @@ def _make_key(
     return _finalize_key(key, fast_types)
 
 
-async def wrap_future[T](future: asyncio.Future[T]) -> T:
-    return await future
-
-
-def task_from_future[T](future: asyncio.Future[T]) -> asyncio.Task[T]:
-    return asyncio.create_task(wrap_future(future))
-
-
 def _cache_wrapper[**P, T](coro: CoroFunction[P, T], maxsize: int | None, ttl: float | None) -> CachedTask[P, T]:
     sentinel = MISSING
     make_key = _make_key
 
-    internal_cache: OrderedDict[Hashable, asyncio.Future[T]] = OrderedDict()
-    cache_get = internal_cache.get
-    cache_len = internal_cache.__len__
-    lock = threading.Lock()
+    internal_cache: LRU[Hashable, asyncio.Future[T]] = LRU(maxsize)
+    lock = asyncio.Lock()
     _cache_info = CacheInfo()
 
     @wraps(coro)
-    def wrapper(*args: P.args, **kwargs: P.kwargs) -> asyncio.Task[T]:
+    async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
         key: Hashable = make_key(args, kwargs)
-        to_log = shorten_string(
-            f"{coro.__name__}("
-            f"{', '.join(map(str, args))}"
-            f"{', ' if kwargs else ''}"
-            f"{', '.join(f'{k}={v!r}' for k, v in kwargs.items())}"
-            f")",
-            max_len=100,
-        )
 
-        with lock:
-            if (maybe_future := cache_get(key, sentinel)) is not sentinel:
-                log.debug("Cache hit for %s", to_log)
+        async with lock:
+            maybe_future = internal_cache.get(key, sentinel)
+            if maybe_future is not sentinel:
                 _cache_info.hits += 1
-                return task_from_future(maybe_future)
-        log.debug("Cache miss for %s", to_log)
-        _cache_info.misses += 1
-        future: asyncio.Future[T] = asyncio.get_running_loop().create_future()
+                return await maybe_future
 
-        with lock:
-            if maxsize is not None:
-                if key not in internal_cache and _cache_info.full:
-                    log.debug("Eviction: LRU cache is full")
-                    internal_cache.popitem(last=False)
-                internal_cache[key] = future
-                internal_cache.move_to_end(key)
-                _cache_info.full = cache_len() >= maxsize
-            else:
-                internal_cache[key] = future
-            _cache_info.currsize = cache_len()
+            _cache_info.misses += 1
+            future: asyncio.Future[T] = asyncio.get_running_loop().create_future()
+            internal_cache[key] = future
+            _cache_info.currsize = len(internal_cache.cache)
+            _cache_info.full = maxsize is not None and _cache_info.currsize >= (internal_cache.maxsize or 0)
 
         if ttl is not None:
 
-            def evict(k: Hashable, default: Any = MISSING) -> None:
-                log.debug("Eviction: TTL expired for %s", k)
-                with lock:
-                    internal_cache.pop(k, default)
+            async def evict(k: Hashable) -> None:
+                async with lock:
+                    internal_cache.remove(k)
 
             call_after_ttl = partial(asyncio.get_running_loop().call_later, ttl, evict, key)
             future.add_done_callback(call_after_ttl)
 
-        async def run_coro() -> T:
-            try:
-                result = await coro(*args, **kwargs)
-                future.set_result(result)
-            except Exception as e:
-                future.set_exception(e)
-                log.exception("Error in cached coroutine %s", to_log)
-                raise
-            return result
-
-        return asyncio.create_task(run_coro())
+        try:
+            result = await coro(*args, **kwargs)
+            future.set_result(result)
+        except Exception as e:
+            log.exception("Error in coroutine %s", coro)
+            future.set_exception(e)
+            raise e from None
+        return result
 
     def cache_info() -> CacheInfo:
         return _cache_info
 
-    def cache_clear() -> None:
-        with lock:
-            internal_cache.clear()
+    async def cache_clear() -> None:
+        async with lock:
+            internal_cache.cache.clear()
             _cache_info.clear()
 
-    def invalidate(*args: P.args, **kwargs: P.kwargs) -> bool:
+    async def invalidate(*args: P.args, **kwargs: P.kwargs) -> bool:
         key = make_key(args, kwargs)
         log.debug("Invalidating cache for %s", key)
-        with lock:
-            return internal_cache.pop(key, sentinel) is not sentinel
+        async with lock:
+            if removed := (key in internal_cache.cache):
+                internal_cache.remove(key)
+        return removed
 
-    def get_containing(*args: P.args, **kwargs: P.kwargs) -> asyncio.Task[T] | None:
+    async def get_containing(*args: P.args, **kwargs: P.kwargs) -> T | None:
         key = make_key(args, kwargs)
-        with lock:
-            future = cache_get(key, sentinel)
-            return task_from_future(future) if future is not sentinel else None
+        async with lock:
+            future = internal_cache.get(key, sentinel)
+            return await future if future is not sentinel else None
 
     _wrapper = cast(CachedTask[P, T], wrapper)
     _wrapper.cache_info = cache_info
