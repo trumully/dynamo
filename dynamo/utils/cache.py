@@ -5,7 +5,7 @@ import logging
 from collections.abc import Callable, Hashable, Iterable, MutableMapping, Sized
 from dataclasses import dataclass, field
 from functools import partial, wraps
-from typing import Any, Protocol, cast, overload
+from typing import Any, Protocol, TypedDict, cast, overload
 
 from dynamo.typedefs import MISSING, CoroFunction
 
@@ -32,14 +32,19 @@ class CacheInfo:
 type WrappedCoro[**P, T] = Callable[P, CoroFunction[P, T]]
 
 
+class CacheParameters(TypedDict):
+    maxsize: int | None
+    ttl: float | None
+
+
 class CachedTask[**P, T](Protocol):
     __wrapped__: Callable[P, CoroFunction[P, T]]
     __call__: Callable[P, asyncio.Task[T]]
 
     cache_info: Callable[[], CacheInfo]
     cache_clear: CoroFunction[[], None]
-    cache_parameters: Callable[[], dict[str, int | float | None]]
-    invalidate: CoroFunction[..., bool]
+    cache_parameters: Callable[[], CacheParameters]
+    invalidate: CoroFunction[P, bool]
     get_containing: CoroFunction[P, T | None]
 
 
@@ -215,9 +220,12 @@ def _cache_wrapper[**P, T](coro: CoroFunction[P, T], maxsize: int | None, ttl: f
 
         if ttl is not None:
 
-            async def evict(k: Hashable) -> None:
-                async with lock:
-                    internal_cache.remove(k)
+            def evict(k: Hashable, default: Any = MISSING) -> None:
+                async def remove_key() -> None:
+                    async with lock:
+                        internal_cache.remove(k)
+
+                asyncio.create_task(remove_key())
 
             call_after_ttl = partial(asyncio.get_running_loop().call_later, ttl, evict, key)
             future.add_done_callback(call_after_ttl)

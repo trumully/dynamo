@@ -590,7 +590,7 @@ yaml = ["pyyaml"]
 type = "git"
 url = "https://github.com/jcrist/msgspec"
 reference = "main"
-resolved_reference = "ced7135513eab14ef8a679e8aa8ba481cbc08709"
+resolved_reference = "29390b0385cda4ba76a0aaf4ede5d54ae9ff35ff"
 
 [[package]]
 name = "multidict"
