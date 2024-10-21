@@ -4,12 +4,11 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from io import BytesIO
-from pathlib import Path
 from typing import Any
 
 import aiohttp
 import discord
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 from dynamo.utils.cache import async_cache
 from dynamo.utils.format import FONTS, human_join, is_cjk
@@ -18,22 +17,16 @@ from dynamo.utils.wrappers import executor_function
 
 log = logging.getLogger(__name__)
 
-# Color constants
-COLORS = {
-    "background": (5, 5, 25),
-    "text": (255, 255, 255),
-    "progress_bar": (255, 255, 255),
-    "length_bar": (64, 64, 64),
-}
 
 # Layout constants
 LAYOUT = {
     "width": 800,
     "height": 250,
     "padding": 15,
-    "border": 8,
-    "album_size": 250 - (8 * 2) + 1,
+    "border": 0,
+    "album_size": 250,
     "logo_size": 48,
+    "content_offset": 20,
 }
 
 # Font sizes
@@ -43,11 +36,11 @@ FONT_SIZES = {
     "progress": 18,
 }
 
-SPOTIFY_LOGO_PATH = Path(ROOT / "assets" / "images" / "spotify.png")
+SPOTIFY_LOGO_PATH = ROOT / "dynamo" / "assets" / "images" / "spotify.png"
 
 # Layout
-CONTENT_START_X: int = LAYOUT["album_size"] + LAYOUT["border"] * 2
-CONTENT_WIDTH: int = LAYOUT["width"] - CONTENT_START_X - LAYOUT["padding"] - LAYOUT["border"]
+CONTENT_START_X: int = LAYOUT["album_size"] + LAYOUT["content_offset"]
+CONTENT_WIDTH: int = LAYOUT["width"] - CONTENT_START_X - LAYOUT["padding"] - LAYOUT["border"] - LAYOUT["logo_size"]
 TITLE_START_Y: int = LAYOUT["padding"]
 
 # Progress bar
@@ -98,8 +91,9 @@ def make_embed(
 
 @executor_function
 def draw(activity: discord.Spotify, album: bytes) -> tuple[BytesIO, str]:
-    base, base_draw = create_base_image(activity.color.to_rgb())
-    paste_album_cover(base, album)
+    with open_image_bytes(album) as album_image:
+        base, base_draw = create_base_image(activity.color.to_rgb(), album_image)
+        paste_album_cover(base, album_image)
 
     title_font = get_font(activity.title, FONT_SIZES["title"], bold=True)
     artist_font = get_font(", ".join(activity.artists), FONT_SIZES["artist"])
@@ -112,7 +106,7 @@ def draw(activity: discord.Spotify, album: bytes) -> tuple[BytesIO, str]:
 
 
 def calculate_available_width() -> int:
-    return LAYOUT["width"] - CONTENT_START_X - LAYOUT["logo_size"] - LAYOUT["padding"] * 2 - LAYOUT["border"]
+    return CONTENT_WIDTH
 
 
 def is_title_fits(title: str, font: ImageFont.FreeTypeFont, available_width: int) -> bool:
@@ -126,7 +120,7 @@ def draw_static_image(
     title_font: ImageFont.FreeTypeFont,
     artist_font: ImageFont.FreeTypeFont,
 ) -> tuple[BytesIO, str]:
-    base_draw.text((CONTENT_START_X, TITLE_START_Y), activity.title, fill=COLORS["text"], font=title_font)  # type: ignore
+    base_draw.text((CONTENT_START_X, TITLE_START_Y), activity.title, fill=(255, 255, 255), font=title_font)  # type: ignore
     spotify_logo = Image.open(SPOTIFY_LOGO_PATH).resize((LAYOUT["logo_size"], LAYOUT["logo_size"]))
     static_args = StaticDrawArgs(activity.artists, artist_font, activity.duration, activity.end, spotify_logo)
     draw_static_elements(base_draw, base, static_args)
@@ -184,27 +178,43 @@ def get_progress(end: datetime.datetime, duration: datetime.timedelta) -> float:
     return 1 - (end - now).total_seconds() / duration.total_seconds()
 
 
-def create_base_image(color: tuple[int, int, int]) -> tuple[Image.Image, ImageDraw.ImageDraw]:
-    base = Image.new("RGBA", (LAYOUT["width"], LAYOUT["height"]), color)
+def create_base_image(color: tuple[int, int, int], album: Image.Image) -> tuple[Image.Image, ImageDraw.ImageDraw]:
+    base = Image.new("RGBA", (LAYOUT["width"], LAYOUT["height"]))
+    gradient = create_gradient_background(album)
+    base.paste(gradient, (0, 0))
     base_draw = ImageDraw.Draw(base)
-    base_draw.rectangle(
-        (LAYOUT["border"], LAYOUT["border"], LAYOUT["width"] - LAYOUT["border"], LAYOUT["height"] - LAYOUT["border"]),
-        fill=COLORS["background"],
-    )
     return base, base_draw
 
 
-def paste_album_cover(base: Image.Image, album: bytes) -> None:
-    with open_image_bytes(album) as album_image:
-        album_resized = album_image.resize((LAYOUT["album_size"], LAYOUT["album_size"]))
-        base.paste(album_resized, (LAYOUT["border"], LAYOUT["border"]))
+def create_gradient_background(album: Image.Image) -> Image.Image:
+    # Resize and blur the album cover
+    blurred = album.copy().resize((LAYOUT["width"], LAYOUT["height"])).filter(ImageFilter.GaussianBlur(radius=30))
+
+    # Create a gradient overlay
+    gradient = Image.new("RGBA", (LAYOUT["width"], LAYOUT["height"]), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(gradient)
+    for y in range(LAYOUT["height"]):
+        alpha = int(255 * (1 - y / LAYOUT["height"]))
+        draw.line([(0, y), (LAYOUT["width"], y)], fill=(0, 0, 0, alpha))
+
+    # Composite the blurred image and gradient
+    blurred = Image.alpha_composite(blurred.convert("RGBA"), gradient)
+
+    # Darken the overall image
+    darkened = Image.new("RGBA", blurred.size, (0, 0, 0, 64))
+    return Image.alpha_composite(blurred, darkened)
+
+
+def paste_album_cover(base: Image.Image, album_image: Image.Image) -> None:
+    album_resized = album_image.resize((LAYOUT["album_size"], LAYOUT["album_size"]))
+    base.paste(album_resized, (LAYOUT["border"], LAYOUT["border"]))
 
 
 def draw_static_elements(draw: ImageDraw.ImageDraw, image: Image.Image, args: StaticDrawArgs) -> None:
     draw.text(  # type: ignore
         xy=(CONTENT_START_X, TITLE_START_Y + FONT_SIZES["title"] + 5),
         text=", ".join(args.artists),
-        fill=COLORS["text"],
+        fill=(255, 255, 255),  # White text
         font=args.artist_font,
     )
 
@@ -223,7 +233,6 @@ def draw_static_elements(draw: ImageDraw.ImageDraw, image: Image.Image, args: St
 
 
 def draw_track_bar(draw: ImageDraw.ImageDraw, progress: float, duration: datetime.timedelta) -> None:
-    """Draw the duration and progress bar of a given track."""
     duration_width = PROGRESS_BAR_START_X + PROGRESS_BAR_WIDTH
     progress_width = max(
         PROGRESS_BAR_START_X, min(duration_width, PROGRESS_BAR_START_X + (PROGRESS_BAR_WIDTH * progress))
@@ -231,19 +240,19 @@ def draw_track_bar(draw: ImageDraw.ImageDraw, progress: float, duration: datetim
 
     draw.rectangle(
         (PROGRESS_BAR_START_X, PROGRESS_BAR_Y, duration_width, PROGRESS_BAR_Y + PROGRESS_BAR_HEIGHT),
-        fill=COLORS["length_bar"],
+        fill=(64, 64, 64),  # Dark gray for the background bar
     )
 
     if progress_width > PROGRESS_BAR_START_X:
         draw.rectangle(
             (PROGRESS_BAR_START_X, PROGRESS_BAR_Y, progress_width, PROGRESS_BAR_Y + PROGRESS_BAR_HEIGHT),
-            fill=COLORS["progress_bar"],
+            fill=(255, 255, 255),  # White for the progress bar
         )
 
     played_seconds = min(int(duration.total_seconds()), int(duration.total_seconds() * progress))
     progress_text = f"{track_duration(played_seconds)} / {track_duration(int(duration.total_seconds()))}"
     progress_font = get_font(progress_text, FONT_SIZES["progress"])
-    draw.text((PROGRESS_BAR_START_X, PROGRESS_TEXT_Y), progress_text, fill=COLORS["text"], font=progress_font)  # type: ignore
+    draw.text((PROGRESS_BAR_START_X, PROGRESS_TEXT_Y), progress_text, fill=(255, 255, 255), font=progress_font)  # type: ignore
 
 
 def create_animated_frames(
@@ -292,8 +301,8 @@ def draw_text_scroll(font: ImageFont.FreeTypeFont, text: str, width: int) -> Gen
 def create_text_frame(text: str, width: int, height: int, font: ImageFont.FreeTypeFont, x_pos: int = 0) -> Image.Image:
     frame = Image.new("RGBA", (width, height))
     draw = ImageDraw.Draw(frame)
-    draw.text((x_pos, 0), text, fill=COLORS["text"], font=font)  # type: ignore
-    draw.text((x_pos + font.getbbox(text)[2], 0), text, fill=COLORS["text"], font=font)  # type: ignore
+    draw.text((x_pos, 0), text, fill=(255, 255, 255), font=font)  # type: ignore
+    draw.text((x_pos + font.getbbox(text)[2], 0), text, fill=(255, 255, 255), font=font)  # type: ignore
     return frame
 
 

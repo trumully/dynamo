@@ -5,7 +5,7 @@ import logging
 from collections.abc import Callable, Hashable, Iterable, MutableMapping, Sized
 from dataclasses import dataclass, field
 from functools import partial, wraps
-from typing import Any, Protocol, TypeVar, cast, overload
+from typing import Any, Protocol, cast, overload
 
 from dynamo.typedefs import MISSING, CoroFunction
 
@@ -43,19 +43,15 @@ class CachedTask[**P, T](Protocol):
     get_containing: CoroFunction[P, T | None]
 
 
-T_co = TypeVar("T_co", covariant=True)
+class HashedSeq[T](list[T]):
+    __slots__ = ("_hash_value",)
 
+    def __init__(self, iterable: Iterable[T], hash_function: Callable[[object], int] = hash) -> None:
+        super().__init__(iterable)
+        self._hash_value = hash_function(tuple(self))
 
-class HashedSeq(tuple[T_co, ...]):
-    hash_value: int
-
-    def __new__(cls, iterable: Iterable[T_co], hash_function: Callable[[object], int] = hash) -> HashedSeq[T_co]:
-        self = super().__new__(cls, iterable)
-        self.hash_value = hash_function(self)
-        return self
-
-    def __hash__(self) -> int:
-        return self.hash_value
+    def __hash__(self) -> int:  # type: ignore
+        return self._hash_value
 
 
 @dataclass(slots=True)
@@ -170,13 +166,6 @@ class Trie:
             self._dfs(child, current + char, results)
 
 
-def _create_key(args: tuple[Any, ...], kwargs: dict[Any, Any], kwargs_mark: tuple[object]) -> tuple[Any, ...]:
-    key = args
-    if kwargs:
-        key += kwargs_mark + tuple(kwargs.items())
-    return key
-
-
 def _finalize_key(
     key: tuple[Any, ...], fast_types: set[type], _type: type[type] = type, _len: Callable[[Sized], int] = len
 ) -> Hashable:
@@ -191,10 +180,12 @@ def _make_key(
 ) -> Hashable:
     """
     Make cache key from optionally typed positional and keyword arguments. Structure is flat and hashable.
-    Although efficient, it will treat `f(x=1, y=2)` and `f(y=2, x=1)` as distinct calls and will be cached
-    separately.
+    Treats `f(x=1, y=2)` and `f(y=2, x=1)` as the same call for caching purposes.
     """
-    key = _create_key(args, kwargs, kwargs_mark)
+    key = args
+    if kwargs:
+        sorted_items = tuple(sorted(kwargs.items()))
+        key += kwargs_mark + sorted_items
     return _finalize_key(key, fast_types)
 
 

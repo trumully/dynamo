@@ -1,4 +1,5 @@
 import datetime
+import logging
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -6,6 +7,8 @@ from enum import StrEnum, auto
 from pathlib import Path
 
 from dynamo.utils.helper import ROOT
+
+log = logging.getLogger(__name__)
 
 
 def shorten_string(string: str, max_len: int = 50, placeholder: str = "Nothing provided") -> str:
@@ -94,7 +97,7 @@ class FontFamily:
 
 
 def _font_path(font: str) -> Path:
-    return Path(ROOT / "assets" / "fonts" / "static") / font
+    return ROOT / "dynamo" / "assets" / "fonts" / "static" / font
 
 
 def _get_fonts(font_name: str) -> FontFamily:

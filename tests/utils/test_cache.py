@@ -1,10 +1,17 @@
 import asyncio
+from typing import Any
 
 import pytest
 from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 
-from dynamo.utils.cache import CachedTask, async_cache
+from dynamo.utils.cache import FAST_TYPES, CachedTask, _make_key, async_cache  # type: ignore
+
+fast_type_values = st.one_of(
+    st.integers(), st.text(), st.floats(allow_nan=False, allow_infinity=False), st.binary(), st.none()
+)
+args_strategy = st.lists(fast_type_values, max_size=5).map(tuple)
+kwargs_strategy = st.dictionaries(st.text(min_size=1), fast_type_values, max_size=5)
 
 
 def create_async_cacheable(maxsize: int | None = 128, sleep_time: float = 1e-3) -> CachedTask[[int], int]:
@@ -63,24 +70,6 @@ async def test_async_cache_property(inputs: set[int]) -> None:
 
 @pytest.mark.asyncio
 @settings(deadline=None, max_examples=10)
-@given(st.sets(st.integers(), min_size=1, max_size=5))
-async def test_async_cache_clear(inputs: set[int]) -> None:
-    """Tests that the cache can be cleared."""
-
-    async_cacheable_sized = create_async_cacheable(maxsize=5)
-
-    results: list[int] = []
-    for i in inputs:
-        result: int = await async_cacheable_sized(i)
-        results.append(result)
-
-    assert async_cacheable_sized.cache_info().currsize > 0
-    await async_cacheable_sized.cache_clear()
-    assert async_cacheable_sized.cache_info().currsize == 0
-
-
-@pytest.mark.asyncio
-@settings(deadline=None, max_examples=10)
 @given(inputs=st.sets(st.integers(min_value=0, max_value=5), min_size=1, max_size=5))
 async def test_async_cache_maxsize_enforcement(inputs: set[int]) -> None:
     """Test that the cache enforces the maxsize."""
@@ -107,6 +96,24 @@ async def test_async_cache_unbounded(inputs: set[int]) -> None:
     cache_info = async_cacheable_unbounded.cache_info()
     assert not cache_info.full
     assert cache_info.currsize == len(inputs)
+
+
+@pytest.mark.asyncio
+@settings(deadline=None, max_examples=10)
+@given(st.sets(st.integers(), min_size=1, max_size=5))
+async def test_async_cache_clear(inputs: set[int]) -> None:
+    """Tests that the cache can be cleared."""
+
+    async_cacheable_sized = create_async_cacheable(maxsize=5)
+
+    results: list[int] = []
+    for i in inputs:
+        result: int = await async_cacheable_sized(i)
+        results.append(result)
+
+    assert async_cacheable_sized.cache_info().currsize > 0
+    await async_cacheable_sized.cache_clear()
+    assert async_cacheable_sized.cache_info().currsize == 0
 
 
 @pytest.mark.asyncio
@@ -140,3 +147,39 @@ async def test_async_cache_stampede_resistance(inputs: set[int]) -> None:
     cache_info = slow_function.cache_info()
     assert cache_info.hits == len(inputs) * 3 - len(inputs)
     assert cache_info.misses == len(inputs)
+
+
+@given(args=args_strategy)
+def test_make_key_with_only_args(args: tuple[Any, ...]) -> None:
+    """Test with only positional arguments"""
+    key1 = _make_key(args, {}, fast_types=FAST_TYPES)
+    key2 = _make_key(args, {}, fast_types=FAST_TYPES)
+    assert key1 == key2
+
+
+@given(kwargs=kwargs_strategy)
+def test_make_key_order_independence(kwargs: dict[Any, Any]) -> None:
+    """Test that keyword argument order doesn't affect the key"""
+    key1 = _make_key((), kwargs, fast_types=FAST_TYPES)
+    key2 = _make_key((), dict(reversed(list(kwargs.items()))), fast_types=FAST_TYPES)
+    assert key1 == key2
+
+
+@given(args=args_strategy, kwargs=kwargs_strategy)
+def test_make_key_with_args_and_kwargs(args: tuple[Any, ...], kwargs: dict[Any, Any]) -> None:
+    """Test with both positional and keyword arguments"""
+    key1 = _make_key(args, kwargs, fast_types=FAST_TYPES)
+    key2 = _make_key(args, dict(reversed(list(kwargs.items()))), fast_types=FAST_TYPES)
+    assert key1 == key2
+
+
+@given(kwargs=kwargs_strategy, extra_key=st.text(min_size=1), extra_value=fast_type_values)
+def test_make_key_different_values(kwargs: dict[Any, Any], extra_key: str, extra_value: Any) -> None:
+    """Test that different values produce different keys"""
+    key1 = _make_key((), kwargs, fast_types=FAST_TYPES)
+
+    extra_key = "unique_key_for_test"
+
+    kwargs[extra_key] = extra_value
+    key2 = _make_key((), kwargs, fast_types=FAST_TYPES)
+    assert key1 != key2
