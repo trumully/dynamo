@@ -40,7 +40,6 @@ def embed_from_user(user: discord.Member | discord.User) -> discord.Embed:
     embed.set_footer(text=f"ID: {user.id}")
     embed.set_author(name=str(user))
     embed.set_image(url=avatar.url)
-    embed.timestamp = discord.utils.utcnow()
     return embed
 
 

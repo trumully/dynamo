@@ -16,17 +16,10 @@ FAST_TYPES: set[type] = {int, str, float, bytes, type(None)}
 
 @dataclass(slots=True)
 class CacheInfo:
-    """Cache info for the async_cache decorator."""
-
     hits: int = 0
     misses: int = 0
     currsize: int = 0
     full: bool = False
-
-    def clear(self) -> None:
-        """Reset all counters to zero."""
-        self.hits = self.misses = self.currsize = 0
-        self.full = False
 
 
 type WrappedCoro[**P, T] = Callable[P, CoroFunction[P, T]]
@@ -53,7 +46,6 @@ class HashedSeq[T](list[T]):
 
     def __init__(self, iterable: Iterable[T], hash_function: Callable[[object], int] = hash) -> None:
         super().__init__(iterable)
-        # Compute hash once and store it to avoid recomputation
         self._hash_value = hash_function(tuple(self))
 
     def __hash__(self) -> int:  # type: ignore
@@ -61,140 +53,121 @@ class HashedSeq[T](list[T]):
 
 
 class Node:
-    __slots__ = ("key", "value", "prev_node", "next_node", "children", "is_end")
+    __slots__ = ("key", "value", "prev", "next", "children", "is_end")
 
     def __init__(self, key: Any = None, value: Any = None) -> None:
         self.key: Any = key
         self.value: Any = value
-        self.prev_node: Node | None = None
-        self.next_node: Node | None = None
+        self.prev: Node | None = None
+        self.next: Node | None = None
         self.children: MutableMapping[str, Node] = {}
         self.is_end: bool = False
 
 
 class LRU[K, V]:
-    __slots__ = ("cache", "maxsize", "head", "tail")
+    """A Least Recently Used (LRU) cache implementation."""
 
-    def __init__(self, maxsize: int | None, /) -> None:
+    def __init__(self, maxsize: int | None) -> None:
         self.cache: MutableMapping[K, Node] = {}
         self.maxsize = maxsize
         self.head: Node | None = None
         self.tail: Node | None = None
 
-    def get[T](self, key: K, default: T = MISSING, /) -> V | T:
-        """Retrieve item from cache and move it to the front. Return default if not found."""
-        node = self.cache.get(key)
-        if node is None:
-            return default
-        self._move_to_front(node)
-        return node.value
-
-    def __getitem__(self, key: K) -> V:
-        """Retrieve item from cache and move it to the front. Raises KeyError if not found."""
-        result = self.get(key, MISSING)
-        if result is MISSING:
-            raise KeyError(key)
-        return result
+    def get(self, key: K, default: Any = MISSING) -> V | Any:
+        if node := self.cache.get(key):
+            self._move_to_front(node)
+            return node.value
+        return default
 
     def __setitem__(self, key: K, value: V) -> None:
-        """Add or update item in cache and move it to the front."""
         if key in self.cache:
             node = self.cache[key]
             node.value = value
-            self._move_to_front(node)
         else:
-            node = Node(key, value)
+            node = Node(key=key, value=value)
             self.cache[key] = node
-            self._add_to_front(node)
-            if self.maxsize is not None and len(self.cache) > self.maxsize:
-                self._remove_tail()
+            if self.maxsize and len(self.cache) > self.maxsize:
+                self._evict()
+        self._move_to_front(node)
 
     def remove(self, key: K) -> None:
-        """Remove item from cache."""
-        node = self.cache.pop(key, None)
-        if node:
-            self._remove_node(node)
+        if node := self.cache.pop(key, None):
+            self._unlink(node)
 
-    def _add_to_front(self, node: Node) -> None:
-        """Add node to the front of the linked list."""
-        node.next_node = self.head
-        node.prev_node = None
-        if self.head:
-            self.head.prev_node = node
-        self.head = node
-        if self.tail is None:
-            self.tail = node
-
-    def _remove_node(self, node: Node) -> None:
-        """Remove node from the linked list."""
-        if node.prev_node:
-            node.prev_node.next_node = node.next_node
-        else:
-            self.head = node.next_node
-        if node.next_node:
-            node.next_node.prev_node = node.prev_node
-        else:
-            self.tail = node.prev_node
+    def clear(self) -> None:
+        """Clear all items from the cache."""
+        self.cache.clear()
+        self.head = None
+        self.tail = None
 
     def _move_to_front(self, node: Node) -> None:
-        """Move node to the front of the linked list."""
-        if self.head != node:
-            self._remove_node(node)
-            self._add_to_front(node)
+        if self.head is node:
+            return
+        self._unlink(node)
+        self._link_front(node)
 
-    def _remove_tail(self) -> None:
-        """Remove the tail node from the linked list."""
+    def _link_front(self, node: Node) -> None:
+        if not self.head:
+            self.head = self.tail = node
+            return
+        node.next = self.head
+        self.head.prev = node
+        self.head = node
+
+    def _unlink(self, node: Node) -> None:
+        prev, next_ = node.prev, node.next
+        if prev:
+            prev.next = next_
+        if next_:
+            next_.prev = prev
+        if self.head is node:
+            self.head = next_
+        if self.tail is node:
+            self.tail = prev
+        node.prev = node.next = None
+
+    def _evict(self) -> None:
         if self.tail:
-            self._remove_node(self.tail)
-            del self.cache[self.tail.key]
+            self.remove(self.tail.key)
+
+    def __len__(self) -> int:
+        return len(self.cache)
 
 
 class Trie:
-    """Trie data structure for prefix-based searches."""
-
-    __slots__ = ("root",)
-
     def __init__(self) -> None:
-        self.root: Node = Node()
+        self.root = Node()
 
     def insert(self, word: str) -> None:
         node = self.root
         for char in word:
-            if char not in node.children:
-                node.children[char] = Node()
-            node = node.children[char]
+            node = node.children.setdefault(char, Node())
         node.is_end = True
 
     def search(self, prefix: str) -> list[str]:
         node = self.root
-        results: list[str] = []
-
         for char in prefix:
             if char not in node.children:
-                return results
+                return []
             node = node.children[char]
 
-        self._dfs(node, prefix, results)
+        results: list[str] = []
+        self._collect_words(node, prefix, results)
         return results
 
-    def _dfs(self, node: Node, current: str, results: list[str]) -> None:
+    def _collect_words(self, node: Node, prefix: str, results: list[str]) -> None:
         if node.is_end:
-            results.append(current)
+            results.append(prefix)
         for char, child in node.children.items():
-            self._dfs(child, current + char, results)
-
-
-def _finalize_key(
-    key: tuple[Any, ...], fast_types: set[type], _type: type[type] = type, _len: Callable[[Sized], int] = len
-) -> Hashable:
-    return key[0] if _len(key) == 1 and _type(key[0]) in fast_types else HashedSeq(key)
+            self._collect_words(child, prefix + char, results)
 
 
 def _make_key(
     args: tuple[Any, ...],
     kwargs: dict[Any, Any],
     kwargs_mark: tuple[object] = (object(),),
-    fast_types: set[type] = FAST_TYPES,
+    _type: type[type] = type,
+    _len: Callable[[Sized], int] = len,
 ) -> Hashable:
     """
     Make cache key from optionally typed positional and keyword arguments. Structure is flat and hashable.
@@ -204,43 +177,35 @@ def _make_key(
     if kwargs:
         sorted_items = tuple(sorted(kwargs.items()))
         key += kwargs_mark + sorted_items
-    return _finalize_key(key, fast_types)
+    return key[0] if _len(key) == 1 and _type(key[0]) in FAST_TYPES else HashedSeq(key)
 
 
 def _cache_wrapper[**P, T](coro: CoroFunction[P, T], maxsize: int | None, ttl: float | None) -> CachedTask[P, T]:
     sentinel = MISSING
     make_key = _make_key
 
-    internal_cache: LRU[Hashable, asyncio.Future[T]] = LRU(maxsize)
+    cache: LRU[Hashable, asyncio.Future[T]] = LRU(maxsize)
     lock = asyncio.Lock()
-    _cache_info = CacheInfo()
+    info: CacheInfo = CacheInfo()
+    len_ = cache.__len__
 
     @wraps(coro)
     async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
         key: Hashable = make_key(args, kwargs)
 
         async with lock:
-            maybe_future = internal_cache.get(key, sentinel)
-            if maybe_future is not sentinel:
-                _cache_info.hits += 1
-                return await maybe_future
+            cached_item = cache.get(key, sentinel)
+            if cached_item is not sentinel:
+                info.hits += 1
+                return await cached_item if isinstance(cached_item, asyncio.Future) else cached_item
 
-            _cache_info.misses += 1
-            future: asyncio.Future[T] = asyncio.get_running_loop().create_future()
-            internal_cache[key] = future
-            _cache_info.currsize = len(internal_cache.cache)
-            _cache_info.full = maxsize is not None and _cache_info.currsize >= (internal_cache.maxsize or 0)
+            future = asyncio.get_running_loop().create_future()
+            cache[key] = future
+            info.misses += 1
+            info.currsize = len_()
 
         if ttl is not None:
-
-            def evict(k: Hashable, default: Any = MISSING) -> None:
-                async def remove_key() -> None:
-                    async with lock:
-                        internal_cache.remove(k)
-
-                _ = asyncio.create_task(remove_key())  # noqa: RUF006
-
-            call_after_ttl = partial(asyncio.get_running_loop().call_later, ttl, evict, key)
+            call_after_ttl = partial(asyncio.get_running_loop().call_later, ttl, cache.remove, key)
             future.add_done_callback(call_after_ttl)
 
         try:
@@ -252,86 +217,60 @@ def _cache_wrapper[**P, T](coro: CoroFunction[P, T], maxsize: int | None, ttl: f
             raise e from None
         return result
 
-    def cache_info() -> CacheInfo:
-        return _cache_info
-
     async def cache_clear() -> None:
         async with lock:
-            internal_cache.cache.clear()
-        _cache_info.clear()
+            cache.clear()
+        info.hits = info.misses = info.currsize = 0
+        info.full = False
 
     async def invalidate(*args: P.args, **kwargs: P.kwargs) -> bool:
-        key = make_key(args, kwargs)
-        log.debug("Invalidating cache for %s", key)
         async with lock:
-            if removed := (key in internal_cache.cache):
-                internal_cache.remove(key)
-        return removed
+            return bool(cache.remove(make_key(args, kwargs)))
 
     async def get_containing(*args: P.args, **kwargs: P.kwargs) -> T | None:
-        key = make_key(args, kwargs)
         async with lock:
-            future = internal_cache.get(key, sentinel)
-        return await future if future is not sentinel else None
+            future = cache.get(_make_key(args, kwargs))
+            return await future if future else None
 
     _wrapper = cast(CachedTask[P, T], wrapper)
-    _wrapper.cache_info = cache_info
+    _wrapper.cache_info = lambda: info
     _wrapper.cache_clear = cache_clear
     _wrapper.invalidate = invalidate
     _wrapper.get_containing = get_containing
     return _wrapper
 
 
-type DecoratedCoro[**P, T] = Callable[[CoroFunction[P, T]], CachedTask[P, T]]
-
-
 @overload
-def async_cache[**P, T](*, maxsize: int | None = 128, ttl: float | None = None) -> DecoratedCoro[P, T]: ...
+def async_cache[**P, T](
+    *, maxsize: int | None = 128, ttl: float | None = None
+) -> Callable[[CoroFunction[P, T]], CachedTask[P, T]]: ...
 @overload
 def async_cache[**P, T](coro: CoroFunction[P, T], /) -> CachedTask[P, T]: ...
 def async_cache[**P, T](
     maxsize: int | CoroFunction[P, T] | None = 128, ttl: float | None = None
-) -> DecoratedCoro[P, T] | CachedTask[P, T]:
-    """Decorator to cache the result of a coroutine.
+) -> Callable[[CoroFunction[P, T]], CachedTask[P, T]] | CachedTask[P, T]:
+    """Cache results of a coroutine to avoid redundant computations.
 
-    This decorator caches the result of a coroutine to improve performance
-    by avoiding redundant computations. It is functionally similar to :func:`functools.cache`
-    and :func:`functools.lru_cache` but designed for coroutines.
+    Similar to functools.cache/lru_cache but designed for coroutines.
 
     Parameters
     ----------
     maxsize : int | CoroFunction[P, T] | None, optional
-        The maximum number of items to cache. If a coroutine function is provided directly,
-        it is assumed to be the function to be decorated, and `maxsize` defaults to 128.
-        If `None`, the cache can grow without bound. Default is 128.
+        Maximum cache size. Defaults to 128. If None, cache is unbounded.
+        If coroutine is passed directly, this becomes the decorated function.
     ttl : float | None, optional
-        The time-to-live for cached items in seconds. If `None`, items do not expire.
-        Default is None.
+        Time-to-live in seconds. If None, items don't expire.
 
     Returns
     -------
-    DecoratedCoro[P, T] | CachedTask[P, T]
-        If a coroutine is provided directly, returns the cached task.
-        Otherwise, returns a decorator that can be applied to a coroutine.
+    Callable[[CoroFunction[P, T]], CachedTask[P, T]] | CachedTask[P, T]
+        Cached coroutine or decorator function.
 
-    Examples
-    --------
-    Using the decorator with default parameters:
-
-    >>> @async_cache
-    ... async def fetch_data(url: str) -> str:
-    ...     # Simulate a network request
-    ...     await asyncio.sleep(1)
-    ...     return f"Data from {url}"
-
-    Using the decorator with custom parameters:
-
+    Example
+    -------
     >>> @async_cache(maxsize=256, ttl=60.0)
     ... async def fetch_data(url: str) -> str:
-    ...     # Simulate a network request
-    ...     await asyncio.sleep(1)
-    ...     return f"Data from {url}"
-
+    ...     return await some_network_call(url)
     """
     if callable(maxsize):
         coro, maxsize = maxsize, 128

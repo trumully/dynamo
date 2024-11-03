@@ -5,7 +5,7 @@ import pytest
 from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 
-from dynamo.utils.cache import FAST_TYPES, CachedTask, _make_key, async_cache  # type: ignore
+from dynamo.utils.cache import CachedTask, _make_key, async_cache  # type: ignore
 
 fast_type_values = st.one_of(
     st.integers(), st.text(), st.floats(allow_nan=False, allow_infinity=False), st.binary(), st.none()
@@ -152,34 +152,34 @@ async def test_async_cache_stampede_resistance(inputs: set[int]) -> None:
 @given(args=args_strategy)
 def test_make_key_with_only_args(args: tuple[Any, ...]) -> None:
     """Test with only positional arguments"""
-    key1 = _make_key(args, {}, fast_types=FAST_TYPES)
-    key2 = _make_key(args, {}, fast_types=FAST_TYPES)
+    key1 = _make_key(args, {})
+    key2 = _make_key(args, {})
     assert key1 == key2
 
 
 @given(kwargs=kwargs_strategy)
 def test_make_key_order_independence(kwargs: dict[Any, Any]) -> None:
     """Test that keyword argument order doesn't affect the key"""
-    key1 = _make_key((), kwargs, fast_types=FAST_TYPES)
-    key2 = _make_key((), dict(reversed(list(kwargs.items()))), fast_types=FAST_TYPES)
+    key1 = _make_key((), kwargs)
+    key2 = _make_key((), dict(reversed(list(kwargs.items()))))
     assert key1 == key2
 
 
 @given(args=args_strategy, kwargs=kwargs_strategy)
 def test_make_key_with_args_and_kwargs(args: tuple[Any, ...], kwargs: dict[Any, Any]) -> None:
     """Test with both positional and keyword arguments"""
-    key1 = _make_key(args, kwargs, fast_types=FAST_TYPES)
-    key2 = _make_key(args, dict(reversed(list(kwargs.items()))), fast_types=FAST_TYPES)
+    key1 = _make_key(args, kwargs)
+    key2 = _make_key(args, dict(reversed(list(kwargs.items()))))
     assert key1 == key2
 
 
 @given(kwargs=kwargs_strategy, extra_key=st.text(min_size=1), extra_value=fast_type_values)
 def test_make_key_different_values(kwargs: dict[Any, Any], extra_key: str, extra_value: Any) -> None:
     """Test that different values produce different keys"""
-    key1 = _make_key((), kwargs, fast_types=FAST_TYPES)
+    key1 = _make_key((), kwargs)
 
     extra_key = "unique_key_for_test"
 
     kwargs[extra_key] = extra_value
-    key2 = _make_key((), kwargs, fast_types=FAST_TYPES)
+    key2 = _make_key((), kwargs)
     assert key1 != key2

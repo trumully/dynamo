@@ -2,7 +2,6 @@ import asyncio
 import logging
 import logging.handlers
 import os
-import signal
 import socket
 import ssl
 from collections.abc import Callable
@@ -16,24 +15,18 @@ import apsw.bestpractice
 import apsw.ext
 import base2048
 import click
-import pygit2
 import truststore
 
-from dynamo import Dynamo, setup_logging
-from dynamo._evt_policy import get_event_loop_policy
-from dynamo.utils.format import plural
+from dynamo import Dynamo, with_logging
 from dynamo.utils.helper import platformdir, resolve_path_with_links, valid_token
 
 log = logging.getLogger(__name__)
 
 
-def run_bot() -> None:
+def run_bot(loop: asyncio.AbstractEventLoop) -> None:
     db_path = platformdir.user_data_path / "dynamo.db"
     conn = apsw.Connection(str(db_path))
 
-    loop = asyncio.new_event_loop()
-    policy = get_event_loop_policy()
-    asyncio.set_event_loop_policy(policy)
     loop.set_task_factory(asyncio.eager_task_factory)
     asyncio.set_event_loop(loop)
 
@@ -50,19 +43,11 @@ def run_bot() -> None:
 
     async def entrypoint() -> None:
         try:
-            if not (token := _get_token()):
-                return
             async with bot:
-                await bot.start(token)
+                await bot.start(_get_token())
         finally:
             if not bot.is_closed():
                 await bot.close()
-
-    try:
-        loop.add_signal_handler(signal.SIGINT, loop.stop)
-        loop.add_signal_handler(signal.SIGTERM, loop.stop)
-    except NotImplementedError:
-        pass
 
     def stop_when_done(fut: asyncio.Future[None]) -> None:
         loop.stop()
@@ -71,13 +56,10 @@ def run_bot() -> None:
     try:
         fut.add_done_callback(stop_when_done)
         loop.run_forever()
-    except KeyboardInterrupt:
-        log.info("Shutdown via keyboard interrupt")
     finally:
-        log.info("Shutting down")
         fut.remove_done_callback(stop_when_done)
         if not bot.is_closed():
-            _close_task = loop.create_task(bot.close())  # noqa: RUF006
+            _close_task = loop.create_task(bot.close())
         loop.run_until_complete(asyncio.sleep(0.001))
 
         tasks: set[asyncio.Task[Any]] = {t for t in asyncio.all_tasks(loop) if not t.done()}
@@ -120,13 +102,10 @@ def run_bot() -> None:
         loop.close()
 
         if not fut.cancelled():
-            try:
-                fut.result()
-            except KeyboardInterrupt:
-                pass
+            fut.result()
 
-        conn.pragma("analysis_limit", 400)
-        conn.pragma("optimize")
+    conn.pragma("analysis_limit", 400)
+    conn.pragma("optimize")
 
 
 def _load_token() -> str | None:
@@ -142,35 +121,11 @@ def _store_token(token: str, /) -> None:
         fp.write(base2048.encode(token.encode()))
 
 
-def _get_token() -> str | None:
+def _get_token() -> str:
     if not (token := _load_token()):
-        log.critical("\nToken not found. Please run `dynamo setup` before starting the bot.\n")
-        return None
+        msg = "Token not found. Please run `dynamo setup` before starting the bot."
+        raise RuntimeError(msg) from None
     return token
-
-
-def check_for_updates() -> tuple[int, int]:
-    try:
-        repo = pygit2.repository.Repository(".")
-        repo.remotes["origin"].fetch()  # type: ignore
-        local_branch = repo.head.shorthand
-        local_commit = repo.revparse_single(local_branch).short_id
-        remote_commit = repo.revparse_single(f"origin/{local_branch}").short_id
-
-        ahead, behind = repo.ahead_behind(local_commit, remote_commit)  # type: ignore
-    except (pygit2.GitError, KeyError):
-        return 0, 0
-    return ahead, behind
-
-
-def propagate_updates() -> None:
-    ahead, behind = check_for_updates()
-    if behind:
-        click.echo(click.style(f"You are {plural(behind):commit} behind the remote branch.", fg="yellow", bold=True))
-    elif ahead:
-        click.echo(click.style(f"You are {plural(ahead):commit} ahead of the remote branch.", fg="cyan", bold=True))
-    else:
-        click.echo(click.style("You are up to date with the remote branch.", fg="green"))
 
 
 def ensure_schema() -> None:
@@ -206,7 +161,6 @@ def ensure_schema() -> None:
 @click.pass_context
 def main(ctx: click.Context, debug: bool) -> None:
     """Launch the bot"""
-    propagate_updates()
     ensure_schema()
     os.umask(0o077)
     to_apply: tuple[Callable[[apsw.Connection], None], ...] = (
@@ -219,8 +173,9 @@ def main(ctx: click.Context, debug: bool) -> None:
     if ctx.invoked_subcommand is None:
         if (log_level := logging.DEBUG if debug else logging.INFO) == logging.DEBUG:
             click.echo("Running in DEBUG mode", err=True)
-        with setup_logging(log_level=log_level):
-            run_bot()
+        with with_logging(log_level=log_level):
+            loop = asyncio.new_event_loop()
+            run_bot(loop)
 
 
 @main.command(name="help")

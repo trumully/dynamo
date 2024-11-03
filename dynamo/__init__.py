@@ -1,12 +1,12 @@
 from dynamo import utils
-from dynamo.core.logger import setup_logging
+from dynamo.core.logger import with_logging
 
 __all__ = (
     "Cog",
     "Dynamo",
     "Context",
     "Interaction",
-    "setup_logging",
+    "with_logging",
     "utils",
 )
 
