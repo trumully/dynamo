@@ -24,7 +24,7 @@ class Dev(Cog, name="dev"):
 
     async def _execute_extension_action(self, action: CoroFunction[[str], None], cog: str) -> bool:
         try:
-            await action(self.bot.get_cog_name(cog))
+            await action(f"{__package__}.{cog}")
         except commands.ExtensionError:
             self.log.exception("Action '%s' failed for cog %s", action.__name__, cog)
             return False
@@ -159,7 +159,7 @@ class Dev(Cog, name="dev"):
         result = ""
         if extensions:
             result += "### Extensions\n"
-            result += "\n".join(f"> {status.value}\t`{self.bot.get_cog_name(name)}`" for status, name in extensions)
+            result += "\n".join(f"> {status.value}\t`{name}`" for status, name in extensions)
         if utils:
             result += f"{"\n" if extensions else ""}"
             result += "### Utils\n"

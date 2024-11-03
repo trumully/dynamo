@@ -30,7 +30,7 @@ class Cog(commands.Cog):
             self.bot.raw_button_submits.update(raw_button_submits)
 
     def _get_logger(self) -> logging.Logger:
-        return logging.getLogger(self.bot.get_cog_name(self.__class__.__name__))
+        return logging.getLogger(self.__class__.__name__.lower())
 
     async def cog_load(self) -> None:
         self.log.debug("%s cog loaded", self.__class__.__name__)

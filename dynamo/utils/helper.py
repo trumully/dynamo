@@ -1,6 +1,6 @@
 import importlib.resources
 import re
-from collections.abc import AsyncGenerator, AsyncIterable
+from collections.abc import AsyncGenerator, AsyncIterable, Iterable
 from contextlib import aclosing
 from pathlib import Path
 from typing import cast
@@ -44,12 +44,12 @@ def valid_token(token: str) -> bool:
     return bool(pattern.match(token))
 
 
-async def process_async_iterable[T](seq: AsyncIterable[T]) -> list[T]:
+async def process_async_iterable[T](async_iterable: AsyncIterable[T]) -> Iterable[T]:
     """Safely process an async iterable
 
     See
     ---
     - https://peps.python.org/pep-0533/
     """
-    async with aclosing(cast(AsyncGenerator[T], seq)) as gen:
+    async with aclosing(cast(AsyncGenerator[T], async_iterable)) as gen:
         return [item async for item in gen]

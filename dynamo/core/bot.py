@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 import re
 from collections.abc import AsyncGenerator, Generator
-from importlib.util import find_spec
 from pathlib import Path
 from typing import Any, Self, cast
 
@@ -16,6 +15,7 @@ from discord import InteractionType, app_commands
 from discord.ext import commands
 
 from dynamo.core.context import Context
+from dynamo.extensions.cogs import EXTENSIONS
 from dynamo.typedefs import AppCommandT, MaybeSnowflake, RawSubmittable
 from dynamo.utils.cache import LRU
 from dynamo.utils.helper import platformdir, resolve_path_with_links
@@ -27,15 +27,19 @@ BUTTON_REGEX = re.compile(r"^b:(.{1,10}):(.*)$", flags=re.DOTALL)
 COG_SPEC = "dynamo.extensions.cogs"
 
 type Interaction = discord.Interaction["Dynamo"]
+type ContextT = commands.Context["Dynamo"]
 
 
 def _prefix_callable(bot: Dynamo, msg: discord.Message) -> list[str]:
     user_id = bot.user.id
     base = [f"<@{user_id}> ", f"<@!{user_id}> "]
-    if msg.guild is None:
-        base.extend(["d!", "d?"])
-    else:
-        base.extend(bot.prefixes.get(msg.guild.id, ["d!", "d?"]))
+
+    base.extend(["d!", "d?"])
+    if msg.guild is not None:
+        cursor = bot.conn.cursor()
+        prefixes = cursor.execute("SELECT prefix FROM prefixes WHERE guild_id = ?", (msg.guild.id,)).fetchall()
+        base.extend(str(p[0]) for p in prefixes) if prefixes else base.extend(["d!", "d?"])
+
     return base
 
 
@@ -200,19 +204,11 @@ class Dynamo(commands.AutoShardedBot):
         self.app_emojis = Emojis(await self.fetch_application_emojis())
         self.extension_files: dict[Path, float] = {}
 
-        self.cog_spec = find_spec(COG_SPEC)
-        if self.cog_spec is None or self.cog_spec.origin is None:
-            log.critical("Failed to find cog spec! Loading without cogs.")
-            return
-
-        all_cogs = Path(self.cog_spec.origin).parent
-        cog_paths = [c for c in all_cogs.rglob("**/*.py") if c.is_file() and not c.name.startswith("_")]
-        for cog_path in cog_paths:
-            cog_name = self.get_cog_name(cog_path.stem)
+        for module in EXTENSIONS:
             try:
-                await self.load_extension(cog_name)
+                await self.load_extension(module.name)
             except commands.ExtensionError:
-                log.exception("Failed to load cog %s", cog_name)
+                log.exception("Failed to load cog %s", module.name)
 
         tree_path = resolve_path_with_links(platformdir.user_cache_path / "tree.hash")
         tree_hash = await self.tree.get_hash(self.tree)
@@ -224,9 +220,6 @@ class Dynamo(commands.AutoShardedBot):
             await self.tree.sync(guild=self.dev_guild)
             fp.seek(0)
             fp.write(tree_hash)
-
-    def get_cog_name(self, name: str) -> str:
-        return name.lower() if self.cog_spec is None else f"{self.cog_spec.name}.{name.lower()}"
 
     @property
     def owner(self) -> discord.User:
@@ -262,13 +255,13 @@ class Dynamo(commands.AutoShardedBot):
             (discord.InteractionType.modal_submit, MODAL_REGEX, self.raw_modal_submits),
             (discord.InteractionType.component, BUTTON_REGEX, self.raw_button_submits),
         ):
-            if interaction.type is relevant_type:
-                assert interaction.data is not None
-                custom_id = interaction.data.get("custom_id", "")
-                if match := regex.match(custom_id):
-                    modal_name, data = match.groups()
-                    if rs := mapping.get(modal_name):
-                        await rs.raw_submit(interaction, data)
+            if interaction.type is not relevant_type or interaction.data is None:
+                continue
+            custom_id = interaction.data.get("custom_id", "")
+            if match := regex.match(custom_id):
+                modal_name, data = match.groups()
+                if rs := mapping.get(modal_name):
+                    await rs.raw_submit(interaction, data)
 
     def set_blocked(self, user_id: int, blocked: bool) -> None:
         self.block_cache[user_id] = blocked
@@ -305,7 +298,7 @@ class Dynamo(commands.AutoShardedBot):
         self.block_cache[user_id] = is_blocked
         return is_blocked
 
-    async def get_context[ContextT: commands.Context[Any]](
+    async def get_context(
         self,
         origin: discord.Message | discord.Interaction,
         /,
