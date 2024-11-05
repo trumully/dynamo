@@ -240,15 +240,16 @@ def _cache_wrapper[**P, T](coro: CoroFunction[P, T], maxsize: int | None, ttl: f
     return _wrapper
 
 
+type _DecoratedCachedTask[**P, T] = Callable[[CoroFunction[P, T]], CachedTask[P, T]]
+
+
 @overload
-def async_cache[**P, T](
-    *, maxsize: int | None = 128, ttl: float | None = None
-) -> Callable[[CoroFunction[P, T]], CachedTask[P, T]]: ...
+def async_cache[**P, T](*, maxsize: int | None = 128, ttl: float | None = None) -> _DecoratedCachedTask[P, T]: ...
 @overload
 def async_cache[**P, T](coro: CoroFunction[P, T], /) -> CachedTask[P, T]: ...
 def async_cache[**P, T](
     maxsize: int | CoroFunction[P, T] | None = 128, ttl: float | None = None
-) -> Callable[[CoroFunction[P, T]], CachedTask[P, T]] | CachedTask[P, T]:
+) -> _DecoratedCachedTask[P, T] | CachedTask[P, T]:
     """Cache results of a coroutine to avoid redundant computations.
 
     Similar to functools.cache/lru_cache but designed for coroutines.
@@ -263,7 +264,7 @@ def async_cache[**P, T](
 
     Returns
     -------
-    Callable[[CoroFunction[P, T]], CachedTask[P, T]] | CachedTask[P, T]
+    _DecoratedCachedTask[P, T] | CachedTask[P, T]
         Cached coroutine or decorator function.
 
     Example

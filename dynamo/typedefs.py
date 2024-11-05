@@ -17,10 +17,12 @@ S_co = TypeVar("S_co", bound=object, covariant=True)
 
 CogT = TypeVar("CogT", bound=commands.Cog)
 CommandT = TypeVar("CommandT", bound=commands.Command[Any, ..., Any])
-ContextT_co = TypeVar("ContextT_co", bound=commands.Context[Any], covariant=True)
+type ContextA = commands.Context[Any]
+type ContextT = commands.Context[BotT]
+ContextT_co = TypeVar("ContextT_co", bound=ContextT, covariant=True)
 
-BotT = TypeVar("BotT", bound=commands.Bot | commands.AutoShardedBot)
-BotT_co = TypeVar("BotT_co", bound=commands.Bot | commands.AutoShardedBot, covariant=True)
+type BotT = commands.Bot | commands.AutoShardedBot
+BotT_co = TypeVar("BotT_co", bound=BotT, covariant=True)
 
 type AppCommandT[CogT: commands.Cog, **P, T] = app_commands.Command[CogT, P, T]
 type MaybeSnowflake = discord.abc.Snowflake | None

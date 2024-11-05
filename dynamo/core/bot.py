@@ -210,6 +210,8 @@ class Dynamo(commands.AutoShardedBot):
             except commands.ExtensionError:
                 log.exception("Failed to load cog %s", module.name)
 
+        await self.load_extension("dynamo.extensions.cogs._dev")
+
         tree_path = resolve_path_with_links(platformdir.user_cache_path / "tree.hash")
         tree_hash = await self.tree.get_hash(self.tree)
         with tree_path.open("r+b") as fp:
