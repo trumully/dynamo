@@ -1,14 +1,15 @@
 import contextlib
 import itertools
 import logging
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
+from types import ModuleType
 from typing import Any
 
 import discord
 from discord.ext import commands
 
 from dynamo.extensions.plugins import Plugin
-from dynamo.typedefs import BotT, ContextT, CoroFunction
+from dynamo.typedefs import ContextT, CoroFunction
 
 from .utils.context import copy_context_with
 
@@ -17,11 +18,11 @@ log = logging.getLogger(__name__)
 _ExtensionConverterBase = commands.Converter[list[str]]
 
 
-def resolve_extensions(bot: BotT, name: str) -> list[str]:
+def resolve_extensions(extensions: Mapping[str, ModuleType], name: str) -> list[str]:
     resolved: list[str] = []
     for extension in name.split():
         if extension == "*":
-            resolved.extend(bot.extensions)
+            resolved.extend(extensions)
         else:
             resolved.append(extension)
 
@@ -31,7 +32,7 @@ def resolve_extensions(bot: BotT, name: str) -> list[str]:
 class ExtensionConverter(_ExtensionConverterBase):
     async def convert(self, ctx: ContextT, argument: str) -> list[str]:
         try:
-            return resolve_extensions(ctx.bot, argument)
+            return resolve_extensions(ctx.bot.extensions, argument)
         except Exception as e:
             raise commands.BadArgument(str(e)) from e
 
@@ -58,7 +59,7 @@ class ManagementPlugin(Plugin):
             if not await try_extension_method(method, extension):
                 failed = True
 
-        await ctx.send(f"Done. {'Some failed to load, check logs.' if failed else ''}")
+        await ctx.send(f"Done. {"Some failed to load, check logs." if failed else ""}")
 
     @Plugin.Command(parent="dynamo", name="unload")
     async def unload(self, ctx: ContextT, *extensions: ExtensionConverter) -> None:
@@ -70,7 +71,7 @@ class ManagementPlugin(Plugin):
             if not await try_extension_method(self.bot.unload_extension, extension):
                 failed = True
 
-        await ctx.send(f"Done. {'Some failed to unload, check logs.' if failed else ''}")
+        await ctx.send(f"Done. {"Some failed to unload, check logs." if failed else ""}")
 
     @Plugin.Command(parent="dynamo", name="quit", aliases=["q"])
     async def quit(self, ctx: ContextT) -> None:

@@ -212,6 +212,8 @@ class Dynamo(commands.AutoShardedBot):
 
         await self.load_extension("dynamo.extensions.cogs._dev")
 
+        self._last_error: BaseException | None = None
+
         tree_path = resolve_path_with_links(platformdir.user_cache_path / "tree.hash")
         tree_hash = await self.tree.get_hash(self.tree)
         with tree_path.open("r+b") as fp:

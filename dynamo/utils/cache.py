@@ -53,7 +53,7 @@ class HashedSeq[T](list[T]):
 
 
 class Node:
-    __slots__ = ("key", "value", "prev", "next", "children", "is_end")
+    __slots__ = ("children", "is_end", "key", "next", "prev", "value")
 
     def __init__(self, key: Any = None, value: Any = None) -> None:
         self.key: Any = key

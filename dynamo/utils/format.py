@@ -13,10 +13,7 @@ log = logging.getLogger(__name__)
 
 def shorten_string(string: str, max_len: int = 50, placeholder: str = "Nothing provided") -> str:
     """Truncate a string to a maximum length."""
-    if not string:
-        return placeholder
-
-    return string if len(string) <= max_len else string[:max_len] + "..."
+    return placeholder if not string else (string if len(string) <= max_len else string[:max_len] + "...")
 
 
 @dataclass(frozen=True)
@@ -60,13 +57,13 @@ def human_join(seq: Sequence[str], sep: str = ", ", conjunction: str = "or", *, 
     return f"{sep.join(seq[:-1])}{sep if oxford_comma else " "}{conjunction} {seq[-1]}"
 
 
-def code_block(content: str, language: str = "", *, line_numbers: bool = False) -> str:
+def code_block(content: str, lang: str = "", *, line_numbers: bool = False) -> str:
     if line_numbers:
         lines = content.split("\n")
         numbered_lines = [f"{i + 1:2d} {line}" for i, line in enumerate(lines)]
         numbered_content = "\n".join(numbered_lines)
-        return f"```{language}\n{numbered_content}\n```"
-    return f"```{language}\n{content}\n```"
+        return f"```{lang}\n{numbered_content}\n```"
+    return f"```{lang}\n{content}\n```"
 
 
 class CJK(StrEnum):

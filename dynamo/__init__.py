@@ -3,11 +3,11 @@ from dynamo.core.logger import with_logging
 
 __all__ = (
     "Cog",
-    "Dynamo",
     "Context",
+    "Dynamo",
     "Interaction",
-    "with_logging",
     "utils",
+    "with_logging",
 )
 
 from dynamo.core.bot import Dynamo, Interaction

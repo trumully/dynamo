@@ -1,3 +1,4 @@
+import sys
 from functools import partial
 
 import discord
@@ -38,9 +39,10 @@ class Errors(Cog, name="errors"):
     @commands.Cog.listener()
     async def on_command_error(self, ctx: Context, error: commands.CommandError) -> None:
         """Event that triggers when a command fails."""
-        self.log.exception("%s called by %s raised an exception: %s", ctx.command, ctx.author, ctx.message)
+        self.bot._last_error = sys.exc_info()[1]  # type: ignore
 
         error_message = self.get_command_error_message(error)
+        self.log.exception("%s called by %s raised an exception: %s", ctx.command, ctx.author, ctx.message)
 
         if isinstance(error, commands.CommandNotFound | NotFoundWithHelp):
             invoked = ctx.invoked_with
@@ -81,9 +83,9 @@ class Errors(Cog, name="errors"):
             await itx.response.send_message(ephemeral=True, content=msg)
             return
 
-        self.log.error("%s called by %s raised an exception: %s.", command.name, itx.user, error)
-
         error_message = self.get_app_command_error_message(error)
+        self.log.exception("%s called by %s raised an exception: %s", itx.command, itx.user, error)
+        self.bot._last_error = sys.exc_info()[1]  # type: ignore
 
         if isinstance(error, app_commands.CommandNotFound):
             error_message = error_message.format(command.name)
