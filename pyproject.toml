@@ -11,7 +11,6 @@ dynamo = "dynamo.runner:main"
 
 [tool.poetry.dependencies]
 python = "^3.13"
-discord-py = { git = "https://github.com/mikeshardmind/discord.py.git", branch = "salamander-reloaded", extras = ["speed"] }
 click = "^8.1.7"
 toml = "^0.10.2"
 python-dateutil = "^2.9.0.post0"
@@ -26,6 +25,7 @@ types-python-dateutil = "^2.9.0.20240906"
 rapidfuzz = "^3.9.7"
 apsw = "^3.46.1.0"
 pygit2 = "^1.15.1"
+discord-py = {git = "https://github.com/Rapptz/discord.py" }
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.2"

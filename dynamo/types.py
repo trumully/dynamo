@@ -21,7 +21,7 @@ ContextT_co = TypeVar("ContextT_co", bound=ContextT, covariant=True)
 type MaybeSnowflake = discord.abc.Snowflake | None
 
 
-type Coro[T] = Coroutine[Any, Any, T]
+type Coro[T] = Coroutine[None, None, T]
 type CoroFunction[**P, T] = Callable[P, Coro[T]]
 type DecoratedCoro[**P, T] = Callable[[CoroFunction[P, T]], T]
 

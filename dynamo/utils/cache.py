@@ -3,9 +3,8 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Callable, Hashable, Iterable, MutableMapping, Sized
-from dataclasses import dataclass
 from functools import partial, wraps
-from typing import Any, Protocol, TypedDict, cast, overload
+from typing import Any, NamedTuple, Protocol, cast, overload
 
 from discord.utils import MISSING
 
@@ -16,18 +15,18 @@ log = logging.getLogger(__name__)
 FAST_TYPES: set[type] = {int, str, float, bytes, type(None)}
 
 
-@dataclass(slots=True)
 class CacheInfo:
-    hits: int = 0
-    misses: int = 0
-    currsize: int = 0
-    full: bool = False
+    def __init__(self, hits: int = 0, misses: int = 0, currsize: int = 0, full: bool = False):
+        self.hits = hits
+        self.misses = misses
+        self.currsize = currsize
+        self.full = full
 
 
 type WrappedCoro[**P, T] = Callable[P, CoroFunction[P, T]]
 
 
-class CacheParameters(TypedDict):
+class CacheParameters(NamedTuple):
     maxsize: int | None
     ttl: float | None
 
@@ -134,34 +133,6 @@ class LRU[K, V]:
 
     def __len__(self) -> int:
         return len(self.cache)
-
-
-class Trie:
-    def __init__(self) -> None:
-        self.root = Node()
-
-    def insert(self, word: str) -> None:
-        node = self.root
-        for char in word:
-            node = node.children.setdefault(char, Node())
-        node.is_end = True
-
-    def search(self, prefix: str) -> list[str]:
-        node = self.root
-        for char in prefix:
-            if char not in node.children:
-                return []
-            node = node.children[char]
-
-        results: list[str] = []
-        self._collect_words(node, prefix, results)
-        return results
-
-    def _collect_words(self, node: Node, prefix: str, results: list[str]) -> None:
-        if node.is_end:
-            results.append(prefix)
-        for char, child in node.children.items():
-            self._collect_words(child, prefix + char, results)
 
 
 def _make_key(
@@ -277,14 +248,14 @@ def async_cache[**P, T](
     if callable(maxsize):
         coro, maxsize = maxsize, 128
         wrapper = _cache_wrapper(coro, maxsize, ttl)
-        wrapper.cache_parameters = lambda: {"maxsize": maxsize, "ttl": ttl}
+        wrapper.cache_parameters = lambda: CacheParameters(maxsize, ttl)
         return wrapper
 
     maxsize = max(maxsize, 0) if isinstance(maxsize, int) else None
 
     def decorator(coro: CoroFunction[P, T]) -> CachedTask[P, T]:
         wrapper = _cache_wrapper(coro, maxsize, ttl)
-        wrapper.cache_parameters = lambda: {"maxsize": maxsize, "ttl": ttl}
+        wrapper.cache_parameters = lambda: CacheParameters(maxsize, ttl)
         return wrapper
 
     return decorator
