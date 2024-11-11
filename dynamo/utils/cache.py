@@ -5,9 +5,11 @@ import logging
 from collections.abc import Callable, Hashable, Iterable, MutableMapping, Sized
 from dataclasses import dataclass
 from functools import partial, wraps
-from typing import Any, TypedDict, cast, overload
+from typing import Any, Protocol, TypedDict, cast, overload
 
-from dynamo.typedefs import MISSING, CoroFunction
+from discord.utils import MISSING
+
+from dynamo.types import CoroFunction
 
 log = logging.getLogger(__name__)
 
@@ -30,7 +32,7 @@ class CacheParameters(TypedDict):
     ttl: float | None
 
 
-class CachedTask[**P, T]:
+class CachedTask[**P, T](Protocol):
     __wrapped__: Callable[P, CoroFunction[P, T]]
     __call__: Callable[P, asyncio.Task[T]]
 
@@ -90,7 +92,7 @@ class LRU[K, V]:
                 self._evict()
         self._move_to_front(node)
 
-    def remove(self, key: K) -> None:
+    def remove(self, key: K, default: Any = MISSING) -> None:
         if node := self.cache.pop(key, None):
             self._unlink(node)
 

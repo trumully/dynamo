@@ -15,9 +15,11 @@ import apsw.bestpractice
 import apsw.ext
 import base2048
 import click
+import discord
 import truststore
 
-from dynamo import Dynamo, with_logging
+from dynamo.logger import with_logging
+from dynamo.types import HasExports
 from dynamo.utils.helper import platformdir, resolve_path_with_links, valid_token
 
 log = logging.getLogger(__name__)
@@ -39,7 +41,19 @@ def run_bot(loop: asyncio.AbstractEventLoop) -> None:
         ssl=truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT),
     )
     session = aiohttp.ClientSession(connector=connector)
-    bot = Dynamo(connector=connector, conn=conn, session=session)
+
+    from .extensions import events
+
+    initial_exts: list[HasExports] = [events]
+
+    from dynamo.bot import Dynamo
+
+    bot = Dynamo(
+        intents=discord.Intents(guilds=True, members=True, messages=True, message_content=True),
+        conn=conn,
+        session=session,
+        initial_exts=initial_exts,
+    )
 
     async def entrypoint() -> None:
         try:

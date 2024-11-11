@@ -1,28 +1,23 @@
+from __future__ import annotations
+
 from collections.abc import Callable, Coroutine, Mapping
-from typing import Any, ParamSpec, Protocol, TypeVar
+from typing import Any, NamedTuple, Protocol, TypeVar
 
 import discord.abc
 from discord import Interaction as DInter
 from discord import app_commands
 from discord.ext import commands
 
-P = ParamSpec("P")
+type BotT = commands.Bot | commands.AutoShardedBot
+BotT_co = TypeVar("BotT_co", bound=BotT, covariant=True)
 
-T = TypeVar("T")
-T_co = TypeVar("T_co", covariant=True)
-T_contra = TypeVar("T_contra", contravariant=True)
+type CogT = commands.Cog
+type CommandT = commands.Command[CogT, ..., Any]
 
-S = TypeVar("S", bound=object)
-S_co = TypeVar("S_co", bound=object, covariant=True)
+type ContextT = commands.Context[BotT]
+type ContextA = commands.Context[Any]
+ContextT_co = TypeVar("ContextT_co", bound=ContextT, covariant=True)
 
-CogT = TypeVar("CogT", bound=commands.Cog)
-CommandT = TypeVar("CommandT", bound=commands.Command[Any, ..., Any])
-ContextT_co = TypeVar("ContextT_co", bound=commands.Context[Any], covariant=True)
-
-BotT = TypeVar("BotT", bound=commands.Bot | commands.AutoShardedBot)
-BotT_co = TypeVar("BotT_co", bound=commands.Bot | commands.AutoShardedBot, covariant=True)
-
-type AppCommandT[CogT: commands.Cog, **P, T] = app_commands.Command[CogT, P, T]
 type MaybeSnowflake = discord.abc.Snowflake | None
 
 
@@ -59,35 +54,9 @@ app_command_error_messages: Mapping[type[app_commands.AppCommandError], str] = {
 }
 
 
-class _MissingSentinel:
-    """
-    Represents a sentinel value to indicate that something is missing or not provided.
-
-    This class is not meant to be instantiated. It should be used as a type for
-    comparison or as a default value in function signatures.
-    """
-
-    __slots__ = ()
-
-    def __eq__(self, other: Any) -> bool:
-        return False
-
-    def __bool__(self) -> bool:
-        return False
-
-    def __hash__(self) -> int:
-        return 0
-
-    def __repr__(self):
-        return "..."
-
-
-MISSING: Any = _MissingSentinel()
-
-
 class RawSubmittableCls(Protocol):
     @classmethod
-    async def raw_submit(cls: type["RawSubmittableCls"], interaction: DInter, data: str) -> Any: ...
+    async def raw_submit(cls: type[RawSubmittableCls], interaction: DInter, data: str) -> Any: ...
 
 
 class RawSubmittableStatic(Protocol):
@@ -96,3 +65,28 @@ class RawSubmittableStatic(Protocol):
 
 
 type RawSubmittable = RawSubmittableCls | RawSubmittableStatic
+type ACommand = app_commands.Command[Any, Any, Any]
+type AppCommandT = app_commands.Group | ACommand
+
+
+class Emojis(dict[str, str]):
+    def __init__(self, emojis: list[discord.Emoji], *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+
+        for emoji in emojis:
+            self[emoji.name] = f"<{"a" if emoji.animated else ""}:{emoji.name}:{emoji.id}>"
+
+
+class DynamoLike(Protocol):
+    bot_app_info: discord.AppInfo
+    app_emojis: Emojis
+
+
+class BotExports(NamedTuple):
+    commands: list[AppCommandT] | None = None
+    raw_modal_submits: dict[str, type[RawSubmittable]] | None = None
+    raw_button_submits: dict[str, type[RawSubmittable]] | None = None
+
+
+class HasExports(Protocol):
+    exports: BotExports
