@@ -79,7 +79,6 @@ class Emojis(dict[str, str]):
 
 class DynamoLike(Protocol):
     bot_app_info: discord.AppInfo
-    app_emojis: Emojis
 
 
 class BotExports(NamedTuple):

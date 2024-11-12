@@ -42,9 +42,9 @@ def run_bot(loop: asyncio.AbstractEventLoop) -> None:
     )
     session = aiohttp.ClientSession(connector=connector)
 
-    from .extensions import events
+    from .extensions import events, tags
 
-    initial_exts: list[HasExports] = [events]
+    initial_exts: list[HasExports] = [events, tags]
 
     from dynamo.bot import Dynamo
 
@@ -120,6 +120,7 @@ def run_bot(loop: asyncio.AbstractEventLoop) -> None:
 
     conn.pragma("analysis_limit", 400)
     conn.pragma("optimize")
+    conn.close()
 
 
 def _load_token() -> str | None:
@@ -187,8 +188,8 @@ def main(ctx: click.Context, debug: bool) -> None:
     if ctx.invoked_subcommand is None:
         if (log_level := logging.DEBUG if debug else logging.INFO) == logging.DEBUG:
             click.echo("Running in DEBUG mode", err=True)
+        loop = asyncio.new_event_loop()
         with with_logging(log_level=log_level):
-            loop = asyncio.new_event_loop()
             run_bot(loop)
 
 
