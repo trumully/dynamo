@@ -15,6 +15,7 @@ from discord import InteractionType, app_commands
 from dynamo.types import DynamoLike, HasExports, RawSubmittable
 from dynamo.utils.cache import LRU
 from dynamo.utils.helper import platformdir, resolve_path_with_links
+from dynamo.utils.waterfall import Waterfall
 
 log = logging.getLogger(__name__)
 
@@ -62,7 +63,7 @@ class DynamoTree(app_commands.CommandTree["Dynamo"]):
                 await response.defer(ephemeral=True)
         return not is_blocked
 
-    async def get_hash(self, tree: Self) -> bytes:
+    async def get_hash(self, tree: app_commands.CommandTree) -> bytes:
         """Get the hash of the command tree."""
         commands = sorted(self._get_all_commands(guild=None), key=lambda c: c.qualified_name)
 
@@ -97,7 +98,7 @@ class Dynamo(discord.AutoShardedClient, DynamoLike):
         self.prefixes: dict[int, list[str]] = {}
         self.initial_exts: list[HasExports] = initial_exts
 
-        self.guild_events: LRU[int, list[discord.ScheduledEvent]] = LRU(128)
+        self._last_interaction_waterfall = Waterfall(10, 100, self.update_last_seen)
 
     @property
     def owner(self) -> discord.User:
@@ -112,11 +113,13 @@ class Dynamo(discord.AutoShardedClient, DynamoLike):
         return cast(discord.Guild, discord.Object(id=681408104495448088, type=discord.Guild))
 
     async def start(self, token: str, *, reconnect: bool = True) -> None:
+        self._last_interaction_waterfall.start()
         return await super().start(token, reconnect=reconnect)
 
     async def close(self) -> None:
         await self.session.close()
         await super().close()
+        self._last_interaction_waterfall.stop(wait=True)
 
     async def setup_hook(self) -> None:
         """Initialize bot and sync commands."""
@@ -155,7 +158,7 @@ class Dynamo(discord.AutoShardedClient, DynamoLike):
 
     async def on_interaction(self, interaction: discord.Interaction[Self]) -> None:
         if not self.is_blocked(interaction.user.id):
-            await self.update_last_seen(interaction.user.id)
+            self._last_interaction_waterfall.put(interaction.user.id)
 
         for relevant_type, regex, mapping in (
             (discord.InteractionType.modal_submit, MODAL_REGEX, self.raw_modal_submits),
