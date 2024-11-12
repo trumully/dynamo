@@ -34,6 +34,7 @@ def run_bot(loop: asyncio.AbstractEventLoop) -> None:
     # https://github.com/aio-libs/aiohttp/issues/8599
     # https://github.com/mikeshardmind/salamander-reloaded
     connector = aiohttp.TCPConnector(
+        happy_eyeballs_delay=None,
         family=socket.AddressFamily.AF_INET,
         ttl_dns_cache=60,
         loop=loop,
@@ -48,7 +49,7 @@ def run_bot(loop: asyncio.AbstractEventLoop) -> None:
     from dynamo.bot import Dynamo
 
     bot = Dynamo(
-        intents=discord.Intents(guilds=True, members=True, messages=True, message_content=True),
+        intents=discord.Intents(guilds=True, members=True),
         conn=conn,
         session=session,
         initial_exts=initial_exts,
@@ -165,8 +166,8 @@ def main(ctx: click.Context, debug: bool) -> None:
     if ctx.invoked_subcommand is None:
         if (log_level := logging.DEBUG if debug else logging.INFO) == logging.DEBUG:
             click.echo("Running in DEBUG mode", err=True)
+        loop = asyncio.new_event_loop()
         with with_logging(log_level=log_level):
-            loop = asyncio.new_event_loop()
             run_bot(loop)
 
 

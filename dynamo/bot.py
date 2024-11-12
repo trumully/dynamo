@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 import re
-from collections.abc import AsyncGenerator, Generator
 from typing import Any, Self, cast
 
 import aiohttp
@@ -12,7 +11,7 @@ import msgspec
 import xxhash
 from discord import InteractionType, app_commands
 
-from dynamo.types import AppCommandT, DynamoLike, Emojis, HasExports, RawSubmittable
+from dynamo.types import HasExports, RawSubmittable
 from dynamo.utils.cache import LRU
 from dynamo.utils.helper import platformdir, resolve_path_with_links
 
@@ -29,14 +28,6 @@ WARMUP_GUILDS = {681408104495448088, 696276827341324318}
 
 class DynamoTree(app_commands.CommandTree["Dynamo"]):
     """Versionable and mentionable command tree"""
-
-    application_commands: dict[int | None, list[app_commands.AppCommand]]
-    cache: dict[int | None, LRU[AppCommandT | str, str]]
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        self.application_commands = {}
-        self.cache = {}
 
     @classmethod
     def from_dynamo(cls: type[Self], client: Dynamo) -> Self:
@@ -69,89 +60,8 @@ class DynamoTree(app_commands.CommandTree["Dynamo"]):
 
         return xxhash.xxh64_digest(msgspec.msgpack.encode(payload), seed=0)
 
-    # See: https://gist.github.com/LeoCx1000/021dc52981299b95ea7790416e4f5ca4#file-mentionable_tree-py
-    async def sync(self, *, guild: discord.abc.Snowflake | None = None) -> list[app_commands.AppCommand]:
-        result = await super().sync(guild=guild)
-        guild_id = guild.id if guild else None
-        self.application_commands[guild_id] = result
-        self.cache.pop(guild_id, None)
-        return result
 
-    async def fetch_commands(self, *, guild: discord.abc.Snowflake | None = None) -> list[app_commands.AppCommand]:
-        result = await super().fetch_commands(guild=guild)
-        guild_id = guild.id if guild else None
-        self.application_commands[guild_id] = result
-        self.cache.pop(guild_id, None)
-        return result
-
-    async def get_or_fetch_commands(self, guild: discord.abc.Snowflake | None = None) -> list[app_commands.AppCommand]:
-        try:
-            return self.application_commands[guild.id if guild else None]
-        except KeyError:
-            return await self.fetch_commands(guild=guild)
-
-    async def find_mention_for(self, command: AppCommandT, *, guild: discord.abc.Snowflake | None = None) -> str | None:
-        guild_id = guild.id if guild else None
-        try:
-            return self.cache[guild_id].get(command)
-        except KeyError:
-            pass
-
-        check_global = self.fallback_to_global is True or guild is None
-
-        if isinstance(command, str):
-            # Workaround: discord.py doesn't return children from tree.get_command
-            _command = discord.utils.get(self.walk_commands(guild=guild), qualified_name=command)
-            if check_global and not _command:
-                _command = discord.utils.get(self.walk_commands(), qualified_name=command)
-        else:
-            _command = command
-
-        if not _command:
-            return None
-
-        local_commands = await self.get_or_fetch_commands(guild=guild)
-        root_command = _command.root_parent or _command
-        app_command_found = discord.utils.get(local_commands, name=root_command.name)
-
-        if check_global and not app_command_found:
-            global_commands = await self.get_or_fetch_commands(guild=None)
-            app_command_found = discord.utils.get(global_commands, name=(_command.root_parent or _command).name)
-
-        if not app_command_found:
-            return None
-
-        self.cache.setdefault(guild_id, LRU(256))
-        self.cache[guild_id][command] = mention = f"</{_command.qualified_name}:{app_command_found.id}>"
-        return mention
-
-    def _walk_children(self, commands: list[AppCommandT]) -> Generator[AppCommandT]:
-        for command in commands:
-            if isinstance(command, app_commands.Group):
-                cmds: list[AppCommandT] = cast(list[AppCommandT], command.commands)
-                yield from self._walk_children(cmds)
-            else:
-                yield command
-
-    async def walk_mentions(
-        self, *, guild: discord.abc.Snowflake | None = None
-    ) -> AsyncGenerator[tuple[AppCommandT, str]]:
-        commands = cast(list[AppCommandT], self.get_commands(guild=guild, type=discord.AppCommandType.chat_input))
-        for command in self._walk_children(commands):
-            mention = await self.find_mention_for(command, guild=guild)
-            if mention:
-                yield command, mention
-        if guild and self.fallback_to_global is True:
-            commands = cast(list[AppCommandT], self.get_commands(guild=None, type=discord.AppCommandType.chat_input))
-            for command in self._walk_children(commands):
-                mention = await self.find_mention_for(command, guild=guild)
-                if mention:
-                    yield command, mention
-                else:
-                    log.warning("Could not find a mention for command %s in the API. Are you out of sync?", command)
-
-
-class Dynamo(discord.AutoShardedClient, DynamoLike):
+class Dynamo(discord.AutoShardedClient):
     """Discord bot with command handling and interaction capabilities."""
 
     def __init__(
@@ -199,7 +109,6 @@ class Dynamo(discord.AutoShardedClient, DynamoLike):
         """Initialize bot and sync commands."""
         self.bot_app_info = await self.application_info()
         self.owner_id = self.bot_app_info.owner.id
-        self.app_emojis = Emojis(await self.fetch_application_emojis())
 
         # Load commands
         for module in self.initial_exts:
@@ -219,17 +128,16 @@ class Dynamo(discord.AutoShardedClient, DynamoLike):
         with tree_path.open("r+b") as fp:
             data = fp.read()
             if data != tree_hash:
-                await self.tree.sync()
+                log.debug("Diff detected, syncing commands (Guild ID: %d)", self.dev_guild.id)
+                await self.tree.copy_global_to(guild=self.dev_guild)
+                await self.tree.sync(guild=self.dev_guild)
                 fp.seek(0)
                 fp.write(tree_hash)
-
-        events_path = platformdir.user_cache_path / "events.hash"
-        events_path = resolve_path_with_links(events_path)
 
     async def on_ready(self) -> None:
         if not hasattr(self, "uptime"):
             self.uptime = discord.utils.utcnow()
-        log.info("Ready: %s (ID: %s)", self.user, self.user.id)
+        log.info("Ready: %s (ID: %d)", self.user, self.user.id)
 
     async def on_interaction(self, interaction: Interaction) -> None:
         for relevant_type, regex, mapping in (

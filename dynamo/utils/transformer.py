@@ -7,12 +7,12 @@ import discord
 from discord import AppCommandOptionType, app_commands
 from discord.ext import commands
 
-from dynamo.bot import Dynamo, Interaction
+from dynamo.bot import Interaction
 
 ID_REGEX = re.compile(r"([0-9]{15,20})$")
 
 
-class ScheduledEventTransformer(app_commands.Transformer[Dynamo]):
+class ScheduledEventTransformer(app_commands.Transformer):
     async def transform(self, interaction: Interaction, value: Any, /) -> discord.ScheduledEvent:
         guild = interaction.guild
         match = ID_REGEX.match(value)
