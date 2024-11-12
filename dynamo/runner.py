@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import logging.handlers
-import os
 import socket
 import ssl
 from collections.abc import Callable
@@ -13,14 +12,14 @@ import aiohttp
 import apsw
 import apsw.bestpractice
 import apsw.ext
-import base2048
 import click
 import discord
 import truststore
 
+from dynamo.cli import get_token, store_token
 from dynamo.logger import with_logging
 from dynamo.types import HasExports
-from dynamo.utils.helper import platformdir, resolve_path_with_links, valid_token
+from dynamo.utils.helper import platformdir, valid_token
 
 log = logging.getLogger(__name__)
 
@@ -58,7 +57,7 @@ def run_bot(loop: asyncio.AbstractEventLoop) -> None:
     async def entrypoint() -> None:
         try:
             async with bot:
-                await bot.start(_get_token())
+                await bot.start(get_token())
         finally:
             if not bot.is_closed():
                 await bot.close()
@@ -122,26 +121,6 @@ def run_bot(loop: asyncio.AbstractEventLoop) -> None:
     conn.pragma("optimize")
 
 
-def _load_token() -> str | None:
-    token_file_path = resolve_path_with_links(platformdir.user_config_path / "dynamo.token")
-    with token_file_path.open(mode="r", encoding="utf-8") as fp:
-        data = fp.read()
-        return base2048.decode(data).decode("utf-8") if data else None
-
-
-def _store_token(token: str, /) -> None:
-    token_file_path = resolve_path_with_links(platformdir.user_config_path / "dynamo.token")
-    with token_file_path.open(mode="w", encoding="utf-8") as fp:
-        fp.write(base2048.encode(token.encode()))
-
-
-def _get_token() -> str:
-    if not (token := _load_token()):
-        msg = "Token not found. Please run `dynamo setup` before starting the bot."
-        raise RuntimeError(msg) from None
-    return token
-
-
 def ensure_schema() -> None:
     db_path = platformdir.user_data_path / "dynamo.db"
     conn = apsw.Connection(str(db_path))
@@ -176,7 +155,6 @@ def ensure_schema() -> None:
 def main(ctx: click.Context, debug: bool) -> None:
     """Launch the bot"""
     ensure_schema()
-    os.umask(0o077)
     to_apply: tuple[Callable[[apsw.Connection], None], ...] = (
         apsw.bestpractice.connection_wal,
         apsw.bestpractice.connection_busy_timeout,
@@ -207,7 +185,7 @@ def setup() -> None:
         text = "\N{WARNING SIGN} WARNING: That token doesn't look right. Double check before starting the bot."
         msg = click.style(text, bold=True, fg="yellow")
         click.echo(msg, err=True)
-    _store_token(token)
+    store_token(token)
 
 
 @main.command()

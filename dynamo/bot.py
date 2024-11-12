@@ -93,7 +93,7 @@ class DynamoTree(app_commands.CommandTree["Dynamo"]):
     async def find_mention_for(self, command: AppCommandT, *, guild: discord.abc.Snowflake | None = None) -> str | None:
         guild_id = guild.id if guild else None
         try:
-            return self.cache[guild_id].get(command)
+            return self.cache[guild_id][command]
         except KeyError:
             pass
 
@@ -259,7 +259,7 @@ class Dynamo(discord.AutoShardedClient, DynamoLike):
             )
 
     def is_blocked(self, user_id: int) -> bool:
-        if blocked := self.block_cache.get(user_id):
+        if blocked := self.block_cache[user_id]:
             return blocked
 
         cursor = self.conn.cursor()

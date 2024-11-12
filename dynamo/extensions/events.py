@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from discord import ScheduledEvent, app_commands
 from discord.app_commands import Group
 
@@ -7,6 +9,8 @@ from dynamo.bot import Interaction
 from dynamo.types import BotExports
 from dynamo.utils.helper import process_async_iterable
 from dynamo.utils.transformer import ScheduledEventTransformer
+
+log = logging.getLogger(__name__)
 
 
 async def get_interested(event: ScheduledEvent) -> str:
@@ -35,7 +39,11 @@ async def event_interested(
     itx: Interaction, event: app_commands.Transform[ScheduledEvent, ScheduledEventTransformer]
 ) -> None:
     """Get attendees of an event"""
-    await itx.response.send_message(content=await get_interested(event), ephemeral=True)
+    await itx.response.defer(ephemeral=True)
+
+    content = await get_interested(event)
+
+    await itx.followup.send(content=content, ephemeral=True)
 
 
 exports = BotExports([events_group])
