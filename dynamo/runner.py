@@ -42,14 +42,14 @@ def run_bot(loop: asyncio.AbstractEventLoop) -> None:
     )
     session = aiohttp.ClientSession(connector=connector)
 
-    from .extensions import events, tags
+    from .extensions import events, identicon, info, tags
 
-    initial_exts: list[HasExports] = [events, tags]
+    initial_exts: list[HasExports] = [events, tags, identicon, info]
 
     from dynamo.bot import Dynamo
 
     bot = Dynamo(
-        intents=discord.Intents(guilds=True, members=True, messages=True, message_content=True),
+        intents=discord.Intents(guilds=True, members=True, messages=True, message_content=True, presences=True),
         conn=conn,
         session=session,
         initial_exts=initial_exts,

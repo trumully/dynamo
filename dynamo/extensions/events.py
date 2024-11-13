@@ -1,19 +1,19 @@
 from __future__ import annotations
 
-from typing import cast
+from typing import Literal
 
 import discord
 from discord import app_commands
-from discord.app_commands import Group
+from discord.app_commands import Group, Transform
 
 from dynamo.bot import Interaction
 from dynamo.types import BotExports
-from dynamo.utils.cache import async_cache
+from dynamo.utils.cache import task_cache
 from dynamo.utils.helper import process_async_iterable
 from dynamo.utils.transformer import ScheduledEventTransformer
 
 
-@async_cache(ttl=900)
+@task_cache(ttl=900)
 async def get_interested(event: discord.ScheduledEvent) -> str:
     """|coro|
 
@@ -33,12 +33,20 @@ async def get_interested(event: discord.ScheduledEvent) -> str:
 events_group = Group(name="event", description="Event related commands")
 
 
-@app_commands.describe(event="The event to get attendees for. Either the event name or ID.")
+@app_commands.describe(
+    event="The event to get attendees for. Either the event name or ID.",
+    ephemeral="Attempt to send output as an ephemeral/temporary response",
+)
 @app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
 @events_group.command(name="interested")
-async def event_interested(itx: Interaction, event: ScheduledEventTransformer) -> None:
+async def event_interested(
+    itx: Interaction,
+    event: Transform[discord.ScheduledEvent, ScheduledEventTransformer],
+    ephemeral: Literal["True", "False"] = "True",
+) -> None:
     """Get attendees of an event"""
-    await itx.response.send_message(content=await get_interested(cast(discord.ScheduledEvent, event)), ephemeral=True)
+    interested = await get_interested(event)
+    await itx.response.send_message(content=interested, ephemeral=ephemeral == "True")
 
 
 exports = BotExports([events_group])

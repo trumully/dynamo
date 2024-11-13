@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+from collections.abc import Sequence
 from typing import Any, Self, cast
 
 import aiohttp
@@ -26,17 +27,17 @@ COG_SPEC = "dynamo.extensions.cogs"
 type Interaction = discord.Interaction["Dynamo"]
 
 
-def _last_seen_update(conn: apsw.Connection, user_id: int) -> None:
+def _last_seen_update(conn: apsw.Connection, user_ids: Sequence[int]) -> None:
     cursor = conn.cursor()
     with conn:
-        cursor.execute(
+        cursor.executemany(
             """
             INSERT INTO discord_users (user_id, last_interaction)
             VALUES (?, CURRENT_TIMESTAMP)
             ON CONFLICT (user_id)
             DO UPDATE SET last_interaction=excluded.last_interaction;
             """,
-            (user_id,),
+            ((user_id,) for user_id in user_ids),
         )
 
 
@@ -119,7 +120,7 @@ class Dynamo(discord.AutoShardedClient, DynamoLike):
     async def close(self) -> None:
         await self.session.close()
         await super().close()
-        self._last_interaction_waterfall.stop(wait=True)
+        await self._last_interaction_waterfall.stop(wait=True)
 
     async def setup_hook(self) -> None:
         """Initialize bot and sync commands."""
@@ -153,7 +154,7 @@ class Dynamo(discord.AutoShardedClient, DynamoLike):
             self.uptime = discord.utils.utcnow()
         log.info("Ready: %s (ID: %s)", self.user, self.user.id)
 
-    async def update_last_seen(self, user_id: int, /) -> None:
+    async def update_last_seen(self, user_id: Sequence[int], /) -> None:
         await asyncio.to_thread(_last_seen_update, self.conn, user_id)
 
     async def on_interaction(self, interaction: discord.Interaction[Self]) -> None:
@@ -187,7 +188,7 @@ class Dynamo(discord.AutoShardedClient, DynamoLike):
             )
 
     def is_blocked(self, user_id: int) -> bool:
-        if blocked := self.block_cache.get(user_id):
+        if blocked := self.block_cache.get(user_id, None):
             return blocked
 
         cursor = self.conn.cursor()

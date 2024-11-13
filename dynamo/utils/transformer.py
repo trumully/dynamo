@@ -58,3 +58,12 @@ class ScheduledEventTransformer(app_commands.Transformer[Dynamo]):
     @property
     def type(self) -> AppCommandOptionType:
         return AppCommandOptionType.string
+
+
+class StringOrMemberTransformer(app_commands.Transformer[Dynamo]):
+    async def transform(self, interaction: Interaction, value: Any, /) -> discord.User | discord.Member | str:
+        return value
+
+    @property
+    def type(self) -> AppCommandOptionType:
+        return AppCommandOptionType.string

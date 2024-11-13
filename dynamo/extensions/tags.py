@@ -8,7 +8,7 @@ from msgspec import msgpack
 
 from dynamo.bot import Interaction
 from dynamo.types import BotExports
-from dynamo.utils.cache import Trie, async_cache
+from dynamo.utils.cache import Trie, task_cache
 
 
 def b2048_pack(obj: object, /) -> str:
@@ -19,7 +19,7 @@ def b2048_unpack[T](packed: str, _type: type[T], /) -> T:
     return msgpack.decode(decode(packed), type=_type)
 
 
-@async_cache(ttl=300)
+@task_cache(ttl=300)
 async def _get_trie_matches(conn: Connection, user_id: int) -> Trie:
     cursor = conn.cursor()
     rows = cursor.execute(
@@ -101,7 +101,7 @@ async def tag_create(itx: Interaction, name: Range[str, 1, 20]) -> None:
     """
     modal = TagModal(tag_name=name, author_id=itx.user.id)
     await itx.response.send_modal(modal)
-    await _get_trie_matches.invalidate(itx.client.conn, itx.user.id)
+    _get_trie_matches.invalidate(itx.client.conn, itx.user.id)
 
 
 @tag_group.command(name="get")
@@ -153,7 +153,7 @@ async def tag_delete(itx: Interaction, name: Range[str, 1, 20]) -> None:
     msg = "Deleted tag" if row else "Tag not found"
     await itx.followup.send(msg, ephemeral=True)
     if row:
-        await _get_trie_matches.invalidate(conn, itx.user.id)
+        _get_trie_matches.invalidate(conn, itx.user.id)
 
 
 @tag_get.autocomplete("name")
