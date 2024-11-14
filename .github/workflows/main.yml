@@ -1,4 +1,4 @@
-name: Check
+name: Test and Lint
 
 on:
   push:
@@ -16,6 +16,7 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-22.04
+    name: Check
     steps:
       - uses: actions/checkout@v4
 
@@ -29,5 +30,11 @@ jobs:
         with:
           python-version-file: "pyproject.toml"
 
-      - name: Lint and test
-        run: ./check.sh
+      - name: Install the project
+        run: uv sync --all-extras --dev
+
+      - name: Check with ruff
+        run: uv run ruff check --output-format github --config ./pyproject.toml
+
+      - name: Run tests
+        run: uv run pytest tests --asyncio-mode=strict -n logical
