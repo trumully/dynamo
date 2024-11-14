@@ -1,4 +1,4 @@
-from __future__ import annotations  # noqa: A005
+from __future__ import annotations
 
 import datetime
 from collections.abc import Callable, Coroutine

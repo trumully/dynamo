@@ -14,20 +14,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  ruff:
-    name: Lint with ruff
+  check:
     runs-on: ubuntu-22.04
-    concurrency: lint
-    steps:
-      - uses: actions/checkout@v4
-      - uses: jpetrucciani/ruff-check@main
-        with:
-          path: "./dynamo/"
-          flags: "--config ./pyproject.toml"
-
-  tests:
-    name: Test with pytest
-    runs-on: ubuntu-22.04
+    name: Check
     steps:
       - uses: actions/checkout@v4
 
@@ -43,6 +32,9 @@ jobs:
 
       - name: Install the project
         run: uv sync --all-extras --dev
+
+      - name: Check with ruff
+        run: uv run ruff check --output-format github --config ./pyproject.toml
 
       - name: Run tests
         run: uv run pytest tests --asyncio-mode=strict -n logical

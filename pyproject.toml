@@ -88,6 +88,7 @@ select = [
     "ASYNC",
 ]
 ignore = [
+    "A005",
     "RUF001",
     "RUF029",
     "G002",
@@ -104,6 +105,7 @@ ignore = [
     "PLR0912",
     "PLR0913",
     "PLR0915",
+    "PLW3201",
     "UP007",
     "COM812",
     "ISC001",

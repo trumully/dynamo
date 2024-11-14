@@ -25,7 +25,7 @@ class CacheableTask[**P, T](Protocol):
     __slots__: tuple[str, ...] = ()
 
     @property
-    def __wrapped__(self) -> CoroFunction[P, T]: ...  # noqa: PLW3201
+    def __wrapped__(self) -> CoroFunction[P, T]: ...
 
     def __get__(self: CacheableTask[P, T], instance: Any, owner: type | None = None) -> Any:
         return self if instance is None else BoundCacheableTask[instance, P, T](self, instance)
@@ -104,11 +104,11 @@ class BoundCacheableTask[S, **P, T]:
         self.__setattr__("__doc__", task.__doc__)
 
     @property
-    def __wrapped__(self) -> CoroFunction[P, T]:  # noqa: PLW3201
+    def __wrapped__(self) -> CoroFunction[P, T]:
         return self._task.__wrapped__
 
     @property
-    def __func__(self) -> CacheableTask[P, T]:  # noqa: PLW3201
+    def __func__(self) -> CacheableTask[P, T]:
         return self._task
 
     def __get__[S2](
