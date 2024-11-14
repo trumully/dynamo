@@ -28,7 +28,7 @@ git clone https://github.com/trumully/dynamo.git
 
 ```shell
 cd dynamo
-uv install
+uv sync
 uv run dynamo setup
 uv run dynamo
 ```
@@ -38,7 +38,7 @@ uv run dynamo
 ### Install dev dependencies
 
 ```shell
-poetry install --with=dev
+uv sync --all-extras --dev
 ```
 
 ### Debug mode
