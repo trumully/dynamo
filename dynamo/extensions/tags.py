@@ -101,7 +101,7 @@ async def tag_create(itx: Interaction, name: Range[str, 1, 20]) -> None:
     """
     modal = TagModal(tag_name=name, author_id=itx.user.id)
     await itx.response.send_modal(modal)
-    _get_trie_matches.invalidate(itx.client.conn, itx.user.id)
+    _get_trie_matches.cache_discard(itx.client.conn, itx.user.id)
 
 
 @tag_group.command(name="get")
@@ -153,7 +153,7 @@ async def tag_delete(itx: Interaction, name: Range[str, 1, 20]) -> None:
     msg = "Deleted tag" if row else "Tag not found"
     await itx.followup.send(msg, ephemeral=True)
     if row:
-        _get_trie_matches.invalidate(conn, itx.user.id)
+        _get_trie_matches.cache_discard(conn, itx.user.id)
 
 
 @tag_get.autocomplete("name")
