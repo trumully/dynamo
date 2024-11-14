@@ -101,10 +101,10 @@ def test_human_join(seq: list[str], conjunction: str, oxford_comma: bool) -> Non
     assert isinstance(result, str)
 
     if len(seq) == 0:
-        assert result == ""
+        assert not result
     elif len(seq) == 1:
         assert result == seq[0]
     elif len(seq) == 2:
         assert result == f"{seq[0]} {conjunction} {seq[1]}"
     else:
-        assert result == f"{", ".join(seq[:-1])}{", " if oxford_comma else " "}{conjunction} {seq[-1]}"
+        assert result == f"{', '.join(seq[:-1])}{', ' if oxford_comma else ' '}{conjunction} {seq[-1]}"

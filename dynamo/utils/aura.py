@@ -35,29 +35,26 @@ def get_harmony_score(colors: list[tuple[RGB, float]]) -> float:
 
         # Monochromatic: similar hue, varying saturation/value
         hue_variance = np.std([h for h, *_ in hsv_colors])
-        mono_score = 1.0 - min(hue_variance / 30, 1.0)  # type: ignore
-        scores.append(("monochromatic", mono_score))
+        scores.append(("monochromatic", 1.0 - min(hue_variance / 30, 1.0)))  # type: ignore
 
         # Analogous: adjacent hues (within 30 degrees)
         hue_diffs = [
             abs(hsv_colors[i][0] - hsv_colors[j][0]) for i, j in itertools.combinations(range(len(hsv_colors)), 2)
         ]
-        analogous_score = sum(1.0 for diff in hue_diffs if diff <= 30) / len(hue_diffs)
-        scores.append(("analogous", analogous_score))
+        scores.append(("analogous", sum(1.0 for diff in hue_diffs if diff <= 30) / len(hue_diffs)))
 
         # Complementary: opposite hues (180 ± 30 degrees)
-        complement_score = sum(1.0 for diff in hue_diffs if 150 <= diff <= 210) / len(hue_diffs)
-        scores.append(("complementary", complement_score))
+        scores.append(("complementary", sum(1.0 for diff in hue_diffs if 150 <= diff <= 210) / len(hue_diffs)))
 
         # Split-complementary: one hue and two colors adjacent to its complement
-        split_score = sum(
-            1.0 for diff in hue_diffs if 150 <= diff <= 210 or 120 <= diff <= 150 or 210 <= diff <= 240
-        ) / len(hue_diffs)
-        scores.append(("split-complementary", split_score))
+        scores.append((
+            "split-complementary",
+            sum(1.0 for diff in hue_diffs if 150 <= diff <= 210 or 120 <= diff <= 150 or 210 <= diff <= 240)
+            / len(hue_diffs),
+        ))
 
         # Triadic: three colors evenly spaced (120 ± 15 degrees)
-        triadic_score = sum(1.0 for diff in hue_diffs if 105 <= diff <= 135) / len(hue_diffs)
-        scores.append(("triadic", triadic_score))
+        scores.append(("triadic", sum(1.0 for diff in hue_diffs if 105 <= diff <= 135) / len(hue_diffs)))
 
         # Get the best matching theme and its score
         best_theme, best_score = max(scores, key=lambda x: x[1])
@@ -73,10 +70,8 @@ def get_harmony_score(colors: list[tuple[RGB, float]]) -> float:
     weights: list[float] = []
 
     for (i1, c1), (i2, c2) in all_pairs:
-        dist = perceived_distance(c1, c2)
-        weight = prominences[i1] * prominences[i2]
-        distances.append(dist)
-        weights.append(weight)
+        distances.append(perceived_distance(c1, c2))
+        weights.append(prominences[i1] * prominences[i2])
 
     avg_distance = sum(d * w for d, w in zip(distances, weights, strict=False)) / sum(weights)
 
@@ -85,12 +80,10 @@ def get_harmony_score(colors: list[tuple[RGB, float]]) -> float:
     contrast_score = min(avg_distance * 1.2, 1.0)  # Clear distinction between colors
 
     # Balance scoring
-    prominence_variation = np.std(prominences)
-    balance_score = 1.0 - min(prominence_variation * 2, 0.8)  # type: ignore
+    balance_score = 1.0 - min(np.std(prominences) * 2, 0.8)  # type: ignore
 
     # Dominant color impact
-    dominant_prominence = max(prominences)
-    focal_score = min(dominant_prominence * 1.5, 1.0)
+    focal_score = min(max(prominences) * 1.5, 1.0)
 
     # Theme coherence
     theme_score = detect_color_theme()
@@ -105,7 +98,7 @@ def get_harmony_score(colors: list[tuple[RGB, float]]) -> float:
     ) * 10
 
     log.debug(
-        "Colors: %d | Interest: %.2f | Contrast: %.2f | Balance: %.2f | " "Focal: %.2f | Theme: %.2f | Combined: %.2f",
+        "Colors: %d | Interest: %.2f | Contrast: %.2f | Balance: %.2f | Focal: %.2f | Theme: %.2f | Combined: %.2f",
         len(colors),
         visual_interest,
         contrast_score,
@@ -142,11 +135,11 @@ async def get_palette_description(palette: list[tuple[RGB, float]], session: aio
     Color Distribution (hex, prominence):
     - Dominant: {color_info[0]}
     - Secondary: {color_info[1]}
-    - Supporting: {', '.join(color_info[2:])}
+    - Supporting: {", ".join(color_info[2:])}
 
     Color Relationship Analysis:
     - Primary Contrast: {perceived_distance(dominant_color, secondary_color):.2f}
-    {f'- Secondary Contrast: {perceived_distance(secondary_color, tertiary_color):.2f}' if tertiary_color else ''}
+    {f"- Secondary Contrast: {perceived_distance(secondary_color, tertiary_color):.2f}" if tertiary_color else ""}
 
     Complex Color Combinations:
     - Triadic combinations suggest balance and richness

@@ -82,9 +82,9 @@ def rgb_to_hsv(r: int, g: int, b: int) -> tuple[float, float, float]:
     diff = cmax - cmin
 
     # Calculate hue
-    if diff == 0:
-        h = 0
-    elif cmax == r_:
+    h: float = 0
+
+    if cmax == r_:
         h = (60 * ((g_ - b_) / diff) + 360) % 360
     elif cmax == g_:
         h = (60 * ((b_ - r_) / diff) + 120) % 360
@@ -116,40 +116,30 @@ def color_palette_from_image(image: bytes, n: int = 20, *, iterations: int = 50)
     with open_image_bytes(image) as img:
         # Convert to RGBA to handle transparency
         img.convert("RGBA").thumbnail((150, 150), Image.Resampling.LANCZOS)
-        # Convert to numpy array with alpha channel
         pixels = np.asarray(img, dtype=np.float32)
-
-        # Create a mask for non-transparent pixels (alpha > 0)
-        alpha_mask = pixels[..., 3] > 0
-
-        # Only keep RGB values for non-transparent pixels
-        valid_pixels = pixels[alpha_mask, :3]
+        valid_pixels = pixels[pixels[..., 3] > 0, :3]
 
         if len(valid_pixels) == 0:
             return []  # Return empty list if image is fully transparent
 
+    rng = np.random.default_rng(seed=0)
     if len(valid_pixels) > 10000:
-        rng = np.random.default_rng(seed=0)
         indices = rng.choice(len(valid_pixels), size=10000, replace=False)
         valid_pixels = valid_pixels[indices]
 
     # K-means++ initialization
-    centroids = valid_pixels[np.random.default_rng(0).choice(len(valid_pixels), 1)]
+    centroids = valid_pixels[rng.choice(len(valid_pixels), 1)]
     for _ in range(1, n):
-        distances = ((valid_pixels[:, np.newaxis] - centroids) ** 2).sum(axis=2)
-        probabilities = distances.min(axis=1)
+        probabilities = ((valid_pixels[:, np.newaxis] - centroids) ** 2).sum(axis=2).min(axis=1)
         probabilities /= probabilities.sum()
-        next_centroid = valid_pixels[
-            np.random.Generator(np.random.PCG64()).choice(len(valid_pixels), 1, p=probabilities)
-        ]
+        next_centroid = valid_pixels[rng.choice(len(valid_pixels), 1, p=probabilities)]
         centroids = np.vstack([centroids, next_centroid])
 
     prev_assignments = None
     unchanged_count = 0
 
     for _ in range(iterations):
-        distances = ((valid_pixels[:, np.newaxis] - centroids) ** 2).sum(axis=2)
-        pixel_assignments = np.argmin(distances, axis=1)
+        pixel_assignments = np.argmin(((valid_pixels[:, np.newaxis] - centroids) ** 2).sum(axis=2), axis=1)
 
         if prev_assignments is not None and np.array_equal(prev_assignments, pixel_assignments):
             unchanged_count += 1

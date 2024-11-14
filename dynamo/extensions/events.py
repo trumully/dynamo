@@ -27,7 +27,7 @@ async def get_interested(event: discord.ScheduledEvent) -> str:
         Designed to be copied and pasted.
     """
     users = await process_async_iterable(event.users())
-    return f"`[{event.name}]({event.url}) {" ".join(u.mention for u in users) or "No users found"}`"
+    return f"`[{event.name}]({event.url}) {' '.join(u.mention for u in users) or 'No users found'}`"
 
 
 events_group = Group(name="event", description="Event related commands")
@@ -37,7 +37,7 @@ events_group = Group(name="event", description="Event related commands")
     event="The event to get attendees for. Either the event name or ID.",
     ephemeral="Attempt to send output as an ephemeral/temporary response",
 )
-@app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
+@app_commands.guild_only()
 @events_group.command(name="interested")
 async def event_interested(
     itx: Interaction,
@@ -45,7 +45,7 @@ async def event_interested(
     ephemeral: Literal["True", "False"] = "True",
 ) -> None:
     """Get attendees of an event"""
-    interested = await get_interested(event)
+    interested: str = await get_interested(event)
     await itx.response.send_message(content=interested, ephemeral=ephemeral == "True")
 
 

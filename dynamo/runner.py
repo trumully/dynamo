@@ -35,6 +35,7 @@ def run_bot(loop: asyncio.AbstractEventLoop) -> None:
     # https://github.com/aio-libs/aiohttp/issues/8599
     # https://github.com/mikeshardmind/salamander-reloaded
     connector = aiohttp.TCPConnector(
+        happy_eyeballs_delay=None,
         family=socket.AddressFamily.AF_INET,
         ttl_dns_cache=60,
         loop=loop,
@@ -102,13 +103,11 @@ def run_bot(loop: asyncio.AbstractEventLoop) -> None:
         for task in tasks:
             try:
                 if (exc := task.exception()) is not None:
-                    loop.call_exception_handler(
-                        {
-                            "message": "Unhandled exception in task during shutdown.",
-                            "exception": exc,
-                            "task": task,
-                        }
-                    )
+                    loop.call_exception_handler({
+                        "message": "Unhandled exception in task during shutdown.",
+                        "exception": exc,
+                        "task": task,
+                    })
             except (asyncio.InvalidStateError, asyncio.CancelledError):
                 pass
 

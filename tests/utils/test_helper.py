@@ -8,7 +8,7 @@ from dynamo.utils import helper
 
 
 @pytest.fixture
-def temp_dir() -> Generator[Path, None, None]:
+def temp_dir() -> Generator[Path]:
     with tempfile.TemporaryDirectory() as temp_dir:
         yield Path(temp_dir)
 

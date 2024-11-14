@@ -65,29 +65,32 @@ async def get_aura(itx: Interaction, user: discord.Member | discord.User) -> Non
 
 
 @app_commands.command(name="spotify")
-@app_commands.describe(member="The member to get the Spotify status of")
-async def get_spotify(itx: Interaction, member: discord.Member) -> None:
+@app_commands.describe(user="The user to get the Spotify status of")
+@app_commands.guild_only()
+async def get_spotify(itx: Interaction, user: discord.Member | discord.User) -> None:
     """Get the Spotify status of a user."""
-    await itx.response.defer()
+    assert itx.guild is not None
 
-    activities = member.activities
-    log.debug(activities)
+    member: discord.Member | None = itx.guild.get_member(user.id)
+    if member is None:
+        await itx.response.send_message("The user is not in the server", ephemeral=True)
+        return
 
-    spotify_activity = next((act for act in activities if isinstance(act, discord.Spotify)), None)
+    spotify_activity = next((act for act in member.activities if isinstance(act, discord.Spotify)), None)
     if spotify_activity is None:
-        await itx.followup.send("The user is not listening to Spotify", ephemeral=True)
+        await itx.response.send_message("The user is not listening to Spotify", ephemeral=True)
         return
 
     album_cover = await spotify.fetch_album_cover(spotify_activity.album_cover_url, itx.client.session)
     if album_cover is None:
-        await itx.followup.send("Something went wrong while fetching the album cover. Try again.", ephemeral=True)
+        await itx.response.send_message("Something went wrong while fetching the album cover. Try again.")
         spotify.fetch_album_cover.cache_discard(spotify_activity.album_cover_url, itx.client.session)
         return
 
     buffer, extension = await spotify.draw(spotify_activity, album_cover)
-    embed, file = spotify.make_embed(member, spotify_activity, buffer, "🎧", ext=extension)
+    embed, file = spotify.make_embed(user, spotify_activity, buffer, "🎧", ext=extension)
 
-    await itx.followup.send(embed=embed, file=file)
+    await itx.response.send_message(embed=embed, file=file)
 
 
 exports = BotExports([user_avatar, get_aura, get_spotify])

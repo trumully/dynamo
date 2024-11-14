@@ -4,7 +4,6 @@ import time
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from functools import wraps
-from typing import Any
 
 from dynamo.types import CoroFunction
 
@@ -17,22 +16,6 @@ def time_it(func_name: str) -> Generator[None]:
     yield
     end = time.perf_counter()
     log.debug("%s took %s seconds", func_name, f"{end - start:.2f}")
-
-
-def timer(func: Callable[..., Any]) -> Callable[..., Any]:
-    """Time execution of a function or coroutine"""
-
-    @wraps(func)
-    async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
-        with time_it(func.__name__):
-            return await func(*args, **kwargs)
-
-    @wraps(func)
-    def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
-        with time_it(func.__name__):
-            return func(*args, **kwargs)
-
-    return async_wrapper if asyncio.iscoroutinefunction(func) else sync_wrapper
 
 
 def executor_function[**P, T](func: Callable[P, T]) -> CoroFunction[P, T]:

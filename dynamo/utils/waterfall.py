@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import time
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, MutableSequence, Sequence
 from typing import Any, Literal, overload
 
 from dynamo.types import Coro
@@ -55,7 +55,7 @@ class Waterfall[T]:
         try:
             _tasks: set[asyncio.Task[Any]] = set()
             while self._alive:
-                queue_items: Sequence[T] = []
+                queue_items: MutableSequence[T] = []
                 iter_start = time.monotonic()
 
                 while (this_max_wait := (time.monotonic() - iter_start)) < self.max_wait:
@@ -88,7 +88,7 @@ class Waterfall[T]:
         # WARNING: Do not allow an async context switch before the gather below
 
         self._alive = False
-        remaining_items: Sequence[T] = []
+        remaining_items: MutableSequence[T] = []
 
         while not self.queue.empty():
             try:

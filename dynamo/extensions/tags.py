@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any, cast
+
 import discord
 from apsw import Connection
 from base2048 import decode, encode
@@ -7,7 +9,7 @@ from discord.app_commands import Choice, Group, Range
 from msgspec import msgpack
 
 from dynamo.bot import Interaction
-from dynamo.types import BotExports
+from dynamo.types import BotExports, RawSubmittable
 from dynamo.utils.cache import Trie, task_cache
 
 
@@ -65,7 +67,9 @@ class TagModal(discord.ui.Modal):
 
         assert itx.data
 
-        if not (raw := itx.data.get("components", None)):
+        raw: Any | list[Any] | None = itx.data.get("components", None)
+
+        if not raw:
             return
 
         component = raw[0]
@@ -163,4 +167,4 @@ async def tag_autocomplete(itx: Interaction, current: str) -> list[Choice[str]]:
     return [Choice(name=match, value=match) for match in matches.search(current)[:25]]
 
 
-exports = BotExports([tag_group], {"tag": TagModal})
+exports = BotExports([tag_group], {"tag": cast(type[RawSubmittable], TagModal)})

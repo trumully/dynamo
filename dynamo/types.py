@@ -1,24 +1,12 @@
-from __future__ import annotations
+from __future__ import annotations  # noqa: A005
 
 import datetime
 from collections.abc import Callable, Coroutine
-from typing import Any, NamedTuple, Protocol, TypeVar
+from typing import Any, NamedTuple, Protocol
 
 import discord.abc
 from discord import Interaction as InteractionD
 from discord import app_commands
-from discord.ext import commands
-
-type BotT = commands.Bot | commands.AutoShardedBot
-BotT_co = TypeVar("BotT_co", bound=BotT, covariant=True)
-
-type CogT = commands.Cog
-type CommandT[CogT: commands.Cog, **P, T: Any] = commands.Command[CogT, P, T]
-
-type ContextT = commands.Context[BotT]
-type ContextA = commands.Context[Any]
-ContextT_co = TypeVar("ContextT_co", bound=ContextT, covariant=True)
-
 
 type Coro[T] = Coroutine[Any, Any, T]
 type CoroFunction[**P, T] = Callable[P, Coro[T]]

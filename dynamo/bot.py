@@ -99,7 +99,7 @@ class Dynamo(discord.AutoShardedClient, DynamoLike):
         self.prefixes: dict[int, list[str]] = {}
         self.initial_exts: list[HasExports] = initial_exts
 
-        self._last_interaction_waterfall = Waterfall(10, 100, self.update_last_seen)
+        self._last_interaction_waterfall = Waterfall(10, 100, self._update_last_seen)
 
     @property
     def owner(self) -> discord.User:
@@ -154,7 +154,7 @@ class Dynamo(discord.AutoShardedClient, DynamoLike):
             self.uptime = discord.utils.utcnow()
         log.info("Ready: %s (ID: %s)", self.user, self.user.id)
 
-    async def update_last_seen(self, user_id: Sequence[int], /) -> None:
+    async def _update_last_seen(self, user_id: Sequence[int], /) -> None:
         await asyncio.to_thread(_last_seen_update, self.conn, user_id)
 
     async def on_interaction(self, interaction: discord.Interaction[Self]) -> None:
@@ -167,7 +167,7 @@ class Dynamo(discord.AutoShardedClient, DynamoLike):
         ):
             if interaction.type is not relevant_type or interaction.data is None:
                 continue
-            custom_id = interaction.data.get("custom_id", "")
+            custom_id: str = cast(str, interaction.data.get("custom_id", ""))
             if match := regex.match(custom_id):
                 modal_name, data = match.groups()
                 if rs := mapping.get(modal_name):

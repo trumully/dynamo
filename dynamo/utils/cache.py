@@ -8,8 +8,6 @@ from typing import Any, NamedTuple, Protocol, overload
 from dynamo.types import CoroFunction
 from dynamo.utils.hashable import HashedSeq
 
-type DecoratedCachedTask[**P, T] = Callable[[CoroFunction[P, T]], CacheableTask[P, T]]
-
 
 class CacheInfo(NamedTuple):
     hits: int
@@ -27,9 +25,9 @@ class CacheableTask[**P, T](Protocol):
     __slots__: tuple[str, ...] = ()
 
     @property
-    def __wrapped__(self) -> CoroFunction[P, T]: ...
+    def __wrapped__(self) -> CoroFunction[P, T]: ...  # noqa: PLW3201
 
-    def __get__(self: CacheableTask[P, T], instance: object, owner: type | None = None) -> Any:
+    def __get__(self: CacheableTask[P, T], instance: Any, owner: type | None = None) -> Any:
         return self if instance is None else BoundCacheableTask[instance, P, T](self, instance)
 
     __call__: CoroFunction[P, T]
@@ -46,14 +44,14 @@ def _lru_evict[Key: HashedSeq | int | str](ttl: float, cache: LRU[Key, Any], key
 
 class CachedTask[**P, T](CacheableTask[P, T]):
     __slots__ = (
-        "__weakref__",
-        "__dict__",
-        "__wrapped__",
-        "__hits",
-        "__misses",
-        "__maxsize",
-        "__ttl",
         "__cache",
+        "__dict__",
+        "__hits",
+        "__maxsize",
+        "__misses",
+        "__ttl",
+        "__weakref__",
+        "__wrapped__",
     )
 
     __wrapped__: CoroFunction[P, T]
@@ -97,18 +95,20 @@ class CachedTask[**P, T](CacheableTask[P, T]):
 
 
 class BoundCacheableTask[S, **P, T]:
-    __slots__ = ("__weakref__", "_task", "__self__")
+    __slots__ = ("__self__", "__weakref__", "_task")
 
     def __init__(self, task: CacheableTask[P, T], __self__: object):
         self._task = task
         self.__self__ = __self__
+        self.__setattr__("__annotations__", task.__annotations__)
+        self.__setattr__("__doc__", task.__doc__)
 
     @property
-    def __wrapped__(self) -> CoroFunction[P, T]:
+    def __wrapped__(self) -> CoroFunction[P, T]:  # noqa: PLW3201
         return self._task.__wrapped__
 
     @property
-    def __func__(self) -> CacheableTask[P, T]:
+    def __func__(self) -> CacheableTask[P, T]:  # noqa: PLW3201
         return self._task
 
     def __get__[S2](
@@ -126,19 +126,12 @@ class BoundCacheableTask[S, **P, T]:
         return self._task.cache_clear()
 
     def cache_discard(self, *args: P.args, **kwargs: P.kwargs) -> None:
-        return self._task.cache_discard(self.__self__, *args, **kwargs)
+        args_with_self: tuple[Any, ...] = (self.__self__, *args)
+        return self._task.cache_discard(*args_with_self, **kwargs)
 
     def __repr__(self) -> str:
         name = getattr(self.__wrapped__, "__qualname__", "?")
         return f"<bound cached task {name} of {self.__self__!r}>"
-
-    @property
-    def __doc__(self) -> str | None:  # type: ignore
-        return self._task.__doc__
-
-    @property
-    def __annotations__(self) -> dict[str, Any]:  # type: ignore
-        return self._task.__annotations__
 
 
 class Node:
@@ -211,12 +204,14 @@ class Trie:
 
 
 @overload
-def task_cache[**P, T](*, maxsize: int | None = 128, ttl: float | None = None) -> DecoratedCachedTask[P, T]: ...
+def task_cache[**P, T](
+    *, maxsize: int | None = 128, ttl: float | None = None
+) -> Callable[[CoroFunction[P, T]], CacheableTask[P, T]]: ...
 @overload
 def task_cache[**P, T](coro: CoroFunction[P, T], /) -> CacheableTask[P, T]: ...
 def task_cache[**P, T](
     maxsize: int | CoroFunction[P, T] | None = 128, ttl: float | None = None
-) -> DecoratedCachedTask[P, T] | CacheableTask[P, T]:
+) -> Callable[[CoroFunction[P, T]], CacheableTask[P, T]] | CacheableTask[P, T]:
     """Decorator that modifies coroutine functions to act as functions returning cached tasks."""
     if isinstance(maxsize, int):
         maxsize = 0 if maxsize < 0 else maxsize
@@ -229,7 +224,6 @@ def task_cache[**P, T](
         raise TypeError(msg) from None
 
     def decorator(coro: CoroFunction[P, T]) -> CacheableTask[P, T]:
-        assert not callable(maxsize)
         wrapper = CachedTask(coro, maxsize, ttl)
         update_wrapper(wrapper, coro)
         return wrapper
