@@ -10,7 +10,7 @@ import numpy as np
 from numpy.typing import NDArray
 from PIL import Image
 
-from dynamo.utils.cache import async_cache
+from dynamo.utils.cache import task_cache
 from dynamo.utils.color import RGB, color_is_similar
 from dynamo.utils.wrappers import executor_function
 
@@ -57,7 +57,7 @@ def seed_from_time() -> int:
 IDENTICON_SIZE = 256
 
 
-@async_cache
+@task_cache
 @executor_function
 def get_identicon(seed: int, pattern_size: int, fg_weight: float) -> bytes:
     """|coro|

@@ -10,7 +10,7 @@ import aiohttp
 import discord
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
-from dynamo.utils.cache import async_cache
+from dynamo.utils.cache import task_cache
 from dynamo.utils.format import FONTS, human_join, is_cjk
 from dynamo.utils.helper import ROOT, valid_url
 from dynamo.utils.wrappers import executor_function
@@ -306,7 +306,7 @@ def create_text_frame(text: str, width: int, height: int, font: ImageFont.FreeTy
     return frame
 
 
-@async_cache
+@task_cache
 async def fetch_album_cover(url: str, session: aiohttp.ClientSession) -> bytes | None:
     """|coro|
 

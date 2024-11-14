@@ -23,11 +23,11 @@ async def test_executor_function() -> None:
 async def test_timer(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
     """Test the timer decorator"""
 
-    @wrappers.timer
+    @wrappers.time_it("test_function")
     def test_function() -> str:
         return "test"
 
-    @wrappers.timer
+    @wrappers.time_it("async_test_function")
     async def async_test_function() -> str:
         return "test"
 

@@ -15,9 +15,11 @@ import apsw.bestpractice
 import apsw.ext
 import base2048
 import click
+import discord
 import truststore
 
-from dynamo import Dynamo, with_logging
+from dynamo.logger import with_logging
+from dynamo.types import HasExports
 from dynamo.utils.helper import platformdir, resolve_path_with_links, valid_token
 
 log = logging.getLogger(__name__)
@@ -33,13 +35,26 @@ def run_bot(loop: asyncio.AbstractEventLoop) -> None:
     # https://github.com/aio-libs/aiohttp/issues/8599
     # https://github.com/mikeshardmind/salamander-reloaded
     connector = aiohttp.TCPConnector(
+        happy_eyeballs_delay=None,
         family=socket.AddressFamily.AF_INET,
         ttl_dns_cache=60,
         loop=loop,
         ssl=truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT),
     )
     session = aiohttp.ClientSession(connector=connector)
-    bot = Dynamo(connector=connector, conn=conn, session=session)
+
+    from .extensions import events, identicon, info, tags
+
+    initial_exts: list[HasExports] = [events, tags, identicon, info]
+
+    from dynamo.bot import Dynamo
+
+    bot = Dynamo(
+        intents=discord.Intents(guilds=True, members=True, messages=True, message_content=True, presences=True),
+        conn=conn,
+        session=session,
+        initial_exts=initial_exts,
+    )
 
     async def entrypoint() -> None:
         try:
@@ -88,13 +103,11 @@ def run_bot(loop: asyncio.AbstractEventLoop) -> None:
         for task in tasks:
             try:
                 if (exc := task.exception()) is not None:
-                    loop.call_exception_handler(
-                        {
-                            "message": "Unhandled exception in task during shutdown.",
-                            "exception": exc,
-                            "task": task,
-                        }
-                    )
+                    loop.call_exception_handler({
+                        "message": "Unhandled exception in task during shutdown.",
+                        "exception": exc,
+                        "task": task,
+                    })
             except (asyncio.InvalidStateError, asyncio.CancelledError):
                 pass
 
@@ -106,6 +119,7 @@ def run_bot(loop: asyncio.AbstractEventLoop) -> None:
 
     conn.pragma("analysis_limit", 400)
     conn.pragma("optimize")
+    conn.close()
 
 
 def _load_token() -> str | None:
@@ -173,8 +187,8 @@ def main(ctx: click.Context, debug: bool) -> None:
     if ctx.invoked_subcommand is None:
         if (log_level := logging.DEBUG if debug else logging.INFO) == logging.DEBUG:
             click.echo("Running in DEBUG mode", err=True)
+        loop = asyncio.new_event_loop()
         with with_logging(log_level=log_level):
-            loop = asyncio.new_event_loop()
             run_bot(loop)
 
 

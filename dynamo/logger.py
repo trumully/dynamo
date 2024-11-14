@@ -5,6 +5,7 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from typing import Any
 
+import apsw.ext
 import discord
 
 from dynamo.utils.helper import platformdir, resolve_path_with_links
@@ -46,6 +47,9 @@ def with_logging(log_level: int = logging.INFO) -> Generator[None]:
 
     q_listener = logging.handlers.QueueListener(q, stream_handler, rotating_file_handler)
     root_logger.addHandler(q_handler)
+
+    apsw_log = logging.getLogger("apsw_forwarded")
+    apsw.ext.log_sqlite(logger=apsw_log)
 
     try:
         q_listener.start()

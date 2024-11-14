@@ -7,7 +7,7 @@ from hypothesis import given
 from dynamo.utils import time_utils
 
 
-def aware_datetime(*args: int) -> datetime.datetime:
+def aware_datetime(args: tuple[int, int, int, int, int, int]) -> datetime.datetime:
     """Create an aware datetime with UTC timezone.
 
     Parameters
@@ -27,7 +27,7 @@ def test_human_timedelta_basic() -> None:
     """Tests that the basic functionality of human_timedelta works as expected."""
     # year, month, day, hour, minute, second
     some_datetime = (2023, 1, 1, 12, 0, 0)
-    now = aware_datetime(*some_datetime)
+    now = aware_datetime(some_datetime)
 
     assert time_utils.human_timedelta(now, now) == "now"
     assert time_utils.human_timedelta(now + datetime.timedelta(seconds=5), now) == "5 seconds"
@@ -50,7 +50,7 @@ def test_human_timedelta_properties(
 
     # Validate output
     assert isinstance(result, str)
-    assert result != ""
+    assert result
 
     # In case of same datetime, other cases are irrelevant
     if dt == source:

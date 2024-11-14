@@ -14,27 +14,27 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  ruff:
-    name: Lint with ruff
+  check:
     runs-on: ubuntu-22.04
-    concurrency: lint
+    name: Check
     steps:
       - uses: actions/checkout@v4
-      - uses: jpetrucciani/ruff-check@main
-        with:
-          path: './dynamo/'
-          flags: '--config ./pyproject.toml'
 
-  tests:
-    name: Test with pytest
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install poetry
-        run: pipx install poetry
-      - uses: actions/setup-python@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
         with:
-          python-version: '3.13'
-          cache: 'poetry'
-      - run: poetry install --with=dev
-      - run: poetry run pytest tests --asyncio-mode=strict -n logical
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: "pyproject.toml"
+
+      - name: Install the project
+        run: uv sync --all-extras --dev
+
+      - name: Check with ruff
+        run: uv run ruff check --output-format github --config ./pyproject.toml
+
+      - name: Run tests
+        run: uv run pytest tests --asyncio-mode=strict -n logical

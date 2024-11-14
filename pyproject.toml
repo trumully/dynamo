@@ -1,38 +1,49 @@
-[tool.poetry]
+[tool.uv]
+dev-dependencies = [
+    "pytest==8.3.2",
+    "hypothesis==6.112.0",
+    "pytest-asyncio==0.24.0",
+    "pytest-xdist[psutil]==3.6.1",
+    "ruff==0.6.8",
+    "mypy>=1.13.0",
+]
+
+[tool.pdm.build]
+includes = []
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+
+[project]
+authors = [{ name = "trumully", email = "truman.mulholland@gmail.com" }]
+license = { text = "LICENSE" }
+requires-python = "==3.13.0"
+dependencies = [
+    "discord-py[speed] @ git+https://github.com/mikeshardmind/discord.py.git@89ac64f",
+    "click==8.1.7",
+    "toml==0.10.2",
+    "python-dateutil==2.9.0.post0",
+    "platformdirs==4.2.2",
+    "xxhash==3.5.0",
+    "base2048==0.1.3",
+    "numpy==2.1.0",
+    "msgspec @ git+https://github.com/jcrist/msgspec@main",
+    "pillow==10.4.0",
+    "truststore==0.9.2",
+    "types-python-dateutil==2.9.0.20240906",
+    "rapidfuzz==3.9.7",
+    "apsw==3.46.1.0",
+    "pygit2==1.16.0",
+]
 name = "dynamo"
 version = "0.2.0"
 description = "Quantum entanglement!"
-authors = ["trumully <truman.mulholland@gmail.com>"]
 readme = "README.md"
-license = "LICENSE"
 
-[tool.poetry.dependencies]
-python = "^3.13"
-discord-py = { git = "https://github.com/mikeshardmind/discord.py.git", branch = "salamander-reloaded" }
-click = "^8.1.7"
-toml = "^0.10.2"
-python-dateutil = "^2.9.0.post0"
-platformdirs = "^4.2.2"
-xxhash = "^3.5.0"
-base2048 = "^0.1.3"
-numpy = "^2.1.0"
-msgspec = { git = "https://github.com/jcrist/msgspec", branch = "main" }
-pillow = "^10.4.0"
-truststore = "^0.9.2"
-types-python-dateutil = "^2.9.0.20240906"
-rapidfuzz = "^3.9.7"
-apsw = "^3.46.1.0"
-pygit2 = "^1.15.1"
-
-[tool.poetry.scripts]
-dynamo = "dynamo.launch:main"
-
-[tool.poetry.group.dev.dependencies]
-pytest = "^8.3.2"
-hypothesis = "^6.112.0"
-pytest-asyncio = "^0.24.0"
-pytest-xdist = { extras = ["psutil"], version = "^3.6.1" }
-ruff = "^0.6.8"
+[project.scripts]
+dynamo = "dynamo.runner:main"
 
 [tool.ruff]
 target-version = "py313"
@@ -77,12 +88,14 @@ select = [
     "ASYNC",
 ]
 ignore = [
+    "A005",
     "RUF001",
     "RUF029",
     "G002",
     "S101",
     "PLR2004",
     "PLC0105",
+    "PLC0415",
     "SIM105",
     "C90",
     "ANN101",
@@ -92,6 +105,7 @@ ignore = [
     "PLR0912",
     "PLR0913",
     "PLR0915",
+    "PLW3201",
     "UP007",
     "COM812",
     "ISC001",
@@ -99,6 +113,7 @@ ignore = [
     "ASYNC109",
     "E999",
     "PLR6301",
+
 ]
 unfixable = ["ERA"]
 
@@ -106,10 +121,8 @@ unfixable = ["ERA"]
 asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "function"
 filterwarnings = [
-    # This is from discord.py
     "ignore:'audioop' is deprecated and slated for removal in Python 3.13:DeprecationWarning",
 ]
 
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+[tool.mypy]
+python_version = "3.13"

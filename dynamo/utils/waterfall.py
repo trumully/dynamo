@@ -1,0 +1,122 @@
+import asyncio
+import logging
+import time
+from collections.abc import Callable, MutableSequence, Sequence
+from typing import Any, Literal, overload
+
+from dynamo.types import Coro
+
+log = logging.getLogger(__name__)
+
+
+class Waterfall[T]:
+    """A utility class for batching similar operations into a single execution."""
+
+    def __init__(
+        self,
+        max_wait: float,
+        max_quantity: int,
+        async_callback: Callable[[Sequence[T]], Coro[Any]],
+        *,
+        max_wait_finalize: int = 3,
+    ) -> None:
+        self.queue: asyncio.Queue[T] = asyncio.Queue()
+        self.max_wait = max_wait
+        self.max_quantity = max_quantity
+        self.callback: Callable[[Sequence[T]], Coro[Any]] = async_callback
+        self._task: asyncio.Task[None] | None = None
+        self._alive: bool = False
+        self.max_wait_finalize = max_wait_finalize
+
+    def start(self) -> None:
+        if self._task is not None:
+            msg = "Waterfall is already running."
+            raise RuntimeError(msg) from None
+        self._alive = True
+        self._task = asyncio.create_task(self._loop())
+
+    @overload
+    def stop(self, wait: Literal[True]) -> Coro[None]: ...
+    @overload
+    def stop(self, wait: Literal[False]) -> None: ...
+    @overload
+    def stop(self, wait: bool = False) -> Coro[None] | None: ...
+    def stop(self, wait: bool = False) -> Coro[None] | None:
+        self._alive = False
+        return self.queue.join() if wait else None
+
+    def put(self, item: T) -> None:
+        if not self._alive:
+            msg = "Can't put something in a non-running Waterfall."
+            raise RuntimeError(msg) from None
+        self.queue.put_nowait(item)
+
+    async def _loop(self) -> None:
+        try:
+            _tasks: set[asyncio.Task[Any]] = set()
+            while self._alive:
+                queue_items: MutableSequence[T] = []
+                iter_start = time.monotonic()
+
+                while (this_max_wait := (time.monotonic() - iter_start)) < self.max_wait:
+                    try:
+                        n = await asyncio.wait_for(self.queue.get(), this_max_wait)
+                    except TimeoutError:
+                        continue
+                    else:
+                        queue_items.append(n)
+                    if len(queue_items) >= self.max_quantity:
+                        break
+
+                    if not queue_items:
+                        continue
+
+                num_items = len(queue_items)
+
+                t = asyncio.create_task(self.callback(queue_items))
+                _tasks.add(t)
+                t.add_done_callback(_tasks.remove)
+
+                for _ in range(num_items):
+                    self.queue.task_done()
+
+        finally:
+            f = asyncio.create_task(self._finalize(), name="waterfall.finalizer")
+            await asyncio.wait_for(f, timeout=self.max_wait_finalize)
+
+    async def _finalize(self) -> None:
+        # WARNING: Do not allow an async context switch before the gather below
+
+        self._alive = False
+        remaining_items: MutableSequence[T] = []
+
+        while not self.queue.empty():
+            try:
+                ev = self.queue.get_nowait()
+            except asyncio.QueueEmpty:
+                # we should never hit this, asyncio queues know their size reliably when used appropriately.
+                break
+
+            remaining_items.append(ev)
+
+        if not remaining_items:
+            return
+
+        num_remaining = len(remaining_items)
+
+        pending_futures: list[asyncio.Task[Any]] = []
+
+        for chunk in (remaining_items[p : p + self.max_quantity] for p in range(0, num_remaining, self.max_quantity)):
+            fut = asyncio.create_task(self.callback(chunk))
+            pending_futures.append(fut)
+
+        gathered = asyncio.gather(*pending_futures)
+
+        try:
+            await asyncio.wait_for(gathered, timeout=self.max_wait_finalize)
+        except TimeoutError:
+            for task in pending_futures:
+                task.cancel()
+
+        for _ in range(num_remaining):
+            self.queue.task_done()
