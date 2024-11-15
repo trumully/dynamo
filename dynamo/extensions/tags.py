@@ -10,7 +10,7 @@ from msgspec import msgpack
 
 from dynamo.bot import Interaction
 from dynamo.types import BotExports, RawSubmittable
-from dynamo.utils.cache import Trie, task_cache
+from dynamo.utils.cache import LRU, Trie
 
 
 def b2048_pack(obj: object, /) -> str:
@@ -21,8 +21,10 @@ def b2048_unpack[T](packed: str, _type: type[T], /) -> T:
     return msgpack.decode(decode(packed), type=_type)
 
 
-@task_cache(ttl=300)
-async def _get_trie_matches(conn: Connection, user_id: int) -> Trie:
+_tags_trie: LRU[int, Trie] = LRU(128)
+
+
+def _get_trie_matches(conn: Connection, user_id: int) -> Trie:
     cursor = conn.cursor()
     rows = cursor.execute(
         """
@@ -87,7 +89,7 @@ class TagModal(discord.ui.Modal):
             """,
             {"author_id": author_id, "tag_name": tag_name, "content": content},
         )
-
+        _tags_trie[author_id] = _get_trie_matches(itx.client.conn, author_id)
         await itx.followup.send(content="Tag added", ephemeral=True)
 
 
@@ -105,7 +107,6 @@ async def tag_create(itx: Interaction, name: Range[str, 1, 20]) -> None:
     """
     modal = TagModal(tag_name=name, author_id=itx.user.id)
     await itx.response.send_modal(modal)
-    _get_trie_matches.cache_discard(itx.client.conn, itx.user.id)
 
 
 @tag_group.command(name="get")
@@ -157,14 +158,23 @@ async def tag_delete(itx: Interaction, name: Range[str, 1, 20]) -> None:
     msg = "Deleted tag" if row else "Tag not found"
     await itx.followup.send(msg, ephemeral=True)
     if row:
-        _get_trie_matches.cache_discard(conn, itx.user.id)
+        _tags_trie.remove(itx.user.id)
+
+
+def get_user_tags(conn: Connection, user_id: int, current: str) -> list[str]:
+    if (tags := _tags_trie.get(user_id, None)) is not None:
+        results = tags.search(current)
+        return sorted(results)[:25] if len(results) > 25 else list(results)
+
+    results = _get_trie_matches(conn, user_id).search(current)
+    return sorted(results)[:25] if len(results) > 25 else list(results)
 
 
 @tag_get.autocomplete("name")
 @tag_delete.autocomplete("name")
 async def tag_autocomplete(itx: Interaction, current: str) -> list[Choice[str]]:
-    matches: Trie = await _get_trie_matches(itx.client.conn, itx.user.id)
-    return [Choice(name=match, value=match) for match in matches.search(current)[:25]]
+    matches = get_user_tags(itx.client.conn, itx.user.id, current)
+    return [Choice(name=match, value=match) for match in matches]
 
 
 exports = BotExports([tag_group], {"tag": cast(type[RawSubmittable], TagModal)})

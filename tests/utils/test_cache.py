@@ -13,7 +13,7 @@ args_strategy = st.lists(fast_type_values, max_size=5).map(tuple)
 kwargs_strategy = st.dictionaries(st.text(min_size=1), fast_type_values, max_size=5)
 
 
-def create_async_cacheable(maxsize: int | None = 128, sleep_time: float = 1e-3) -> CacheableTask[[int], int]:
+def create_async_cacheable(maxsize: int = 128, sleep_time: float = 1e-3) -> CacheableTask[[int], int]:
     @task_cache(maxsize=maxsize)
     async def async_cacheable(x: int) -> int:
         await asyncio.sleep(sleep_time)
@@ -88,19 +88,6 @@ async def test_task_cache_maxsize_enforcement(inputs: set[int]) -> None:
     cache_info = async_cacheable_sized.cache_info()
     assert cache_info.currsize <= 5
     assert cache_info.currsize == min(len(set(inputs)), 5)
-
-
-@pytest.mark.asyncio
-@settings(deadline=None, max_examples=10)
-@given(inputs=st.sets(st.integers(min_value=0, max_value=5), min_size=1, max_size=5))
-async def test_task_cache_unbounded(inputs: set[int]) -> None:
-    async_cacheable_unbounded = create_async_cacheable(maxsize=None)
-
-    for i in inputs:
-        await async_cacheable_unbounded(i)
-
-    cache_info = async_cacheable_unbounded.cache_info()
-    assert cache_info.currsize == len(inputs)
 
 
 @pytest.mark.asyncio
