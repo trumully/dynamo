@@ -28,7 +28,7 @@ def test_get_colors(seed: int) -> None:
         color.perceived_distance(fg, bg),
         color.euclidean_distance(fg, bg),
     )
-    assert not identicon.color_is_similar(
+    assert not color.color_is_similar(
         fg, bg
     ), f"fg and bg are too similar: {fg} and {bg}\np|e = {perceived}|{euclidean}"
 

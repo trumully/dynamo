@@ -44,4 +44,4 @@ def test_nested_non_existing_path(temp_dir: Path) -> None:
     resolved_path = helper.resolve_path_with_links(nested_path)
     assert resolved_path.exists()
     assert resolved_path.is_file()
-    assert all(p.exists() for p in resolved_path.parents if p != resolved_path.root)
+    assert all(p.exists() for p in resolved_path.parents if str(p) != resolved_path.root)

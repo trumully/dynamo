@@ -51,5 +51,5 @@ uv run dynamo --debug
 ### Run tests
 
 ```shell
-uv run pytest tests --asyncio-mode=strict -n logical
+uv run pytest tests
 ```

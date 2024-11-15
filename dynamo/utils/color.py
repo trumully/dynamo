@@ -4,6 +4,7 @@ from io import BytesIO
 from typing import cast
 
 import numpy as np
+import numpy.typing as npt
 from PIL import Image
 
 from dynamo.utils.wrappers import executor_function
@@ -135,13 +136,15 @@ def color_palette_from_image(image: bytes, n: int = 20, *, iterations: int = 50)
         next_centroid = valid_pixels[rng.choice(len(valid_pixels), 1, p=probabilities)]
         centroids = np.vstack([centroids, next_centroid])
 
-    prev_assignments = None
+    prev_assignments: npt.ArrayLike = []
     unchanged_count = 0
 
     for _ in range(iterations):
-        pixel_assignments = np.argmin(((valid_pixels[:, np.newaxis] - centroids) ** 2).sum(axis=2), axis=1)
+        pixel_assignments: npt.ArrayLike = np.argmin(
+            ((valid_pixels[:, np.newaxis] - centroids) ** 2).sum(axis=2), axis=1
+        )
 
-        if prev_assignments is not None and np.array_equal(prev_assignments, pixel_assignments):
+        if np.array_equal(prev_assignments, pixel_assignments):
             unchanged_count += 1
             if unchanged_count >= 3:
                 break

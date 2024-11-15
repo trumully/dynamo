@@ -213,6 +213,10 @@ def task_cache[**P, T](
     maxsize: int | CoroFunction[P, T] = 128, ttl: float | None = None
 ) -> Callable[[CoroFunction[P, T]], CacheableTask[P, T]] | CacheableTask[P, T]:
     """Decorator that modifies coroutine functions to act as functions returning cached tasks."""
+    if ttl is not None and ttl <= 0:
+        msg = "ttl must be greater than 0"
+        raise ValueError(msg) from None
+
     if isinstance(maxsize, int):
         maxsize = 0 if maxsize < 0 else maxsize
     elif callable(maxsize):

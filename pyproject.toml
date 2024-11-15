@@ -122,6 +122,13 @@ ignore = [
 unfixable = ["ERA"]
 
 [tool.pytest.ini_options]
+xfail_strict = true
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--asyncio-mode=strict",
+    "-n=logical",
+]
 asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "function"
 filterwarnings = [
@@ -129,8 +136,10 @@ filterwarnings = [
 ]
 
 [tool.mypy]
+plugins = ["numpy.typing.mypy_plugin"]
 python_version = "3.13"
 packages = ["dynamo"]
+strict = true
 disallow_untyped_defs = true
 disallow_any_unimported = true
 check_untyped_defs = true
@@ -138,3 +147,4 @@ warn_return_any = true
 warn_unused_ignores = true
 warn_unused_configs = true
 ignore_missing_imports = true
+warn_unreachable = true

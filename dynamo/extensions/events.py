@@ -158,7 +158,7 @@ async def _autocomplete_hour(current: str, timezone_str: str) -> list[Choice[int
     if current in hours:
         return [Choice(name=current, value=current)]  # type: ignore
 
-    if current in hours_int:
+    if int(current) in hours_int:
         choices = (current, f"{current}am", f"{current}pm")
         return [Choice(name=c, value=c) for c in choices]  # type: ignore
 
