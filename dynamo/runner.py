@@ -1,3 +1,4 @@
+import argparse
 import asyncio
 import logging
 import logging.handlers
@@ -5,7 +6,6 @@ import os
 import socket
 import ssl
 from collections.abc import Callable
-from importlib import metadata
 from pathlib import Path
 from typing import Any
 
@@ -13,16 +13,22 @@ import aiohttp
 import apsw
 import apsw.bestpractice
 import apsw.ext
-import base2048
-import click
 import discord
 import truststore
 
 from dynamo.logger import with_logging
 from dynamo.types import HasExports
-from dynamo.utils.helper import platformdir, resolve_path_with_links, valid_token
+from dynamo.utils.helper import platformdir
 
 log = logging.getLogger(__name__)
+
+
+def get_token() -> str:
+    from dynamo.config import config
+
+    config.validators.validate()
+    token: str = config.token
+    return token
 
 
 def run_bot(loop: asyncio.AbstractEventLoop) -> None:
@@ -59,7 +65,7 @@ def run_bot(loop: asyncio.AbstractEventLoop) -> None:
     async def entrypoint() -> None:
         try:
             async with bot:
-                await bot.start(_get_token())
+                await bot.start(get_token())
         finally:
             if not bot.is_closed():
                 await bot.close()
@@ -71,6 +77,8 @@ def run_bot(loop: asyncio.AbstractEventLoop) -> None:
     try:
         fut.add_done_callback(stop_when_done)
         loop.run_forever()
+    except KeyboardInterrupt:
+        pass
     finally:
         fut.remove_done_callback(stop_when_done)
         if not bot.is_closed():
@@ -122,26 +130,6 @@ def run_bot(loop: asyncio.AbstractEventLoop) -> None:
     conn.close()
 
 
-def _load_token() -> str | None:
-    token_file_path = resolve_path_with_links(platformdir.user_config_path / "dynamo.token")
-    with token_file_path.open(mode="r", encoding="utf-8") as fp:
-        data = fp.read()
-        return base2048.decode(data).decode("utf-8") if data else None
-
-
-def _store_token(token: str, /) -> None:
-    token_file_path = resolve_path_with_links(platformdir.user_config_path / "dynamo.token")
-    with token_file_path.open(mode="w", encoding="utf-8") as fp:
-        fp.write(base2048.encode(token.encode()))
-
-
-def _get_token() -> str:
-    if not (token := _load_token()):
-        msg = "Token not found. Please run `dynamo setup` before starting the bot."
-        raise RuntimeError(msg) from None
-    return token
-
-
 def ensure_schema() -> None:
     db_path = platformdir.user_data_path / "dynamo.db"
     conn = apsw.Connection(str(db_path))
@@ -162,19 +150,12 @@ def ensure_schema() -> None:
         list(conn.execute(statement))
 
 
-@click.group(invoke_without_command=True, options_metavar="[options]")
-@click.version_option(
-    metadata.version("dynamo"),
-    "-v",
-    "--version",
-    package_name="Dynamo",
-    prog_name="dynamo",
-    message=click.style("%(prog)s", fg="yellow") + click.style(" %(version)s", fg="bright_cyan"),
-)
-@click.option("--debug", "-d", is_flag=True, help="Set log level to debug")
-@click.pass_context
-def main(ctx: click.Context, debug: bool) -> None:
+def main() -> None:
     """Launch the bot"""
+    parser = argparse.ArgumentParser(description="Launch Dynamo")
+    parser.add_argument("--debug", "-d", action="store_true", help="Enable debug logging")
+    args = parser.parse_args()
+
     ensure_schema()
     os.umask(0o077)
     to_apply: tuple[Callable[[apsw.Connection], None], ...] = (
@@ -184,36 +165,12 @@ def main(ctx: click.Context, debug: bool) -> None:
         apsw.bestpractice.connection_dqs,
     )
     apsw.bestpractice.apply(to_apply)  # pyright: ignore[reportUnknownMemberType]
-    if ctx.invoked_subcommand is None:
-        if (log_level := logging.DEBUG if debug else logging.INFO) == logging.DEBUG:
-            click.echo("Running in DEBUG mode", err=True)
-        loop = asyncio.new_event_loop()
-        with with_logging(log_level=log_level):
-            run_bot(loop)
-
-
-@main.command(name="help")
-@click.pass_context
-def dynamo_help(ctx: click.Context) -> None:
-    """Show this message and exit."""
-    if ctx.parent is not None:
-        click.echo(ctx.parent.get_help())
-
-
-@main.command()
-def setup() -> None:
-    """Set the bot's token"""
-    if not valid_token(token := click.prompt("Enter your bot token", hide_input=True, type=str)):
-        text = "\N{WARNING SIGN} WARNING: That token doesn't look right. Double check before starting the bot."
-        msg = click.style(text, bold=True, fg="yellow")
-        click.echo(msg, err=True)
-    _store_token(token)
-
-
-@main.command()
-def config() -> None:
-    """Get the path to the bot's config directory"""
-    click.echo(platformdir.user_config_path)
+    loop = asyncio.new_event_loop()
+    log_level = logging.DEBUG if args.debug else logging.INFO
+    with with_logging(log_level=log_level):
+        if args.debug:
+            log.debug("****** Running in DEBUG mode ******")
+        run_bot(loop)
 
 
 if __name__ == "__main__":

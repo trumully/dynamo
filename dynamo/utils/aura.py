@@ -209,6 +209,10 @@ async def get_aura(avatar: bytes, banner: bytes | None, session: aiohttp.ClientS
     log.debug("Color prominences: %s", [f"{rgb_to_hex(*color)}:{prominence:.2%}" for color, prominence in palette])
 
     harmony_score = get_harmony_score(palette)
-    description = await get_palette_description(palette, session)
+    try:
+        description = await get_palette_description(palette, session)
+    except aiohttp.ClientConnectionError:
+        log.warning("Ollama is not running")
+        description = "No description provided"
 
     return harmony_score, description

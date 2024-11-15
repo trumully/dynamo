@@ -29,21 +29,6 @@ def resolve_path_with_links(path: Path, /, folder: bool = False) -> Path:
 ROOT = Path(str(importlib.resources.files("dynamo"))).parent.parent
 
 
-def valid_token(token: str) -> bool:
-    """
-    Validate a discord bot token
-
-    A discord bot token is a string that matches the following pattern:
-    >>> "[M|N|O]XXXXXXXXXXXXXXXXXXXXXXX[XX].XXXXXX.XXXXXXXXXXXXXXXXXXXXXXXXXXX"
-
-    See
-    ---
-    - https://discord.com/developers/docs/reference#authentication
-    """
-    pattern = re.compile(r"[MNO][a-zA-Z\d_-]{23,25}\.[a-zA-Z\d_-]{6}\.[a-zA-Z\d_-]{27}")
-    return bool(pattern.match(token))
-
-
 async def process_async_iterable[T](async_iterable: AsyncIterable[T]) -> Iterable[T]:
     """Safely process an async iterable
 

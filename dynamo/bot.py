@@ -109,10 +109,6 @@ class Dynamo(discord.AutoShardedClient, DynamoLike):
     def user(self) -> discord.ClientUser:
         return cast(discord.ClientUser, super().user)
 
-    @property
-    def dev_guild(self) -> discord.Guild:
-        return cast(discord.Guild, discord.Object(id=681408104495448088, type=discord.Guild))
-
     async def start(self, token: str, *, reconnect: bool = True) -> None:
         self._last_interaction_waterfall.start()
         return await super().start(token, reconnect=reconnect)

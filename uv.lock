@@ -200,18 +200,6 @@ wheels = [
 ]
 
 [[package]]
-name = "click"
-version = "8.1.7"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "colorama", marker = "platform_system == 'Windows'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/96/d3/f04c7bfcf5c1862a2a5b845c6b2b360488cf47af55dfa79c98f6a6bf98b5/click-8.1.7.tar.gz", hash = "sha256:ca9853ad459e787e2192211578cc907e7594e294c7ccc834310722b41b9ca6de", size = 336121 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/00/2e/d53fa4befbf2cfa713304affc7ca780ce4fc1fd8710527771b58311a3229/click-8.1.7-py3-none-any.whl", hash = "sha256:ae74fb96c20a0277a1d615f1e4d73c8414f5a98db8b799a7931d1582f3390c28", size = 97941 },
-]
-
-[[package]]
 name = "colorama"
 version = "0.4.6"
 source = { registry = "https://pypi.org/simple" }
@@ -238,6 +226,20 @@ speed = [
 ]
 
 [[package]]
+name = "dynaconf"
+version = "3.2.6"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/56/1a/324f1bf234cc4f98445305fd8719245318466e310e05caea7ef052748ecd/dynaconf-3.2.6.tar.gz", hash = "sha256:74cc1897396380bb957730eb341cc0976ee9c38bbcb53d3307c50caed0aedfb8", size = 229209 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e2/14/c8a7d861262139688fa465d2e27ff7113764d6fa03b15b9c7b666729ea2e/dynaconf-3.2.6-py2.py3-none-any.whl", hash = "sha256:3911c740d717df4576ed55f616c7cbad6e06bc8ef23ffca444b6e2a12fb1c34c", size = 231063 },
+]
+
+[package.optional-dependencies]
+yaml = [
+    { name = "ruamel-yaml" },
+]
+
+[[package]]
 name = "dynamo"
 version = "0.2.0"
 source = { editable = "." }
@@ -245,8 +247,8 @@ dependencies = [
     { name = "apsw" },
     { name = "arrow" },
     { name = "base2048" },
-    { name = "click" },
     { name = "discord-py", extra = ["speed"] },
+    { name = "dynaconf", extra = ["yaml"] },
     { name = "msgspec" },
     { name = "numpy" },
     { name = "pillow" },
@@ -277,8 +279,8 @@ requires-dist = [
     { name = "apsw", specifier = "==3.46.1.0" },
     { name = "arrow", specifier = "==1.3.0" },
     { name = "base2048", specifier = "==0.1.3" },
-    { name = "click", specifier = "==8.1.7" },
     { name = "discord-py", extras = ["speed"], git = "https://github.com/mikeshardmind/discord.py.git?rev=89ac64f" },
+    { name = "dynaconf", extras = ["yaml"], specifier = "==3.2.6" },
     { name = "msgspec", git = "https://github.com/jcrist/msgspec?rev=main" },
     { name = "numpy", specifier = "==2.1.0" },
     { name = "pillow", specifier = "==10.4.0" },
@@ -674,6 +676,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/6d/c7/a4add18324590be9cf311763baf0b3afe24a3065f54604052e6141161a45/rapidfuzz-3.9.7-cp313-cp313-win32.whl", hash = "sha256:1dc516ac6d32027be2b0196bedf6d977ac26debd09ca182376322ad620460feb", size = 1840822 },
     { url = "https://files.pythonhosted.org/packages/6e/3c/cc468b42740bb77dc94dd92cd29cf18ea4301a6f0cea3663d3291d97800a/rapidfuzz-3.9.7-cp313-cp313-win_amd64.whl", hash = "sha256:b4f86e09d3064dca0b014cd48688964036a904a2d28048f00c8f4640796d06a8", size = 1652011 },
     { url = "https://files.pythonhosted.org/packages/96/c7/b1fbae97a9e53ae833d477653bf5ab095b14338da0e79db4ae4bbf985ebb/rapidfuzz-3.9.7-cp313-cp313-win_arm64.whl", hash = "sha256:19c64d8ddb2940b42a4567b23f1681af77f50a5ff6c9b8e85daba079c210716e", size = 850094 },
+]
+
+[[package]]
+name = "ruamel-yaml"
+version = "0.18.6"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/29/81/4dfc17eb6ebb1aac314a3eb863c1325b907863a1b8b1382cdffcb6ac0ed9/ruamel.yaml-0.18.6.tar.gz", hash = "sha256:8b27e6a217e786c6fbe5634d8f3f11bc63e0f80f6a5890f28863d9c45aac311b", size = 143362 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/73/67/8ece580cc363331d9a53055130f86b096bf16e38156e33b1d3014fffda6b/ruamel.yaml-0.18.6-py3-none-any.whl", hash = "sha256:57b53ba33def16c4f3d807c0ccbc00f8a6081827e81ba2491691b76882d0c636", size = 117761 },
 ]
 
 [[package]]

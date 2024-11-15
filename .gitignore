@@ -163,3 +163,4 @@ cython_debug/
 
 *.token
 *.hash
+config.yaml

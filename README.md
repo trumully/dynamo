@@ -26,10 +26,11 @@ git clone https://github.com/trumully/dynamo.git
 
 ### Install and run:
 
+Don't forget to set up your `config.yaml` file (see the `config-example.yaml`)
+
 ```shell
 cd dynamo
 uv sync
-uv run dynamo setup
 uv run dynamo
 ```
 
