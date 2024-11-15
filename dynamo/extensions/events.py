@@ -75,7 +75,7 @@ def en_hour_to_str(hour: int) -> str:
 
 
 @time_group.command(name="relative", description="Get the time relative to now")
-async def get_time_relative(  # noqa: PLR0917
+async def get_time_relative(
     itx: Interaction,
     year: Range[int, MIN_YEAR, MAX_YEAR] = -1,
     month: Range[int, 1, 12] = -1,
