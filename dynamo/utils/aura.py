@@ -34,8 +34,8 @@ def get_harmony_score(colors: list[tuple[RGB, float]]) -> float:
         scores: list[tuple[str, float]] = []
 
         # Monochromatic: similar hue, varying saturation/value
-        hue_variance = np.std([h for h, *_ in hsv_colors])
-        scores.append(("monochromatic", 1.0 - min(hue_variance / 30, 1.0)))  # type: ignore
+        hue_variance: float = float(np.std([h for h, *_ in hsv_colors]))
+        scores.append(("monochromatic", 1.0 - min(hue_variance / 30, 1.0)))
 
         # Analogous: adjacent hues (within 30 degrees)
         hue_diffs = [
@@ -63,9 +63,7 @@ def get_harmony_score(colors: list[tuple[RGB, float]]) -> float:
         return best_score
 
     # Calculate base metrics
-    all_pairs: list[tuple[tuple[int, RGB], tuple[int, RGB]]] = list(
-        itertools.combinations(enumerate(rgb_colors), 2)  # type: ignore
-    )
+    all_pairs: list[tuple[tuple[int, RGB], tuple[int, RGB]]] = list(itertools.combinations(enumerate(rgb_colors), 2))
     distances: list[float] = []
     weights: list[float] = []
 
@@ -80,7 +78,7 @@ def get_harmony_score(colors: list[tuple[RGB, float]]) -> float:
     contrast_score = min(avg_distance * 1.2, 1.0)  # Clear distinction between colors
 
     # Balance scoring
-    balance_score = 1.0 - min(np.std(prominences) * 2, 0.8)  # type: ignore
+    balance_score = 1.0 - min(np.std(prominences) * 2, 0.8)
 
     # Dominant color impact
     focal_score = min(max(prominences) * 1.5, 1.0)

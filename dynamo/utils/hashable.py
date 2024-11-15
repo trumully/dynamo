@@ -23,7 +23,7 @@ class HashedSeq(list[Any]):
         args: tuple[Hashable, ...],
         kwds: Mapping[str, Hashable],
         fast_types: tuple[type, ...] = (int, str),
-        kwarg_sentinel: Hashable = object(),  # type: ignore
+        kwarg_sentinel: Hashable = object(),
     ) -> HashedSeq | int | str:
         key = args if not kwds else (*args, kwarg_sentinel, *kwds.items())
         return key[0] if len(key) == 1 and type(key[0]) in fast_types else cls(key)  # type: ignore

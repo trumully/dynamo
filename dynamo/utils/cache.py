@@ -57,7 +57,7 @@ class CachedTask[**P, T](CacheableTask[P, T]):
     __wrapped__: CoroFunction[P, T]
 
     def __init__(self, call: CoroFunction[P, T], maxsize: int, ttl: float | None) -> None:
-        self.__wrapped__ = call  # type: ignore
+        self.__wrapped__ = call
         self.__hits = 0
         self.__misses = 0
         self.__maxsize = maxsize

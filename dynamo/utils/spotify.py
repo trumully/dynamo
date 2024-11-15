@@ -120,7 +120,7 @@ def draw_static_image(
     title_font: ImageFont.FreeTypeFont,
     artist_font: ImageFont.FreeTypeFont,
 ) -> tuple[BytesIO, str]:
-    base_draw.text((CONTENT_START_X, TITLE_START_Y), activity.title, fill=(255, 255, 255), font=title_font)  # type: ignore
+    base_draw.text((CONTENT_START_X, TITLE_START_Y), activity.title, fill=(255, 255, 255), font=title_font)
     spotify_logo = Image.open(SPOTIFY_LOGO_PATH).resize((LAYOUT["logo_size"], LAYOUT["logo_size"]))
     static_args = StaticDrawArgs(activity.artists, artist_font, activity.duration, activity.end, spotify_logo)
     draw_static_elements(base_draw, base, static_args)
@@ -211,7 +211,7 @@ def paste_album_cover(base: Image.Image, album_image: Image.Image) -> None:
 
 
 def draw_static_elements(draw: ImageDraw.ImageDraw, image: Image.Image, args: StaticDrawArgs) -> None:
-    draw.text(  # type: ignore
+    draw.text(
         xy=(CONTENT_START_X, TITLE_START_Y + FONT_SIZES["title"] + 5),
         text=", ".join(args.artists),
         fill=(255, 255, 255),  # White text
@@ -252,7 +252,7 @@ def draw_track_bar(draw: ImageDraw.ImageDraw, progress: float, duration: datetim
     played_seconds = min(int(duration.total_seconds()), int(duration.total_seconds() * progress))
     progress_text = f"{track_duration(played_seconds)} / {track_duration(int(duration.total_seconds()))}"
     progress_font = get_font(progress_text, FONT_SIZES["progress"])
-    draw.text((PROGRESS_BAR_START_X, PROGRESS_TEXT_Y), progress_text, fill=(255, 255, 255), font=progress_font)  # type: ignore
+    draw.text((PROGRESS_BAR_START_X, PROGRESS_TEXT_Y), progress_text, fill=(255, 255, 255), font=progress_font)
 
 
 def create_animated_frames(
@@ -301,8 +301,8 @@ def draw_text_scroll(font: ImageFont.FreeTypeFont, text: str, width: int) -> Gen
 def create_text_frame(text: str, width: int, height: int, font: ImageFont.FreeTypeFont, x_pos: int = 0) -> Image.Image:
     frame = Image.new("RGBA", (width, height))
     draw = ImageDraw.Draw(frame)
-    draw.text((x_pos, 0), text, fill=(255, 255, 255), font=font)  # type: ignore
-    draw.text((x_pos + font.getbbox(text)[2], 0), text, fill=(255, 255, 255), font=font)  # type: ignore
+    draw.text((x_pos, 0), text, fill=(255, 255, 255), font=font)
+    draw.text((x_pos + font.getbbox(text)[2], 0), text, fill=(255, 255, 255), font=font)
     return frame
 
 
