@@ -16,7 +16,7 @@
 ### Prerequisites
 
 - Python >=3.13
-- [uv](https://docs.astral.sh/uv/installation/)
+- [uv](https://docs.astral.sh/uv/getting-started/installation/)
 
 ### Clone the repository:
 
