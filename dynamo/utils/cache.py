@@ -12,7 +12,7 @@ from dynamo.utils.hashable import HashedSeq
 class CacheInfo(NamedTuple):
     hits: int
     misses: int
-    maxsize: int | None
+    maxsize: int
     currsize: int
 
 
