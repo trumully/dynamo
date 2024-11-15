@@ -57,4 +57,10 @@ async def get_identicon(
     await itx.response.send_message(embed=embed, file=file, ephemeral=ephemeral == "True")
 
 
-exports = BotExports([get_identicon])
+@app_commands.context_menu(name="Identicon")
+async def identicon_context_menu(itx: Interaction, user: discord.Member | discord.User) -> None:
+    embed, file = await _generate_identicon(user, 6, 0.6)
+    await itx.response.send_message(embed=embed, file=file, ephemeral=True)
+
+
+exports = BotExports([get_identicon, identicon_context_menu])

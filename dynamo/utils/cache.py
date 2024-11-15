@@ -12,7 +12,7 @@ from dynamo.utils.hashable import HashedSeq
 class CacheInfo(NamedTuple):
     hits: int
     misses: int
-    maxsize: int | None
+    maxsize: int
     currsize: int
 
 
@@ -56,7 +56,7 @@ class CachedTask[**P, T](CacheableTask[P, T]):
 
     __wrapped__: CoroFunction[P, T]
 
-    def __init__(self, call: CoroFunction[P, T], maxsize: int | None, ttl: float | None) -> None:
+    def __init__(self, call: CoroFunction[P, T], maxsize: int, ttl: float | None) -> None:
         self.__wrapped__ = call  # type: ignore
         self.__hits = 0
         self.__misses = 0
@@ -143,7 +143,7 @@ class Node:
 
 
 class LRU[K, V]:
-    def __init__(self, maxsize: int | None = None, /):
+    def __init__(self, maxsize: int, /):
         self.cache: dict[K, V] = {}
         self.maxsize = maxsize
 
@@ -159,7 +159,7 @@ class LRU[K, V]:
 
     def __setitem__(self, key: K, value: V, /):
         self.cache[key] = value
-        if self.maxsize is not None and len(self.cache) > self.maxsize:
+        if len(self.cache) > self.maxsize:
             self.cache.pop(next(iter(self.cache)))
 
     def __contains__(self, key: K, /) -> bool:
@@ -205,12 +205,12 @@ class Trie:
 
 @overload
 def task_cache[**P, T](
-    *, maxsize: int | None = 128, ttl: float | None = None
+    *, maxsize: int = 128, ttl: float | None = None
 ) -> Callable[[CoroFunction[P, T]], CacheableTask[P, T]]: ...
 @overload
 def task_cache[**P, T](coro: CoroFunction[P, T], /) -> CacheableTask[P, T]: ...
 def task_cache[**P, T](
-    maxsize: int | CoroFunction[P, T] | None = 128, ttl: float | None = None
+    maxsize: int | CoroFunction[P, T] = 128, ttl: float | None = None
 ) -> Callable[[CoroFunction[P, T]], CacheableTask[P, T]] | CacheableTask[P, T]:
     """Decorator that modifies coroutine functions to act as functions returning cached tasks."""
     if isinstance(maxsize, int):
@@ -219,9 +219,6 @@ def task_cache[**P, T](
         fast_wrapper = CachedTask(maxsize, 128, ttl)
         update_wrapper(fast_wrapper, maxsize)
         return fast_wrapper
-    elif maxsize is not None:
-        msg = "maxsize must be an integer or None"
-        raise TypeError(msg) from None
 
     def decorator(coro: CoroFunction[P, T]) -> CacheableTask[P, T]:
         wrapper = CachedTask(coro, maxsize, ttl)

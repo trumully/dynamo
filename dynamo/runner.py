@@ -43,9 +43,9 @@ def run_bot(loop: asyncio.AbstractEventLoop) -> None:
     )
     session = aiohttp.ClientSession(connector=connector)
 
-    from .extensions import events, identicon, info, tags
+    from .extensions import events, identicon, info, settings, tags
 
-    initial_exts: list[HasExports] = [events, tags, identicon, info]
+    initial_exts: list[HasExports] = [events, tags, identicon, info, settings]
 
     from dynamo.bot import Dynamo
 
