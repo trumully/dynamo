@@ -37,7 +37,7 @@ jobs:
         run: uv run ruff check --output-format github --config ./pyproject.toml
 
       - name: Check with mypy
-        run: uv run mypy dynamo --config ./pyproject.toml
+        run: uv run mypy --config ./pyproject.toml
 
       - name: Run tests
         run: uv run pytest tests --asyncio-mode=strict -n logical

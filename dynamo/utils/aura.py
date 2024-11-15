@@ -108,7 +108,7 @@ def get_harmony_score(colors: list[tuple[RGB, float]]) -> float:
         combined_score,
     )
 
-    return max(1, min(10, round(combined_score, 1)))
+    return float(max(1, min(10, round(combined_score, 1))))
 
 
 async def extract_colors(image: bytes) -> list[tuple[RGB, float]]:

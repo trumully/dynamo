@@ -29,7 +29,7 @@ def get_timezone_from_user(conn: apsw.Connection, user_id: int) -> str:
         (user_id,),
     ).fetchone()
     assert row is not None
-    return row[0]
+    return str(row[0])
 
 
 @settings_group.command(name="timezone", description="Set your timezone")

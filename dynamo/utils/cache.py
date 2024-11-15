@@ -97,7 +97,7 @@ class CachedTask[**P, T](CacheableTask[P, T]):
 class BoundCacheableTask[S, **P, T]:
     __slots__ = ("__self__", "__weakref__", "_task")
 
-    def __init__(self, task: CacheableTask[P, T], __self__: object):
+    def __init__(self, task: CacheableTask[P, T], __self__: object) -> None:
         self._task = task
         self.__self__ = __self__
         self.__setattr__("__annotations__", task.__annotations__)
@@ -143,7 +143,7 @@ class Node:
 
 
 class LRU[K, V]:
-    def __init__(self, maxsize: int, /):
+    def __init__(self, maxsize: int, /) -> None:
         self.cache: dict[K, V] = {}
         self.maxsize = maxsize
 
@@ -157,7 +157,7 @@ class LRU[K, V]:
         self.cache[key] = self.cache.pop(key)
         return self.cache[key]
 
-    def __setitem__(self, key: K, value: V, /):
+    def __setitem__(self, key: K, value: V, /) -> None:
         self.cache[key] = value
         if len(self.cache) > self.maxsize:
             self.cache.pop(next(iter(self.cache)))

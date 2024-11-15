@@ -41,7 +41,7 @@ def color_is_similar(color_a: RGB, color_b: RGB, *, threshold: float = COLOR_THR
 
 def euclidean_distance(color_a: RGB, color_b: RGB) -> float:
     """Gets the euclidean distance between two colors"""
-    distance = (sum(x * x for x in rgb_difference(color_a, color_b))) ** 0.5
+    distance: float = (sum(x * x for x in rgb_difference(color_a, color_b))) ** 0.5
     return distance / MAX_EUCLIDEAN_DISTANCE
 
 
@@ -59,7 +59,7 @@ def perceived_distance(color_a: RGB, color_b: RGB) -> float:
     """
     r_mean = (color_a[0] + color_b[0]) >> 1
     r, g, b = rgb_difference(color_a, color_b)
-    distance = ((((512 + r_mean) * r * r) >> 8) + 4 * g * g + (((767 - r_mean) * b * b) >> 8)) ** 0.5
+    distance: float = ((((512 + r_mean) * r * r) >> 8) + 4 * g * g + (((767 - r_mean) * b * b) >> 8)) ** 0.5
     return distance / MAX_PERCEIVED_DISTANCE
 
 
