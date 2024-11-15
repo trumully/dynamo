@@ -107,4 +107,10 @@ def test_human_join(seq: list[str], conjunction: str, oxford_comma: bool) -> Non
     elif len(seq) == 2:
         assert result == f"{seq[0]} {conjunction} {seq[1]}"
     else:
-        assert result == f"{', '.join(seq[:-1])}{', ' if oxford_comma else ' '}{conjunction} {seq[-1]}"
+        assert result == f"{", ".join(seq[:-1])}{", " if oxford_comma else " "}{conjunction} {seq[-1]}"
+
+
+@given(string=st.text(min_size=1, max_size=10))
+def test_human_join_str(string: str) -> None:
+    """Test the human_join function with a single string"""
+    assert dynamo_format.human_join(string) == string
