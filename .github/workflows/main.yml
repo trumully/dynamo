@@ -1,4 +1,4 @@
-name: Test and Lint
+name: Check
 
 on:
   push:
@@ -33,11 +33,11 @@ jobs:
       - name: Install the project
         run: uv sync --all-extras --dev
 
-      - name: Check with ruff
+      - name: 🧹 Lint
         run: uv run ruff check --output-format github --config ./pyproject.toml
 
-      - name: Check with mypy
+      - name: ⚙️ Type check
         run: uv run mypy --config ./pyproject.toml
 
-      - name: Run tests
-        run: uv run pytest tests --asyncio-mode=strict -n logical
+      - name: 🧪 Tests
+        run: uv run pytest tests

@@ -27,8 +27,8 @@ class CacheableTask[**P, T](Protocol):
     @property
     def __wrapped__(self) -> CoroFunction[P, T]: ...
 
-    def __get__(self: CacheableTask[P, T], instance: Any, owner: type | None = None) -> Any:
-        return self if instance is None else BoundCacheableTask[instance, P, T](self, instance)
+    def __get__[S](self, instance: S, owner: type | None = None) -> CacheableTask[P, T] | BoundCacheableTask[S, P, T]:
+        return self if instance is None else BoundCacheableTask[S, P, T](self, instance)
 
     __call__: CoroFunction[P, T]
 
@@ -71,7 +71,7 @@ class CachedTask[**P, T](CacheableTask[P, T]):
         except KeyError:
             self.__misses += 1
             task = asyncio.create_task(self.__wrapped__(*args, **kwargs))
-            if key not in self.__cache:
+            if self.__cache.get(key, None) is None:
                 self.__cache[key] = task
             if self.__ttl is not None:
                 task.add_done_callback(partial(_lru_evict, self.__ttl, self.__cache, key))
@@ -97,7 +97,7 @@ class CachedTask[**P, T](CacheableTask[P, T]):
 class BoundCacheableTask[S, **P, T]:
     __slots__ = ("__self__", "__weakref__", "_task")
 
-    def __init__(self, task: CacheableTask[P, T], __self__: object) -> None:
+    def __init__(self, task: CacheableTask[P, T], __self__: S) -> None:
         self._task = task
         self.__self__ = __self__
         self.__setattr__("__annotations__", task.__annotations__)
@@ -111,9 +111,7 @@ class BoundCacheableTask[S, **P, T]:
     def __func__(self) -> CacheableTask[P, T]:
         return self._task
 
-    def __get__[S2](
-        self: BoundCacheableTask[S, P, T], instance: S2, owner: type | None = None
-    ) -> BoundCacheableTask[S2, P, T]:
+    def __get__[S2](self, instance: S2, owner: type | None = None) -> BoundCacheableTask[S2, P, T]:
         return BoundCacheableTask(self._task, instance)
 
     def cache_parameters(self) -> CacheParameters:
@@ -144,35 +142,35 @@ class Node:
 
 class LRU[K, V]:
     def __init__(self, maxsize: int, /) -> None:
-        self.cache: dict[K, V] = {}
+        self._cache: dict[K, V] = {}
         self.maxsize = maxsize
 
     def get[T](self, key: K, default: T, /) -> V | T:
-        if key not in self.cache:
+        if key not in self._cache:
             return default
-        self.cache[key] = self.cache.pop(key)
-        return self.cache[key]
+        self._cache[key] = self._cache.pop(key)
+        return self._cache[key]
 
     def __getitem__(self, key: K, /) -> V:
-        self.cache[key] = self.cache.pop(key)
-        return self.cache[key]
+        self._cache[key] = self._cache.pop(key)
+        return self._cache[key]
 
     def __setitem__(self, key: K, value: V, /) -> None:
-        self.cache[key] = value
-        if len(self.cache) > self.maxsize:
-            self.cache.pop(next(iter(self.cache)))
+        self._cache[key] = value
+        if len(self._cache) > self.maxsize:
+            self._cache.pop(next(iter(self._cache)))
 
     def __contains__(self, key: K, /) -> bool:
-        return key in self.cache
+        return key in self._cache
 
     def remove(self, key: K) -> None:
-        self.cache.pop(key, None)
+        self._cache.pop(key, None)
 
     def clear(self) -> None:
-        self.cache.clear()
+        self._cache.clear()
 
     def __len__(self) -> int:
-        return len(self.cache)
+        return len(self._cache)
 
 
 class Trie:

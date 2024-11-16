@@ -114,9 +114,9 @@ class Dynamo(discord.AutoShardedClient, DynamoLike):
         return await super().start(token, reconnect=reconnect)
 
     async def close(self) -> None:
+        await self._last_interaction_waterfall.stop(wait=True)
         await self.session.close()
         await super().close()
-        await self._last_interaction_waterfall.stop(wait=True)
 
     async def setup_hook(self) -> None:
         """Initialize bot and sync commands."""

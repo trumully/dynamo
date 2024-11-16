@@ -3,11 +3,13 @@ from typing import Any
 
 import discord
 from discord import AppCommandOptionType, app_commands
-from discord.ext import commands
 
 from dynamo.bot import Dynamo, Interaction
+from dynamo.utils.cache import LRU
 
 ID_REGEX = re.compile(r"([0-9]{15,20})$")
+
+_guild_events_cache: LRU[int, list[discord.ScheduledEvent]] = LRU(128)
 
 
 class ScheduledEventTransformer(app_commands.Transformer[Dynamo]):
@@ -15,6 +17,16 @@ class ScheduledEventTransformer(app_commands.Transformer[Dynamo]):
         guild = interaction.guild
         match = ID_REGEX.match(value)
         result = None
+
+        # Don't query Discord if we don't have to
+        if guild:
+            if _guild_events_cache.get(guild.id, None) is None:
+                _guild_events_cache[guild.id] = []
+            else:
+                events = _guild_events_cache[guild.id]
+                result = next((e for e in events if e.name == value or str(e.id) == value), None)
+                if result is not None:
+                    return result
 
         if match:
             # ID match
@@ -49,7 +61,10 @@ class ScheduledEventTransformer(app_commands.Transformer[Dynamo]):
                     if result:
                         break
         if result is None:
-            raise commands.ScheduledEventNotFound(value)
+            raise app_commands.TransformerError(value, self.type, self)
+
+        if guild:
+            _guild_events_cache[guild.id].append(result)
 
         return result
 

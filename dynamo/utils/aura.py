@@ -6,14 +6,7 @@ import aiohttp
 import numpy as np
 
 from dynamo.utils.cache import task_cache
-from dynamo.utils.color import (
-    RGB,
-    color_palette_from_image,
-    filter_similar_colors,
-    perceived_distance,
-    rgb_to_hex,
-    rgb_to_hsv,
-)
+from dynamo.utils.color import RGB, color_palette_from_image, filter_similar_colors
 
 log = logging.getLogger(__name__)
 
@@ -28,7 +21,7 @@ def get_harmony_score(colors: list[tuple[RGB, float]]) -> float:
     def detect_color_theme() -> float:
         """Detect if colors follow a specific harmony pattern."""
         # Convert colors to HSV for easier theme detection
-        hsv_colors = [rgb_to_hsv(*color) for color in rgb_colors]
+        hsv_colors = [RGB.as_hsv(*color) for color in rgb_colors]
 
         # Check for common color schemes
         scores: list[tuple[str, float]] = []
@@ -68,7 +61,7 @@ def get_harmony_score(colors: list[tuple[RGB, float]]) -> float:
     weights: list[float] = []
 
     for (i1, c1), (i2, c2) in all_pairs:
-        distances.append(perceived_distance(c1, c2))
+        distances.append(c1.perceived_distance_from(c2))
         weights.append(prominences[i1] * prominences[i2])
 
     avg_distance = sum(d * w for d, w in zip(distances, weights, strict=False)) / sum(weights)
@@ -117,7 +110,7 @@ async def extract_colors(image: bytes) -> list[tuple[RGB, float]]:
 async def get_palette_description(palette: list[tuple[RGB, float]], session: aiohttp.ClientSession) -> str:
     sorted_palette = sorted(palette, key=lambda x: x[1], reverse=True)
     color_info = [
-        f"{rgb_to_hex(*color)} ({prominence:.1%})"
+        f"{RGB.as_hex(*color)} ({prominence:.1%})"
         for color, prominence in sorted_palette[:6]  # Show top 6 colors
     ]
 
@@ -136,8 +129,8 @@ async def get_palette_description(palette: list[tuple[RGB, float]], session: aio
     - Supporting: {", ".join(color_info[2:])}
 
     Color Relationship Analysis:
-    - Primary Contrast: {perceived_distance(dominant_color, secondary_color):.2f}
-    {f"- Secondary Contrast: {perceived_distance(secondary_color, tertiary_color):.2f}" if tertiary_color else ""}
+    - Primary Contrast: {dominant_color.perceived_distance_from(secondary_color):.2f}
+    {f"- Secondary Contrast: {secondary_color.perceived_distance_from(tertiary_color):.2f}" if tertiary_color else ""}
 
     Complex Color Combinations:
     - Triadic combinations suggest balance and richness
@@ -204,7 +197,7 @@ async def get_aura(avatar: bytes, banner: bytes | None, session: aiohttp.ClientS
         palette = filter_similar_colors(avatar_colors)
 
     log.debug("Final filtered colors: %d", len(palette))
-    log.debug("Color prominences: %s", [f"{rgb_to_hex(*color)}:{prominence:.2%}" for color, prominence in palette])
+    log.debug("Color prominences: %s", [f"{RGB.as_hex(*color)}:{prominence:.2%}" for color, prominence in palette])
 
     harmony_score = get_harmony_score(palette)
     try:

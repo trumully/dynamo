@@ -21,19 +21,19 @@ class Waterfall[T]:
         max_wait_finalize: int = 3,
     ) -> None:
         self.queue: asyncio.Queue[T] = asyncio.Queue()
-        self.max_wait = max_wait
-        self.max_quantity = max_quantity
+        self.max_wait: float = max_wait
+        self.max_quantity: int = max_quantity
         self.callback: Callable[[Sequence[T]], Coro[Any]] = async_callback
         self._task: asyncio.Task[None] | None = None
         self._alive: bool = False
-        self.max_wait_finalize = max_wait_finalize
+        self.max_wait_finalize: int = max_wait_finalize
 
     def start(self) -> None:
         if self._task is not None:
             msg = "Waterfall is already running."
             raise RuntimeError(msg) from None
         self._alive = True
-        self._task = asyncio.create_task(self._loop())
+        self._task = asyncio.create_task(self._loop(), name="waterfall.loop")
 
     @overload
     def stop(self, wait: Literal[True]) -> Coro[None]: ...

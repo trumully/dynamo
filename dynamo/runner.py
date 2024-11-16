@@ -15,6 +15,7 @@ import apsw.bestpractice
 import apsw.ext
 import discord
 import truststore
+from dynaconf.validator import ValidationError
 
 from dynamo.logger import with_logging
 from dynamo.types import HasExports
@@ -26,9 +27,7 @@ log = logging.getLogger(__name__)
 def get_token() -> str:
     from dynamo.config import config
 
-    config.validators.validate()
-    token: str = config.token
-    return token
+    return str(config.token)
 
 
 def run_bot(loop: asyncio.AbstractEventLoop) -> None:
@@ -66,6 +65,8 @@ def run_bot(loop: asyncio.AbstractEventLoop) -> None:
         try:
             async with bot:
                 await bot.start(get_token())
+        except ValidationError:
+            log.critical("Invalid token in config.toml")
         finally:
             if not bot.is_closed():
                 await bot.close()
@@ -83,7 +84,7 @@ def run_bot(loop: asyncio.AbstractEventLoop) -> None:
         fut.remove_done_callback(stop_when_done)
         if not bot.is_closed():
             _close_task = loop.create_task(bot.close())
-        loop.run_until_complete(asyncio.sleep(0.001))
+        loop.run_until_complete(asyncio.sleep(1e-3))
 
         tasks: set[asyncio.Task[Any]] = {t for t in asyncio.all_tasks(loop) if not t.done()}
 
@@ -131,23 +132,17 @@ def run_bot(loop: asyncio.AbstractEventLoop) -> None:
 
 
 def ensure_schema() -> None:
+    """Initialize the database schema from schema.sql file."""
     db_path = platformdir.user_data_path / "dynamo.db"
-    conn = apsw.Connection(str(db_path))
+    schema_location = Path(__file__).with_name("schema.sql")
 
-    schema_location = (Path(__file__)).with_name("schema.sql")
-    to_execute: list[str] = []
-    with schema_location.open(mode="r", encoding="utf-8") as fp:
-        for line in fp.readlines():
-            if (text := line.strip()).startswith("--"):
-                continue
-            to_execute.append(text)
+    # Read and filter out comments line by line
+    with schema_location.open(mode="r", encoding="utf-8") as f:
+        schema = "\n".join(line.strip() for line in f if line.strip() and not line.strip().startswith("--"))
 
-    for line in (iterator := iter(to_execute)):
-        s = [line]
-        while n := next(iterator, None):
-            s.append(n)
-        statement = "\n".join(s)
-        list(conn.execute(statement))
+    # Execute all statements in a single connection
+    with apsw.Connection(str(db_path)) as conn:
+        conn.execute(schema)
 
 
 def main() -> None:
@@ -166,8 +161,7 @@ def main() -> None:
     )
     apsw.bestpractice.apply(to_apply)  # pyright: ignore[reportUnknownMemberType]
     loop = asyncio.new_event_loop()
-    log_level = logging.DEBUG if args.debug else logging.INFO
-    with with_logging(log_level=log_level):
+    with with_logging(logging.DEBUG if args.debug else logging.INFO):
         if args.debug:
             log.debug("****** Running in DEBUG mode ******")
         run_bot(loop)
