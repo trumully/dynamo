@@ -27,7 +27,9 @@ class CacheableTask[**P, T](Protocol):
     @property
     def __wrapped__(self) -> CoroFunction[P, T]: ...
 
-    def __get__[S](self, instance: S, owner: type | None = None) -> CacheableTask[P, T] | BoundCacheableTask[S, P, T]:
+    def __get__[S: object](
+        self, instance: S, owner: type[S] | None = None
+    ) -> CacheableTask[P, T] | BoundCacheableTask[S, P, T]:
         return self if instance is None else BoundCacheableTask[S, P, T](self, instance)
 
     __call__: CoroFunction[P, T]
@@ -111,7 +113,7 @@ class BoundCacheableTask[S, **P, T]:
     def __func__(self) -> CacheableTask[P, T]:
         return self._task
 
-    def __get__[S2](self, instance: S2, owner: type | None = None) -> BoundCacheableTask[S2, P, T]:
+    def __get__[S2: object](self, instance: S2, owner: type[S2] | None = None) -> BoundCacheableTask[S2, P, T]:
         return BoundCacheableTask(self._task, instance)
 
     def cache_parameters(self) -> CacheParameters:

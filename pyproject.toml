@@ -6,7 +6,6 @@ dev-dependencies = [
     "pytest-xdist[psutil]==3.6.1",
     "ruff==0.6.8",
     "mypy==1.13.0",
-    "types-pytz==2024.2.0.20241003",
 ]
 
 [tool.pdm.build]
@@ -36,9 +35,7 @@ dependencies = [
     "rapidfuzz==3.9.7",
     "apsw==3.46.1.0",
     "pygit2==1.16.0",
-    "arrow==1.3.0",
-    "pytz==2024.2",
-    "dynaconf>=3.2.6",
+    "dynaconf==3.2.6",
 ]
 name = "dynamo"
 version = "0.2.0"
@@ -131,9 +128,7 @@ addopts = [
 ]
 asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "function"
-filterwarnings = [
-    "ignore:'audioop' is deprecated and slated for removal in Python 3.13:DeprecationWarning",
-]
+
 
 [tool.mypy]
 plugins = ["numpy.typing.mypy_plugin"]
