@@ -68,15 +68,15 @@ class RGB(NamedTuple):
         return discord.Color.from_rgb(*self)
 
     @classmethod
-    def as_hex(cls, r: int, g: int, b: int) -> str:
+    def as_hex(cls: type[RGB], r: int, g: int, b: int) -> str:
         return f"#{r:02x}{g:02x}{b:02x}"
 
     @classmethod
-    def from_hex(cls, hexadecimal: str) -> RGB:
+    def from_hex(cls: type[RGB], hexadecimal: str) -> RGB:
         return RGB(*tuple(int(hexadecimal[i : i + 2], 16) for i in (0, 2, 4)))
 
     @classmethod
-    def as_hsv(cls, r: int, g: int, b: int) -> tuple[float, float, float]:
+    def as_hsv(cls: type[RGB], r: int, g: int, b: int) -> tuple[float, float, float]:
         r_: float = r / 255
         g_: float = g / 255
         b_: float = b / 255
