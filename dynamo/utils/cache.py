@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable, MutableMapping
+from collections.abc import Callable, MutableMapping, Sized
 from functools import partial, update_wrapper
 from typing import Any, NamedTuple, Protocol, overload
 
@@ -47,6 +47,7 @@ def _lru_evict[Key: HashedSeq | int | str](ttl: float, cache: LRU[Key, Any], key
 class CachedTask[**P, T](CacheableTask[P, T]):
     __slots__ = (
         "__cache",
+        "__sentinel",
         "__dict__",
         "__hits",
         "__maxsize",
@@ -65,6 +66,7 @@ class CachedTask[**P, T](CacheableTask[P, T]):
         self.__maxsize = maxsize
         self.__ttl = ttl
         self.__cache = LRU[HashedSeq | int | str, asyncio.Task[T]](maxsize)
+        self.__sentinel = object()
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> asyncio.Task[T]:  # type: ignore
         key = HashedSeq.from_call(args, kwargs)
@@ -73,7 +75,7 @@ class CachedTask[**P, T](CacheableTask[P, T]):
         except KeyError:
             self.__misses += 1
             task = asyncio.create_task(self.__wrapped__(*args, **kwargs))
-            if self.__cache.get(key, None) is None:
+            if self.__cache.get(key, self.__sentinel) is self.__sentinel:
                 self.__cache[key] = task
             if self.__ttl is not None:
                 task.add_done_callback(partial(_lru_evict, self.__ttl, self.__cache, key))
@@ -84,8 +86,8 @@ class CachedTask[**P, T](CacheableTask[P, T]):
     def cache_parameters(self) -> CacheParameters:
         return CacheParameters(self.__maxsize, self.__ttl)
 
-    def cache_info(self) -> CacheInfo:
-        return CacheInfo(self.__hits, self.__misses, self.__maxsize, len(self.__cache))
+    def cache_info(self, len: Callable[[Sized], int] = len) -> CacheInfo:  # noqa: A002
+        return CacheInfo(self.__hits, self.__misses, self.__maxsize, len(self.__cache._cache))
 
     def cache_clear(self) -> None:
         self.__hits = 0
@@ -130,8 +132,7 @@ class BoundCacheableTask[S, **P, T]:
         return self._task.cache_discard(*args_with_self, **kwargs)
 
     def __repr__(self) -> str:
-        name = getattr(self.__wrapped__, "__qualname__", "?")
-        return f"<bound cached task {name} of {self.__self__!r}>"
+        return f"<bound cached task {getattr(self.__wrapped__, "__qualname__", "?")} of {self.__self__!r}>"
 
 
 class Node:
@@ -170,9 +171,6 @@ class LRU[K, V]:
 
     def clear(self) -> None:
         self._cache.clear()
-
-    def __len__(self) -> int:
-        return len(self._cache)
 
 
 class Trie:

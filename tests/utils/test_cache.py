@@ -22,13 +22,6 @@ def create_async_cacheable(maxsize: int = 128, sleep_time: float = 1e-3) -> Cach
     return async_cacheable
 
 
-class TestClass:
-    @task_cache(maxsize=5)
-    async def async_cacheable(self, x: int) -> int:
-        await asyncio.sleep(1e-3)
-        return x * 2
-
-
 @pytest.mark.asyncio
 @settings(deadline=None)
 @given(first=st.integers(min_value=0, max_value=10), second=st.integers(min_value=0, max_value=10))

@@ -48,9 +48,9 @@ def run_bot(loop: asyncio.AbstractEventLoop) -> None:
     )
     session = aiohttp.ClientSession(connector=connector)
 
-    from .extensions import events, identicon, info, settings, tags
+    from .extensions import events, identicon, info, tags
 
-    initial_exts: list[HasExports] = [events, tags, identicon, info, settings]
+    initial_exts: list[HasExports] = [events, tags, identicon, info]
 
     from dynamo.bot import Dynamo
 
@@ -112,11 +112,13 @@ def run_bot(loop: asyncio.AbstractEventLoop) -> None:
         for task in tasks:
             try:
                 if (exc := task.exception()) is not None:
-                    loop.call_exception_handler({
-                        "message": "Unhandled exception in task during shutdown.",
-                        "exception": exc,
-                        "task": task,
-                    })
+                    loop.call_exception_handler(
+                        {
+                            "message": "Unhandled exception in task during shutdown.",
+                            "exception": exc,
+                            "task": task,
+                        }
+                    )
             except (asyncio.InvalidStateError, asyncio.CancelledError):
                 pass
 
@@ -159,7 +161,7 @@ def main() -> None:
         apsw.bestpractice.connection_enable_foreign_keys,
         apsw.bestpractice.connection_dqs,
     )
-    apsw.bestpractice.apply(to_apply)  # pyright: ignore[reportUnknownMemberType]
+    apsw.bestpractice.apply(to_apply)
     loop = asyncio.new_event_loop()
     with with_logging(logging.DEBUG if args.debug else logging.INFO):
         if args.debug:

@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Hashable, Mapping
-from typing import Any
 
 
-class HashedSeq(list[Any]):
+class HashedSeq(list[Hashable]):
     __slots__ = ("hashvalue",)
 
     def __init__(self, tup: tuple[Hashable, ...], hash: Callable[[object], int] = hash) -> None:  # noqa: A002
@@ -22,7 +21,7 @@ class HashedSeq(list[Any]):
         cls: type[HashedSeq],
         args: tuple[Hashable, ...],
         kwds: Mapping[str, Hashable],
-        fast_types: tuple[type, ...] = (int, str),
+        fast_types: tuple[type, type] = (int, str),
         kwarg_sentinel: Hashable = object(),
     ) -> HashedSeq | int | str:
         key = args if not kwds else (*args, kwarg_sentinel, *kwds.items())
