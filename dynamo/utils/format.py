@@ -19,7 +19,7 @@ def human_join(seq: Sequence[str], sep: str = ", ", conjunction: str = "or", *, 
     if size == 1:
         return seq[0]
 
-    if size == 2:
+    if size == 2:  # noqa: PLR2004
         return f"{seq[0]} {conjunction} {seq[1]}"
 
     return f"{sep.join(seq[:-1])}{sep if oxford_comma else " "}{conjunction} {seq[-1]}"

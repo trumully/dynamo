@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable, MutableMapping, Sized
 from functools import partial, update_wrapper
-from typing import Any, NamedTuple, Protocol, overload
+from typing import TYPE_CHECKING, Any, NamedTuple, Protocol, overload
 
-from dynamo.types import CoroFunction
 from dynamo.utils.hashable import HashedSeq
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, MutableMapping, Sized
+
+    from dynamo.types import CoroFunction
 
 
 class CacheInfo(NamedTuple):
@@ -68,7 +71,7 @@ class CachedTask[**P, T](CacheableTask[P, T]):
         self.__cache = LRU[HashedSeq | int | str, asyncio.Task[T]](maxsize)
         self.__sentinel = object()
 
-    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> asyncio.Task[T]:  # type: ignore
+    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> asyncio.Task[T]:  # type: ignore[override]
         key = HashedSeq.from_call(args, kwargs)
         try:
             task = self.__cache[key]
@@ -87,7 +90,7 @@ class CachedTask[**P, T](CacheableTask[P, T]):
         return CacheParameters(self.__maxsize, self.__ttl)
 
     def cache_info(self, len: Callable[[Sized], int] = len) -> CacheInfo:  # noqa: A002
-        return CacheInfo(self.__hits, self.__misses, self.__maxsize, len(self.__cache._cache))
+        return CacheInfo(self.__hits, self.__misses, self.__maxsize, len(self.__cache))
 
     def cache_clear(self) -> None:
         self.__hits = 0
@@ -143,16 +146,37 @@ class Node:
         self.is_end: bool = False
 
 
+class _Sentinel(type):
+    def __new__(cls, name: str) -> _Sentinel:
+        return super().__new__(cls, name, (), {})
+
+    def __repr__(cls) -> str:
+        return "..."
+
+    def __hash__(cls) -> int:
+        return 0
+
+    def __eq__(cls, other: object) -> bool:
+        return other is cls
+
+
+type Sentinel = _Sentinel
+MISSING: Sentinel = _Sentinel("MISSING")
+
+
 class LRU[K, V]:
     def __init__(self, maxsize: int, /) -> None:
         self._cache: dict[K, V] = {}
         self.maxsize = maxsize
 
-    def get[T](self, key: K, default: T, /) -> V | T:
-        if key not in self._cache:
+    def get[T](self, key: K, default: T | Any = MISSING, /) -> V | T:
+        try:
+            self._cache[key] = self._cache.pop(key)
+            return self._cache[key]
+        except KeyError as exc:
+            if default is MISSING:
+                raise exc from None
             return default
-        self._cache[key] = self._cache.pop(key)
-        return self._cache[key]
 
     def __getitem__(self, key: K, /) -> V:
         self._cache[key] = self._cache.pop(key)
@@ -168,6 +192,9 @@ class LRU[K, V]:
 
     def remove(self, key: K) -> None:
         self._cache.pop(key, None)
+
+    def __len__(self) -> int:
+        return len(self._cache)
 
     def clear(self) -> None:
         self._cache.clear()

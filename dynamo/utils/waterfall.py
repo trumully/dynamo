@@ -4,7 +4,7 @@ import time
 from collections.abc import Callable, MutableSequence, Sequence
 from typing import Any, Literal, overload
 
-from dynamo.types import Coro
+from dynamo.types import Coro, CoroFunction
 
 log = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ class Waterfall[T]:
         self.queue: asyncio.Queue[T] = asyncio.Queue()
         self.max_wait: float = max_wait
         self.max_quantity: int = max_quantity
-        self.callback: Callable[[Sequence[T]], Coro[Any]] = async_callback
+        self.callback: CoroFunction[[Sequence[T]], Any] = async_callback
         self._task: asyncio.Task[None] | None = None
         self._alive: bool = False
         self.max_wait_finalize: int = max_wait_finalize
@@ -40,8 +40,8 @@ class Waterfall[T]:
     @overload
     def stop(self, wait: Literal[False]) -> None: ...
     @overload
-    def stop(self, wait: bool = False) -> Coro[None] | None: ...
-    def stop(self, wait: bool = False) -> Coro[None] | None:
+    def stop(self, wait: bool = False) -> Coro[None] | None: ...  # noqa: FBT001, FBT002
+    def stop(self, wait: bool = False) -> Coro[None] | None:  # noqa: FBT001, FBT002
         self._alive = False
         return self.queue.join() if wait else None
 

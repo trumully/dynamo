@@ -10,11 +10,11 @@ class HashedSeq(list[Hashable]):
         self[:] = tup
         self.hashvalue = hash(tup)
 
-    def __hash__(self) -> int:  # type: ignore
+    def __hash__(self) -> int:  # type: ignore[override]
         return self.hashvalue
 
     def __eq__(self, other: object) -> bool:
-        return type(self) is type(other) and self[:] == other[:]  # type: ignore
+        return type(self) is type(other) and self[:] == other[:]  # type: ignore[index]
 
     @classmethod
     def from_call(
@@ -22,7 +22,7 @@ class HashedSeq(list[Hashable]):
         args: tuple[Hashable, ...],
         kwds: Mapping[str, Hashable],
         fast_types: tuple[type, type] = (int, str),
-        kwarg_sentinel: Hashable = object(),
+        kwarg_sentinel: Hashable = object(),  # noqa: B008
     ) -> HashedSeq | int | str:
         key = args if not kwds else (*args, kwarg_sentinel, *kwds.items())
-        return key[0] if len(key) == 1 and type(key[0]) in fast_types else cls(key)  # type: ignore
+        return key[0] if len(key) == 1 and type(key[0]) in fast_types else cls(key)  # type: ignore[return-value]

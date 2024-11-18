@@ -1,21 +1,25 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
+from typing import TYPE_CHECKING
 
 import discord
 from discord import app_commands
 from discord.app_commands import Group, Transform
 
-from dynamo.bot import Interaction
 from dynamo.types import BotExports
 from dynamo.utils.helper import process_async_iterable
-from dynamo.utils.transformer import ScheduledEventTransformer
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from dynamo.bot import Interaction
+    from dynamo.utils.transformer import ScheduledEventTransformer
 
 
 def display_interested(name: str, url: str, users: Iterable[discord.User]) -> str:
-    """Get a list of users interested in an event
+    """Get a list of users interested in an event.
 
-    Returns
+    Returns:
     -------
     str
         A formatted string of users interested in the event.
@@ -39,9 +43,9 @@ events_group = Group(name="event", description="Event related commands")
 async def event_interested(
     itx: Interaction,
     event: Transform[discord.ScheduledEvent, ScheduledEventTransformer],
-    ephemeral: bool = False,
+    ephemeral: bool = False,  # noqa: FBT001 FBT002
 ) -> None:
-    """Get attendees of an event"""
+    """Get attendees of an event."""
     await itx.response.defer(ephemeral=ephemeral)
 
     users = await process_async_iterable(event.users())

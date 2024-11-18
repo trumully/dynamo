@@ -3,13 +3,12 @@ import logging
 from io import StringIO
 
 import pytest
-
 from dynamo.utils import wrappers
 
 
 @pytest.mark.asyncio
 async def test_executor_function() -> None:
-    """Test the executor_function decorator"""
+    """Test the executor_function decorator."""
 
     @wrappers.executor_function
     def test_function() -> str:
@@ -21,7 +20,7 @@ async def test_executor_function() -> None:
 
 @pytest.mark.asyncio
 async def test_timer(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
-    """Test the timer decorator"""
+    """Test the timer decorator."""
 
     @wrappers.time_it("test_function")
     def test_function() -> str:

@@ -45,78 +45,6 @@ readme = "README.md"
 [project.scripts]
 dynamo = "dynamo.runner:main"
 
-[tool.ruff]
-target-version = "py313"
-line-length = 120
-
-[tool.ruff.lint]
-select = [
-    "F",
-    "E",
-    "I",
-    "UP",
-    "YTT",
-    "ANN",
-    "S",
-    "BLE",
-    "B",
-    "A",
-    "COM",
-    "C4",
-    "DTZ",
-    "EM",
-    "ISC",
-    "G",
-    "INP",
-    "PIE",
-    "T20",
-    "Q003",
-    "RSE",
-    "RET",
-    "SIM",
-    "TID",
-    "PTH",
-    "ERA",
-    "PD",
-    "PLC",
-    "PLE",
-    "PLR",
-    "PLW",
-    "TRY",
-    "NPY",
-    "RUF",
-    "ASYNC",
-]
-ignore = [
-    "A005",
-    "RUF001",
-    "RUF029",
-    "G002",
-    "S101",
-    "PLR2004",
-    "PLC0105",
-    "PLC0415",
-    "PLR0917",
-    "SIM105",
-    "C90",
-    "ANN101",
-    "ANN202",
-    "ANN204",
-    "ANN401",
-    "PLR0912",
-    "PLR0913",
-    "PLR0915",
-    "PLW3201",
-    "UP007",
-    "COM812",
-    "ISC001",
-    "B008",
-    "ASYNC109",
-    "E999",
-    "PLR6301",
-
-]
-unfixable = ["ERA"]
 
 [tool.pytest.ini_options]
 xfail_strict = true
@@ -128,18 +56,3 @@ addopts = [
 ]
 asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "function"
-
-
-[tool.mypy]
-plugins = ["numpy.typing.mypy_plugin"]
-python_version = "3.13"
-packages = ["dynamo"]
-strict = true
-disallow_untyped_defs = true
-disallow_any_unimported = true
-check_untyped_defs = true
-warn_return_any = true
-warn_unused_ignores = true
-warn_unused_configs = true
-ignore_missing_imports = true
-warn_unreachable = true

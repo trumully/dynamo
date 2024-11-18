@@ -34,10 +34,10 @@ jobs:
         run: uv sync --all-extras --dev
 
       - name: 🧹 Lint
-        run: uv run ruff check --output-format github --config ./pyproject.toml
+        run: uv run ruff check --output-format github
 
       - name: ⚙️ Type check
-        run: uv run mypy --config ./pyproject.toml
+        run: uv run mypy dynamo
 
       - name: 🧪 Tests
         run: uv run pytest tests

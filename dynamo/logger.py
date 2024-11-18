@@ -8,7 +8,7 @@ from typing import Any
 import apsw.ext
 import discord
 
-from dynamo.utils.helper import platformdir, resolve_path_with_links
+from dynamo.utils.helper import platformdir, resolve_folder_with_links
 
 known_messages: tuple[str, ...] = (
     "referencing an unknown",
@@ -28,7 +28,7 @@ def with_logging(log_level: int = logging.INFO) -> Generator[None]:
     q_handler.addFilter(RemoveNoise())
     stream_handler = logging.StreamHandler()
 
-    log_path = resolve_path_with_links(platformdir.user_log_path, folder=True)
+    log_path = resolve_folder_with_links(platformdir.user_log_path)
     log_location = log_path / "dynamo.log"
     rotating_file_handler = logging.handlers.RotatingFileHandler(log_location, maxBytes=2_000_000, backupCount=5)
 

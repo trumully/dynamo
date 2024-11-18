@@ -1,10 +1,9 @@
 import asyncio
 
 import pytest
+from dynamo.utils.cache import CacheableTask, task_cache
 from hypothesis import assume, given, settings
 from hypothesis import strategies as st
-
-from dynamo.utils.cache import CacheableTask, task_cache
 
 fast_type_values = st.one_of(
     st.integers(), st.text(), st.floats(allow_nan=False, allow_infinity=False), st.binary(), st.none()
@@ -50,7 +49,6 @@ async def test_task_cache_basic(first: int, second: int) -> None:
 @given(st.sets(st.integers(), min_size=1, max_size=10))
 async def test_task_cache_property(inputs: set[int]) -> None:
     """Tests that the cache properties are correctly updated."""
-
     async_cacheable_sized = create_async_cacheable(maxsize=5)
 
     call_count: int = 0
@@ -72,7 +70,6 @@ async def test_task_cache_property(inputs: set[int]) -> None:
 @given(inputs=st.sets(st.integers(min_value=0, max_value=5), min_size=1, max_size=5))
 async def test_task_cache_maxsize_enforcement(inputs: set[int]) -> None:
     """Test that the cache enforces the maxsize."""
-
     async_cacheable_sized = create_async_cacheable(maxsize=5)
 
     for i in inputs:
@@ -88,7 +85,6 @@ async def test_task_cache_maxsize_enforcement(inputs: set[int]) -> None:
 @given(st.sets(st.integers(), min_size=1, max_size=5))
 async def test_task_cache_clear(inputs: set[int]) -> None:
     """Tests that the cache can be cleared."""
-
     async_cacheable_sized = create_async_cacheable(maxsize=5)
 
     results: list[int] = []

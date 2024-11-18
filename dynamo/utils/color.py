@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from collections.abc import Generator
 from contextlib import contextmanager
 from io import BytesIO
-from typing import NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
 import discord
 import numpy as np
@@ -11,6 +10,9 @@ import numpy.typing as npt
 from PIL import Image
 
 from dynamo.utils.wrappers import executor_function
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 # 0.0 = same color | 1.0 = different color
 COLOR_THRESHOLD = 0.3
@@ -44,13 +46,13 @@ class RGB(NamedTuple):
         return RGB(*tuple(a - b for a, b in zip(self, other, strict=False)))
 
     def perceived_distance_from(self, other: RGB) -> float:
-        """Gets the perceived distance between two colors
+        """Gets the perceived distance between two colors.
 
         See
         ---
             https://www.compuphase.com/cmetric.htm
 
-        Note
+        Note:
         ----
         Equation in this func is equivalent to:
             `ΔC = √((2 + r̄/256) * ΔR² + 4 * ΔG² + (2 + (255 - r̄)/256) * ΔB²)`
@@ -114,6 +116,11 @@ def open_image_bytes(image: bytes) -> Generator[Image.Image]:
         buffer.close()
 
 
+PROMINENCE_THRESHOLD = 0.01
+UNCHANGED_COUNT_THRESHOLD = 3
+PIXEL_COUNT_THRESHOLD = 10000
+
+
 @executor_function
 def color_palette_from_image(image: bytes, n: int = 20, *, iterations: int = 50) -> list[tuple[RGB, float]]:
     """Extract a color palette from an image using K-means clustering, returning colors and their prominence."""
@@ -127,8 +134,8 @@ def color_palette_from_image(image: bytes, n: int = 20, *, iterations: int = 50)
             return []  # Return empty list if image is fully transparent
 
     rng = np.random.default_rng(seed=0)
-    if len(valid_pixels) > 10000:
-        indices = rng.choice(len(valid_pixels), size=10000, replace=False)
+    if len(valid_pixels) > PIXEL_COUNT_THRESHOLD:
+        indices = rng.choice(len(valid_pixels), size=PIXEL_COUNT_THRESHOLD, replace=False)
         valid_pixels = valid_pixels[indices]
 
     # K-means++ initialization
@@ -149,7 +156,7 @@ def color_palette_from_image(image: bytes, n: int = 20, *, iterations: int = 50)
 
         if np.array_equal(prev_assignments, pixel_assignments):
             unchanged_count += 1
-            if unchanged_count >= 3:
+            if unchanged_count >= UNCHANGED_COUNT_THRESHOLD:
                 break
         else:
             unchanged_count = 0
@@ -170,10 +177,13 @@ def color_palette_from_image(image: bytes, n: int = 20, *, iterations: int = 50)
     colors_by_prominence = (
         (color, prominence)
         for color, prominence in zip(centroids, color_counts / len(valid_pixels), strict=False)
-        if prominence >= 0.01
+        if prominence >= PROMINENCE_THRESHOLD
     )
 
     return [(RGB(*color.astype(int)), float(prominence)) for color, prominence in colors_by_prominence]
+
+
+MAX_FILTERED = 10
 
 
 def filter_similar_colors(
@@ -206,7 +216,7 @@ def filter_similar_colors(
         if is_unique:
             filtered.append((color, prominence))
 
-        if len(filtered) >= 10:
+        if len(filtered) >= MAX_FILTERED:
             break
 
     return filtered

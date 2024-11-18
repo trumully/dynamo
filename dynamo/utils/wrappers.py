@@ -19,7 +19,7 @@ def time_it(func_name: str) -> Generator[None]:
 
 
 def executor_function[**P, T](func: Callable[P, T]) -> CoroFunction[P, T]:
-    """Send sync function to thread"""
+    """Send sync function to thread."""
 
     @wraps(func)
     async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:

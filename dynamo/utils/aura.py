@@ -13,7 +13,7 @@ log = logging.getLogger(__name__)
 
 def get_harmony_score(colors: list[tuple[RGB, float]]) -> float:
     """Calculate aesthetic score based on pleasing color relationships and color harmony."""
-    if len(colors) < 2:
+    if len(colors) < 2:  # noqa: PLR2004
         return 5.0
 
     rgb_colors, prominences = zip(*colors, strict=False)
@@ -34,20 +34,22 @@ def get_harmony_score(colors: list[tuple[RGB, float]]) -> float:
         hue_diffs = [
             abs(hsv_colors[i][0] - hsv_colors[j][0]) for i, j in itertools.combinations(range(len(hsv_colors)), 2)
         ]
-        scores.append(("analogous", sum(1.0 for diff in hue_diffs if diff <= 30) / len(hue_diffs)))
+        scores.append(("analogous", sum(1.0 for diff in hue_diffs if diff <= 30) / len(hue_diffs)))  # noqa: PLR2004
 
         # Complementary: opposite hues (180 ± 30 degrees)
-        scores.append(("complementary", sum(1.0 for diff in hue_diffs if 150 <= diff <= 210) / len(hue_diffs)))
+        scores.append(("complementary", sum(1.0 for diff in hue_diffs if 150 <= diff <= 210) / len(hue_diffs)))  # noqa: PLR2004
 
         # Split-complementary: one hue and two colors adjacent to its complement
-        scores.append((
-            "split-complementary",
-            sum(1.0 for diff in hue_diffs if 150 <= diff <= 210 or 120 <= diff <= 150 or 210 <= diff <= 240)
-            / len(hue_diffs),
-        ))
+        scores.append(
+            (
+                "split-complementary",
+                sum(1.0 for diff in hue_diffs if 150 <= diff <= 210 or 120 <= diff <= 150 or 210 <= diff <= 240)  # noqa: PLR2004
+                / len(hue_diffs),
+            )
+        )
 
         # Triadic: three colors evenly spaced (120 ± 15 degrees)
-        scores.append(("triadic", sum(1.0 for diff in hue_diffs if 105 <= diff <= 135) / len(hue_diffs)))
+        scores.append(("triadic", sum(1.0 for diff in hue_diffs if 105 <= diff <= 135) / len(hue_diffs)))  # noqa: PLR2004
 
         # Get the best matching theme and its score
         best_theme, best_score = max(scores, key=lambda x: x[1])
@@ -117,7 +119,7 @@ async def get_palette_description(palette: list[tuple[RGB, float]], session: aio
     # Calculate primary color relationships
     dominant_color = sorted_palette[0][0]
     secondary_color = sorted_palette[1][0]
-    tertiary_color = sorted_palette[2][0] if len(sorted_palette) > 2 else None
+    tertiary_color = sorted_palette[2][0] if len(sorted_palette) > 2 else None  # noqa: PLR2004
 
     prompt = f"""You are an expert in color theory.
     Analyze this hex color palette and generate a brief, evocative description that captures its emotional impact.

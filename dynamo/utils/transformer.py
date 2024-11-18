@@ -16,16 +16,20 @@ ID_REGEX = r"([0-9]{15,20})$"
 
 
 class ScheduledEventTransformer(app_commands.Transformer[Dynamo]):
-    async def transform(self, interaction: Interaction, value: Any, /) -> discord.ScheduledEvent:
+    async def transform(self, interaction: Interaction, value: Any, /) -> discord.ScheduledEvent:  # noqa: PLR0912 C901
         guild = interaction.guild
+        assert guild is not None, "Not in a guild."
 
-        if guild:
-            _events = _guild_events_cache.get(guild.id, None)
-            if _events is not None:
-                result = next((e for e in _events if e.name == value or str(e.id) == value), None)
-                if result is not None:
-                    return result
+        result: discord.ScheduledEvent | None = None
+
+        try:
+            _events = _guild_events_cache.get(guild.id)
+        except KeyError:
             _guild_events_cache[guild.id] = []
+        else:
+            result = next((e for e in _events if e.name == value or str(e.id) == value), None)
+            if result is not None:
+                return result
 
         match value:
             case str() as v if match := re.compile(ID_REGEX).match(v):
@@ -49,11 +53,8 @@ class ScheduledEventTransformer(app_commands.Transformer[Dynamo]):
                         if result := discord.utils.get(g.scheduled_events, name=name):
                             break
 
-            case _:
-                result = None
-
         if result is None:
-            raise app_commands.TransformerError(value, self.type, self)
+            raise app_commands.TransformerError(value, self.type, self) from None
 
         if guild:
             _guild_events_cache[guild.id].append(result)
@@ -65,8 +66,8 @@ class ScheduledEventTransformer(app_commands.Transformer[Dynamo]):
         return AppCommandOptionType.string
 
 
-class StringOrMemberTransformer(app_commands.Transformer[Dynamo]):
-    async def transform(self, interaction: Interaction, value: Any, /) -> discord.User | discord.Member | str:
+class StringMemberTransformer(app_commands.Transformer[Dynamo]):
+    async def transform(self, interaction: Interaction, value: Any, /) -> discord.User | discord.Member | str:  # noqa: ARG002
         if not isinstance(value, discord.Member | discord.User | str):
             raise app_commands.TransformerError(value, self.type, self)
         return value

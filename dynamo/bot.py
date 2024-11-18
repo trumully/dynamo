@@ -3,11 +3,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
-from collections.abc import Sequence
-from typing import Any, Self, cast
+from typing import TYPE_CHECKING, Any, Literal, Self, cast
 
-import aiohttp
-import apsw
 import discord
 import msgspec
 import xxhash
@@ -15,14 +12,19 @@ from discord import InteractionType, app_commands
 
 from dynamo.types import DynamoLike, HasExports, RawSubmittable
 from dynamo.utils.cache import LRU
-from dynamo.utils.helper import platformdir, resolve_path_with_links
+from dynamo.utils.helper import platformdir, resolve_file_with_links
 from dynamo.utils.waterfall import Waterfall
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    import aiohttp
+    import apsw
 
 log = logging.getLogger(__name__)
 
 MODAL_REGEX = re.compile(r"^m:(.{1,10}):(.*)$", flags=re.DOTALL)
 BUTTON_REGEX = re.compile(r"^b:(.{1,10}):(.*)$", flags=re.DOTALL)
-COG_SPEC = "dynamo.extensions.cogs"
 
 type Interaction = discord.Interaction["Dynamo"]
 
@@ -42,7 +44,7 @@ def _last_seen_update(conn: apsw.Connection, user_ids: Sequence[int]) -> None:
 
 
 class DynamoTree(app_commands.CommandTree["Dynamo"]):
-    """Versionable and mentionable command tree"""
+    """Versionable and mentionable command tree."""
 
     @classmethod
     def from_dynamo(cls: type[Self], client: Dynamo) -> Self:
@@ -136,7 +138,7 @@ class Dynamo(discord.AutoShardedClient, DynamoLike):
 
         # Sync command tree if needed
         tree_path = platformdir.user_cache_path / "tree.hash"
-        tree_path = resolve_path_with_links(tree_path)
+        tree_path = resolve_file_with_links(tree_path)
         tree_hash = await self.tree.get_hash(self.tree)
         with tree_path.open("r+b") as fp:
             data = fp.read()
@@ -169,7 +171,7 @@ class Dynamo(discord.AutoShardedClient, DynamoLike):
                 if rs := mapping.get(modal_name):
                     await rs.raw_submit(interaction, data)
 
-    def set_blocked(self, user_id: int, blocked: bool) -> None:
+    def set_blocked(self, user_id: int, blocked: Literal[True, False]) -> None:
         self.block_cache[user_id] = blocked
         with self.conn:
             cursor = self.conn.cursor()
@@ -184,7 +186,11 @@ class Dynamo(discord.AutoShardedClient, DynamoLike):
             )
 
     def is_blocked(self, user_id: int) -> bool:
-        if blocked := self.block_cache.get(user_id, None):
+        try:
+            blocked = self.block_cache[user_id]
+        except KeyError:
+            pass
+        else:
             return blocked
 
         cursor = self.conn.cursor()

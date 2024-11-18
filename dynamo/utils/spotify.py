@@ -1,10 +1,9 @@
 import datetime
 import logging
-from collections.abc import Generator
+from collections.abc import Generator, Sequence
 from contextlib import contextmanager
-from dataclasses import dataclass
 from io import BytesIO
-from typing import Any
+from typing import Any, NamedTuple
 
 import aiohttp
 import discord
@@ -12,7 +11,7 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 from dynamo.utils.cache import task_cache
 from dynamo.utils.format import FONTS, human_join, is_cjk
-from dynamo.utils.helper import ROOT, valid_url
+from dynamo.utils.helper import ROOT
 from dynamo.utils.wrappers import executor_function
 
 log = logging.getLogger(__name__)
@@ -67,9 +66,8 @@ def open_image_bytes(image: bytes) -> Generator[Image.Image]:
         buffer.close()
 
 
-@dataclass(frozen=True)
-class StaticDrawArgs:
-    artists: list[str]
+class StaticDrawArgs(NamedTuple):
+    artists: Sequence[str]
     artist_font: ImageFont.FreeTypeFont
     duration: datetime.timedelta | None
     end: datetime.datetime | None
@@ -92,25 +90,33 @@ def make_embed(
 @executor_function
 def draw(activity: discord.Spotify, album: bytes) -> tuple[BytesIO, str]:
     with open_image_bytes(album) as album_image:
-        base, base_draw = create_base_image(activity.color.to_rgb(), album_image)
+        base, base_draw = create_base_image(album_image)
         paste_album_cover(base, album_image)
 
     title_font = get_font(activity.title, FONT_SIZES["title"], bold=True)
     artist_font = get_font(", ".join(activity.artists), FONT_SIZES["artist"])
+    spotify_logo = Image.open(SPOTIFY_LOGO_PATH).resize((LAYOUT["logo_size"], LAYOUT["logo_size"]))
+    static_args = StaticDrawArgs(
+        artists=activity.artists,
+        artist_font=artist_font,
+        duration=activity.duration,
+        end=activity.end,
+        spotify_logo=spotify_logo,
+    )
 
-    available_width = calculate_available_width()
+    # Check if title fits and handle accordingly
+    if int(title_font.getbbox(activity.title)[2]) <= CONTENT_WIDTH:
+        base_draw.text((CONTENT_START_X, TITLE_START_Y), activity.title, fill=(255, 255, 255), font=title_font)
+        draw_static_elements(base_draw, base, static_args)
+        return save_image(base, "PNG")
 
-    if is_title_fits(activity.title, title_font, available_width):
-        return draw_static_image(base, base_draw, activity, title_font, artist_font)
-    return draw_animated_image(base, activity, title_font, artist_font, available_width)
-
-
-def calculate_available_width() -> int:
-    return CONTENT_WIDTH
-
-
-def is_title_fits(title: str, font: ImageFont.FreeTypeFont, available_width: int) -> bool:
-    return font.getbbox(title)[2] <= available_width
+    # Handle animated title
+    frames = [
+        create_frame(base, text_frame, static_args)
+        for text_frame in draw_text_scroll(title_font, activity.title, CONTENT_WIDTH)
+    ]
+    frame_duration = min(max(TOTAL_ANIMATION_TIME // len(frames), MIN_FRAME_DURATION), MAX_FRAME_DURATION)
+    return save_image(frames[0], "GIF", save_all=True, append_images=frames[1:], duration=frame_duration, loop=0)
 
 
 def draw_static_image(
@@ -166,19 +172,19 @@ def get_font(text: str, size: int, *, bold: bool = False) -> ImageFont.FreeTypeF
 
 
 def track_duration(seconds: int) -> str:
-    """Convert a track duration in seconds to a string"""
+    """Convert a track duration in seconds to a string."""
     minutes, seconds = divmod(seconds, 60)
     hours, minutes = divmod(minutes, 60)
     return f"{f"{hours}:" if hours else ""}{minutes:02d}:{seconds:02d}"
 
 
 def get_progress(end: datetime.datetime, duration: datetime.timedelta) -> float:
-    """Get the progress of the track as a percentage"""
+    """Get the progress of the track as a percentage."""
     now = datetime.datetime.now(tz=datetime.UTC)
     return 1 - (end - now).total_seconds() / duration.total_seconds()
 
 
-def create_base_image(color: tuple[int, int, int], album: Image.Image) -> tuple[Image.Image, ImageDraw.ImageDraw]:
+def create_base_image(album: Image.Image) -> tuple[Image.Image, ImageDraw.ImageDraw]:
     base = Image.new("RGBA", (LAYOUT["width"], LAYOUT["height"]))
     gradient = create_gradient_background(album)
     base.paste(gradient, (0, 0))
@@ -255,47 +261,22 @@ def draw_track_bar(draw: ImageDraw.ImageDraw, progress: float, duration: datetim
     draw.text((PROGRESS_BAR_START_X, PROGRESS_TEXT_Y), progress_text, fill=(255, 255, 255), font=progress_font)
 
 
-def create_animated_frames(
-    base: Image.Image,
-    activity: discord.Spotify,
-    title_font: ImageFont.FreeTypeFont,
-    artist_font: ImageFont.FreeTypeFont,
-    available_width: int,
-) -> Generator[Image.Image]:
-    text_frames = list(draw_text_scroll(title_font, activity.title, available_width))
-    spotify_logo = Image.open(SPOTIFY_LOGO_PATH).resize((LAYOUT["logo_size"], LAYOUT["logo_size"]))
-    static_args = StaticDrawArgs(activity.artists, artist_font, activity.duration, activity.end, spotify_logo)
-
-    for text_frame in text_frames:
-        frame = base.copy()
-        frame.paste(text_frame, (CONTENT_START_X, TITLE_START_Y), text_frame)
-        draw_static_elements(ImageDraw.Draw(frame), frame, static_args)
-        yield frame
-
-
-def draw_text_scroll(font: ImageFont.FreeTypeFont, text: str, width: int) -> Generator[Image.Image]:
-    text_width, text_height = (int(x) for x in font.getbbox(text)[2:4])
-
+def draw_text_scroll(font: ImageFont.FreeTypeFont, text: str, width: int) -> list[Image.Image]:
+    text_width = int(font.getbbox(text)[2])
     if text_width <= width:
-        yield create_text_frame(text, width, text_height, font)
-        return
+        return [create_text_frame(text, width, int(font.getbbox(text)[3]), font)]
 
-    # Add padding to ensure smooth transition
-    padded_text = text + "   " + text
-    full_width = int(font.getbbox(padded_text)[2])
+    padded_text = f"{text}   {text}"
+    full_width = font.getbbox(padded_text)[2]
+    sliding_speed = min(
+        MAX_SLIDING_SPEED, max(BASE_SLIDING_SPEED, full_width // (TOTAL_ANIMATION_TIME // MIN_FRAME_DURATION))
+    )
+    num_frames = int(min(TOTAL_ANIMATION_TIME // MIN_FRAME_DURATION, full_width // sliding_speed))
 
-    # Calculate the number of frames based on TOTAL_ANIMATION_TIME and MIN_FRAME_DURATION
-    max_frames = TOTAL_ANIMATION_TIME // MIN_FRAME_DURATION
-
-    # Calculate the sliding speed based on text length
-    sliding_speed = min(MAX_SLIDING_SPEED, max(BASE_SLIDING_SPEED, full_width // max_frames))
-
-    # Calculate the number of frames needed for one complete cycle
-    num_frames = min(max_frames, full_width // sliding_speed)
-
-    for i in range(num_frames):
-        x_pos = -i * sliding_speed % full_width
-        yield create_text_frame(padded_text, width, text_height, font, x_pos)
+    return [
+        create_text_frame(padded_text, width, int(font.getbbox(text)[3]), font, int(-i * sliding_speed % full_width))
+        for i in range(num_frames)
+    ]
 
 
 def create_text_frame(text: str, width: int, height: int, font: ImageFont.FreeTypeFont, x_pos: int = 0) -> Image.Image:
@@ -308,9 +289,7 @@ def create_text_frame(text: str, width: int, height: int, font: ImageFont.FreeTy
 
 @task_cache
 async def fetch_album_cover(url: str, session: aiohttp.ClientSession) -> bytes | None:
-    """|coro|
-
-    Fetch album cover from a URL.
+    """Fetch album cover from a URL.
 
     Parameters
     ----------
@@ -319,18 +298,14 @@ async def fetch_album_cover(url: str, session: aiohttp.ClientSession) -> bytes |
     session : aiohttp.ClientSession
         The aiohttp session to use for the request
 
-    Returns
+    Returns:
     -------
     bytes | None
         The album cover as bytes, or None if the fetch failed
     """
-    if not valid_url(url):
-        log.exception("Invalid URL: %s", url)
-        return None
-
     try:
         async with session.get(url) as response:
-            if response.status == 200:
+            if response.status == 200:  # noqa: PLR2004
                 return await response.read()
             log.warning("Failed to fetch album cover: %s", response.status)
     except aiohttp.ClientResponseError:

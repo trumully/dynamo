@@ -1,25 +1,20 @@
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import discord
-from apsw import Connection
-from base2048 import decode, encode
+from base2048 import decode
 from discord.app_commands import Choice, Group, Range
 from msgspec import msgpack
 
-from dynamo.bot import Interaction
 from dynamo.types import BotExports, RawSubmittable
 from dynamo.utils.cache import LRU, Trie
+from dynamo.utils.helper import b2048_pack
 
+if TYPE_CHECKING:
+    from apsw import Connection
 
-def b2048_pack(obj: object, /) -> str:
-    return encode(msgpack.encode(obj))
-
-
-def b2048_unpack[T](packed: str, _type: type[T], /) -> T:
-    return msgpack.decode(decode(packed), type=_type)
-
+    from dynamo.bot import Interaction
 
 _tags_trie: LRU[int, Trie] = LRU(128)
 
@@ -98,7 +93,7 @@ tag_group = Group(name="tag", description="Tag related commands")
 
 @tag_group.command(name="create")
 async def tag_create(itx: Interaction, name: Range[str, 1, 20]) -> None:
-    """Create a tag
+    """Create a tag.
 
     Parameters
     ----------
@@ -111,7 +106,7 @@ async def tag_create(itx: Interaction, name: Range[str, 1, 20]) -> None:
 
 @tag_group.command(name="get")
 async def tag_get(itx: Interaction, name: Range[str, 1, 20]) -> None:
-    """Get a tag
+    """Get a tag.
 
     Parameters
     ----------
@@ -137,7 +132,7 @@ async def tag_get(itx: Interaction, name: Range[str, 1, 20]) -> None:
 
 @tag_group.command(name="delete")
 async def tag_delete(itx: Interaction, name: Range[str, 1, 20]) -> None:
-    """Delete a tag
+    """Delete a tag.
 
     Parameters
     ----------
@@ -162,12 +157,13 @@ async def tag_delete(itx: Interaction, name: Range[str, 1, 20]) -> None:
 
 
 def get_user_tags(conn: Connection, user_id: int, current: str) -> list[str]:
-    if (tags := _tags_trie.get(user_id, None)) is not None:
+    try:
+        tags = _tags_trie.get(user_id)
+    except KeyError:
+        results = _get_trie_matches(conn, user_id).search(current)
+    else:
         results = tags.search(current)
-        return sorted(results)[:25] if len(results) > 25 else list(results)
-
-    results = _get_trie_matches(conn, user_id).search(current)
-    return sorted(results)[:25] if len(results) > 25 else list(results)
+    return sorted(results)[:25] if len(results) > 25 else list(results)  # noqa: PLR2004
 
 
 @tag_get.autocomplete("name")

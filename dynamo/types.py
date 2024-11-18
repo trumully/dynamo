@@ -1,12 +1,14 @@
 from __future__ import annotations
 
-import datetime
 from collections.abc import Callable, Coroutine
-from typing import Any, NamedTuple, Protocol
+from typing import TYPE_CHECKING, Any, NamedTuple, Protocol
 
 import discord.abc
 from discord import Interaction as InteractionD
 from discord import app_commands
+
+if TYPE_CHECKING:
+    import datetime
 
 type Coro[T] = Coroutine[Any, Any, T]
 type CoroFunction[**P, T] = Callable[P, Coro[T]]

@@ -2,18 +2,21 @@ from __future__ import annotations
 
 import hashlib
 from io import BytesIO
+from typing import TYPE_CHECKING
 
 import numpy as np
-from numpy.typing import NDArray
 from PIL import Image
 
 from dynamo.utils.cache import task_cache
 from dynamo.utils.color import RGB
 from dynamo.utils.wrappers import executor_function
 
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
+
 
 def derive_seed(precursor: str | int) -> int:
-    """Generate a seed from a string or int"""
+    """Generate a seed from a string or int."""
     encoded_precursor = str(precursor).encode()
     hashed = hashlib.sha256(encoded_precursor).digest()
     return int.from_bytes(hashed[:8], byteorder="big", signed=False)
@@ -24,7 +27,7 @@ def make_color(rng: np.random.Generator) -> RGB:
 
 
 def get_colors(seed: int) -> tuple[RGB, RGB]:
-    """Get two colors from a seed"""
+    """Get two colors from a seed."""
     rng = np.random.default_rng(seed=seed)
     primary, secondary = make_color(rng), make_color(rng)
 
@@ -35,7 +38,7 @@ def get_colors(seed: int) -> tuple[RGB, RGB]:
 
 
 def make_identicon(seed: int, pattern_size: int = 6, secondary_weight: float = 0.6) -> NDArray[np.int_]:
-    """Make an identicon from a seed"""
+    """Make an identicon from a seed."""
     rng = np.random.default_rng(seed=seed)
     primary, secondary = get_colors(seed)
     pattern = rng.choice(
@@ -50,11 +53,7 @@ IDENTICON_SIZE = 256
 @task_cache
 @executor_function
 def get_identicon(seed: int, pattern_size: int, secondary_weight: float) -> bytes:
-    """|coro|
-
-    Get an identicon as bytes
-    """
-
+    """Get an identicon as bytes."""
     buffer = BytesIO()
     image = (
         Image.fromarray(make_identicon(seed, pattern_size, secondary_weight).astype("uint8"))

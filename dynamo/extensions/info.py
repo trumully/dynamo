@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 import logging
-from typing import NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
 import discord
 from discord import app_commands
 
-from dynamo.bot import Interaction
 from dynamo.types import BotExports
 from dynamo.utils import aura, spotify
 from dynamo.utils.cache import task_cache
+
+if TYPE_CHECKING:
+    from dynamo.bot import Interaction
 
 log = logging.getLogger(__name__)
 

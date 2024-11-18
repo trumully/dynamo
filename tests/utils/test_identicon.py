@@ -1,8 +1,7 @@
-from hypothesis import given
-from hypothesis import strategies as st
-
 from dynamo.utils import identicon
 from dynamo.utils.color import RGB
+from hypothesis import given
+from hypothesis import strategies as st
 
 
 @st.composite

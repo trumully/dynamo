@@ -1,7 +1,6 @@
 import hypothesis.strategies as st
-from hypothesis import assume, given
-
 from dynamo.utils import format as dynamo_format
+from hypothesis import assume, given
 
 
 @given(
@@ -9,8 +8,8 @@ from dynamo.utils import format as dynamo_format
     conjunction=st.text(min_size=1, max_size=10),
     oxford_comma=st.booleans(),
 )
-def test_human_join(seq: list[str], conjunction: str, oxford_comma: bool) -> None:
-    """Test the human_join function"""
+def test_human_join(seq: list[str], conjunction: str, oxford_comma: bool) -> None:  # noqa: FBT001
+    """Test the human_join function."""
     assume(not [s for s in seq if s == conjunction])
 
     result = dynamo_format.human_join(seq, conjunction=conjunction, oxford_comma=oxford_comma)
@@ -28,5 +27,5 @@ def test_human_join(seq: list[str], conjunction: str, oxford_comma: bool) -> Non
 
 @given(string=st.text(min_size=1, max_size=10))
 def test_human_join_str(string: str) -> None:
-    """Test the human_join function with a single string"""
+    """Test the human_join function with a single string."""
     assert dynamo_format.human_join(string) == string
