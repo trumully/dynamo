@@ -20,7 +20,7 @@ from discord import app_commands
 from msgspec import msgpack
 
 from dynamo.types import BotExports, RawSubmittable
-from dynamo.utils.format import code_block
+from dynamo.utils.format import Codeblock
 from dynamo.utils.helper import b2048_pack
 
 if TYPE_CHECKING:
@@ -51,7 +51,6 @@ def write_dependency_header(dependencies: Sequence[str]) -> str:
     return f"# /// script\n# dependencies = [\n{formatted_deps}# ]\n# ///"
 
 
-# Replace with your Discord user ID
 EXECUTION_TIMEOUT: Final[int] = 30
 MAX_OUTPUT_LENGTH: Final[int] = 1000
 
@@ -181,10 +180,7 @@ class ExecModal(discord.ui.Modal):
         dependencies_input: str = components[1]["value"]
 
         # Extract code from markdown if present
-        if script.startswith("```py"):
-            script = script[5:-3] if script.endswith("```") else script[5:]
-        elif script.startswith("```python"):
-            script = script[9:-3] if script.endswith("```") else script[9:]
+        script = Codeblock.as_raw(script).content
 
         # Parse dependencies
         deps = [dep.strip() for dep in dependencies_input.split(",") if dep.strip()]
@@ -196,11 +192,11 @@ class ExecModal(discord.ui.Modal):
             # Format response
             response = []
             if stdout:
-                response.extend(["**stdout:**", code_block(stdout[:MAX_OUTPUT_LENGTH], "ansi")])
+                response.extend(["**stdout:**", str(Codeblock(None, stdout[:MAX_OUTPUT_LENGTH]))])
                 if len(stdout) > MAX_OUTPUT_LENGTH:
                     response.append("*(output truncated)*")
             if stderr:
-                response.extend(["**stderr:**", code_block(stderr[:MAX_OUTPUT_LENGTH], "ansi")])
+                response.extend(["**stderr:**", str(Codeblock(None, stderr[:MAX_OUTPUT_LENGTH]))])
                 if len(stderr) > MAX_OUTPUT_LENGTH:
                     response.append("*(error output truncated)*")
 

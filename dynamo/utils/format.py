@@ -1,10 +1,59 @@
+from __future__ import annotations
+
 import re
-from collections.abc import Sequence
+from collections import deque
 from dataclasses import dataclass
 from enum import StrEnum, auto
-from pathlib import Path
+from typing import TYPE_CHECKING, NamedTuple
 
 from dynamo.utils.helper import ROOT
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+    from pathlib import Path
+
+
+class Codeblock(NamedTuple):
+    language: str | None
+    content: str
+
+    @classmethod
+    def as_raw(cls, content: str) -> Codeblock:
+        if not content.startswith("`"):
+            return cls(None, content)
+
+        buffer: deque[str] = deque(maxlen=3)
+        backticks = 0
+        in_language = False
+        in_code = False
+        language: list[str] = []
+        code: list[str] = []
+
+        for char in content:
+            if char == "`" and not in_code and not in_language:
+                backticks += 1
+            if buffer and buffer[-1] == "`" and char != "`" or in_code and "".join(buffer) != "`" * backticks:
+                in_code = True
+                code.append(char)
+            if char == "\n":
+                in_language = False
+                in_code = True
+            elif "".join(buffer) == "`" * 3 and char != "`":
+                in_language = True
+                language.append(char)
+            elif in_language:
+                if char != "\n":
+                    language.append(char)
+
+            buffer.append(char)
+
+        if not code and not language:
+            code[:] = buffer
+
+        return Codeblock("".join(language), "".join(code[len(language) : -backticks]))
+
+    def __str__(self) -> str:
+        return f"```{self.language}\n{self.content}\n```"
 
 
 def human_join(seq: Sequence[str], sep: str = ", ", conjunction: str = "or", *, oxford_comma: bool = True) -> str:
@@ -23,15 +72,6 @@ def human_join(seq: Sequence[str], sep: str = ", ", conjunction: str = "or", *, 
         return f"{seq[0]} {conjunction} {seq[1]}"
 
     return f"{sep.join(seq[:-1])}{sep if oxford_comma else " "}{conjunction} {seq[-1]}"
-
-
-def code_block(content: str, language: str = "", *, line_numbers: bool = False) -> str:
-    if line_numbers:
-        lines = content.split("\n")
-        numbered_lines = [f"{i + 1:2d} {line}" for i, line in enumerate(lines)]
-        numbered_content = "\n".join(numbered_lines)
-        return f"```{language}\n{numbered_content}\n```"
-    return f"```{language}\n{content}\n```"
 
 
 class CJK(StrEnum):
