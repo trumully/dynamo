@@ -5,9 +5,9 @@ from io import BytesIO
 from typing import TYPE_CHECKING
 
 import numpy as np
+from dynamo_utils.task_cache import task_cache
 from PIL import Image
 
-from dynamo.utils.cache import task_cache
 from dynamo.utils.color import RGB
 from dynamo.utils.wrappers import executor_function
 

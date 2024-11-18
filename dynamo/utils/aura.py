@@ -4,8 +4,8 @@ import re
 
 import aiohttp
 import numpy as np
+from dynamo_utils.task_cache import task_cache
 
-from dynamo.utils.cache import task_cache
 from dynamo.utils.color import RGB, color_palette_from_image, filter_similar_colors
 
 log = logging.getLogger(__name__)

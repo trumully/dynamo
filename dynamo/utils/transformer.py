@@ -3,9 +3,9 @@ from typing import Any
 
 import discord
 from discord import AppCommandOptionType, app_commands
+from dynamo_utils.task_cache import LRU
 
 from dynamo.bot import Dynamo, Interaction
-from dynamo.utils.cache import LRU
 
 _guild_events_cache: LRU[int, list[discord.ScheduledEvent]] = LRU(128)
 

@@ -8,12 +8,12 @@ from discord.app_commands import Group, Transform
 
 from dynamo.types import BotExports
 from dynamo.utils.helper import process_async_iterable
+from dynamo.utils.transformer import ScheduledEventTransformer  # noqa: TCH001  we need this at runtime
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
     from dynamo.bot import Interaction
-    from dynamo.utils.transformer import ScheduledEventTransformer
 
 
 def display_interested(name: str, url: str, users: Iterable[discord.User]) -> str:

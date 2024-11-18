@@ -9,17 +9,18 @@ import discord
 import msgspec
 import xxhash
 from discord import InteractionType, app_commands
+from dynamo_utils.task_cache import LRU
+from dynamo_utils.waterfall import Waterfall
 
-from dynamo.types import DynamoLike, HasExports, RawSubmittable
-from dynamo.utils.cache import LRU
 from dynamo.utils.helper import platformdir, resolve_file_with_links
-from dynamo.utils.waterfall import Waterfall
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     import aiohttp
     import apsw
+
+    from dynamo.types import HasExports, RawSubmittable
 
 log = logging.getLogger(__name__)
 
@@ -47,7 +48,7 @@ class DynamoTree(app_commands.CommandTree["Dynamo"]):
     """Versionable and mentionable command tree."""
 
     @classmethod
-    def from_dynamo(cls: type[Self], client: Dynamo) -> Self:
+    def from_dynamo(cls: type[DynamoTree], client: Dynamo) -> DynamoTree:
         installs = app_commands.AppInstallationType(user=False, guild=True)
         contexts = app_commands.AppCommandContext(dm_channel=True, guild=True, private_channel=True)
         return cls(
@@ -78,7 +79,7 @@ class DynamoTree(app_commands.CommandTree["Dynamo"]):
         return xxhash.xxh64_digest(msgspec.msgpack.encode(payload), seed=0)
 
 
-class Dynamo(discord.AutoShardedClient, DynamoLike):
+class Dynamo(discord.AutoShardedClient):
     """Discord bot with command handling and interaction capabilities."""
 
     def __init__(
@@ -150,7 +151,7 @@ class Dynamo(discord.AutoShardedClient, DynamoLike):
     async def on_ready(self) -> None:
         if not hasattr(self, "uptime"):
             self.uptime = discord.utils.utcnow()
-        log.info("Ready: %s (ID: %s)", self.user, self.user.id)
+        log.info("Ready: %s (ID: %d)", str(self.user), self.user.id)
 
     async def _update_last_seen(self, user_id: Sequence[int], /) -> None:
         await asyncio.to_thread(_last_seen_update, self.conn, user_id)

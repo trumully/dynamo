@@ -1,58 +1,44 @@
-[tool.uv]
-dev-dependencies = [
-    "pytest==8.3.2",
-    "hypothesis==6.112.0",
-    "pytest-asyncio==0.24.0",
-    "pytest-xdist[psutil]==3.6.1",
-    "ruff==0.6.8",
-    "mypy==1.13.0",
-]
-
-[tool.pdm.build]
-includes = []
-
-[build-system]
-requires = ["pdm-backend"]
-build-backend = "pdm.backend"
-
-
 [project]
-authors = [{ name = "trumully", email = "truman.mulholland@gmail.com" }]
-license = { text = "LICENSE" }
-requires-python = "==3.13.0"
-dependencies = [
-    "discord-py[speed] @ git+https://github.com/mikeshardmind/discord.py.git@89ac64f",
-    "toml==0.10.2",
-    "python-dateutil==2.9.0.post0",
-    "platformdirs==4.2.2",
-    "xxhash==3.5.0",
-    "base2048==0.1.3",
-    "numpy==2.1.0",
-    "msgspec @ git+https://github.com/jcrist/msgspec@main",
-    "pillow==10.4.0",
-    "truststore==0.9.2",
-    "types-python-dateutil==2.9.0.20240906",
-    "rapidfuzz==3.9.7",
-    "apsw==3.46.1.0",
-    "pygit2==1.16.0",
-    "dynaconf==3.2.6",
-]
 name = "dynamo"
 version = "0.2.0"
-description = "Quantum entanglement!"
+description = "Bot for personal use"
 readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.13"
+dependencies = [
+    "apsw>=3.47.0.0",
+    "base2048>=0.1.3",
+    "discord-py[speed]",
+    "dynaconf>=3.2.6",
+    "dynamo-utils",
+    "msgspec",
+    "numpy>=2.1.3",
+    "pillow>=11.0.0",
+    "platformdirs>=4.3.6",
+    "toml>=0.10.2",
+    "truststore>=0.10.0",
+    "xxhash>=3.5.0",
+]
+
+[tool.uv.sources]
+discord-py = { git = "https://github.com/mikeshardmind/discord.py.git", rev = "89ac64f" }
+msgspec = { git = "https://github.com/jcrist/msgspec", rev = "main" }
+dynamo-utils = { git = "https://github.com/trumully/dynamo-utils" }
+
+[dependency-groups]
+dev = [
+    "hypothesis>=6.119.3",
+    "mypy>=1.13.0",
+    "pytest>=8.3.3",
+    "pytest-asyncio>=0.24.0",
+    "pytest-xdist[psutil]>=3.6.1",
+    "ruff>=0.7.4",
+]
 
 [project.scripts]
 dynamo = "dynamo.runner:main"
 
 
-[tool.pytest.ini_options]
-xfail_strict = true
-addopts = [
-    "--strict-markers",
-    "--strict-config",
-    "--asyncio-mode=strict",
-    "-n=logical",
-]
-asyncio_mode = "strict"
-asyncio_default_fixture_loop_scope = "function"
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

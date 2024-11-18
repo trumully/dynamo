@@ -22,9 +22,7 @@ from dynamo.utils.helper import platformdir
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from dynamo.bot import Dynamo  # noqa: TCH004
     from dynamo.types import HasExports
-
 
 log = logging.getLogger(__name__)
 
@@ -35,57 +33,15 @@ def get_token() -> str:
     return str(config.token)
 
 
-async def shutdown_tasks(tasks: set[asyncio.Task[Any]]) -> None:
-    """Handle graceful shutdown of remaining tasks."""
-    _done, pending = await asyncio.wait(tasks, timeout=0.1)
-    if not pending:
-        log.debug("Clean shutdown accomplished.")
-        return
-
-    for task in tasks:
-        task.cancel()
-
-    _done, pending = await asyncio.wait(tasks, timeout=0.1)
-
-    for task in pending:
-        log.warning("Task %s wrapping coro %r did not exit properly", task.get_name(), task.get_coro())
-
-
-async def cleanup_bot(bot: Dynamo, loop: asyncio.AbstractEventLoop) -> None:
-    """Perform cleanup operations for the bot."""
-    if not bot.is_closed():
-        await bot.close()
-
-    await asyncio.sleep(1e-3)
-    tasks = {t for t in asyncio.all_tasks(loop) if not t.done()}
-
-    if tasks:
-        await shutdown_tasks(tasks)
-
-    await loop.shutdown_asyncgens()
-    await loop.shutdown_default_executor()
-
-    for task in tasks:
-        try:
-            if (exc := task.exception()) is not None:
-                loop.call_exception_handler(
-                    {
-                        "message": "Unhandled exception in task during shutdown.",
-                        "exception": exc,
-                        "task": task,
-                    }
-                )
-        except (asyncio.InvalidStateError, asyncio.CancelledError):
-            pass
-
-
-def run_bot(loop: asyncio.AbstractEventLoop) -> None:
+def run_bot(loop: asyncio.AbstractEventLoop) -> None:  # noqa: C901, PLR0915
     db_path = platformdir.user_data_path / "dynamo.db"
     conn = apsw.Connection(str(db_path))
 
     loop.set_task_factory(asyncio.eager_task_factory)
     asyncio.set_event_loop(loop)
 
+    # https://github.com/aio-libs/aiohttp/issues/8599
+    # https://github.com/mikeshardmind/salamander-reloaded
     connector = aiohttp.TCPConnector(
         happy_eyeballs_delay=None,
         family=socket.AddressFamily.AF_INET,
@@ -95,9 +51,10 @@ def run_bot(loop: asyncio.AbstractEventLoop) -> None:
     )
     session = aiohttp.ClientSession(connector=connector)
 
-    from .extensions import events, exec, identicon, info, tags
+    from .extensions import events, identicon, info, tags
 
-    initial_exts: list[HasExports] = [events, tags, identicon, info, exec]
+    initial_exts: list[HasExports] = [events, tags, identicon, info]
+
     from dynamo.bot import Dynamo
 
     bot = Dynamo(
@@ -114,19 +71,69 @@ def run_bot(loop: asyncio.AbstractEventLoop) -> None:
         except ValidationError:
             log.critical("Invalid token in config.toml")
         finally:
-            await cleanup_bot(bot, loop)
+            if not bot.is_closed():
+                await bot.close()
 
+    def stop_when_done(_fut: asyncio.Future[None]) -> None:
+        loop.stop()
+
+    fut = asyncio.ensure_future(entrypoint(), loop=loop)
     try:
-        loop.run_until_complete(entrypoint())
+        fut.add_done_callback(stop_when_done)
+        loop.run_forever()
     except KeyboardInterrupt:
         pass
     finally:
+        fut.remove_done_callback(stop_when_done)
+        if not bot.is_closed():
+            _close_task = loop.create_task(bot.close())
+        loop.run_until_complete(asyncio.sleep(1e-3))
+
+        tasks: set[asyncio.Task[Any]] = {t for t in asyncio.all_tasks(loop) if not t.done()}
+
+        async def limited_finalization() -> None:
+            _done, pending = await asyncio.wait(tasks, timeout=0.1)
+            if not pending:
+                log.debug("Clean shutdown accomplished.")
+                return
+
+            for task in tasks:
+                task.cancel()
+
+            _done, pending = await asyncio.wait(tasks, timeout=0.1)
+
+            for task in pending:
+                name = task.get_name()
+                coro = task.get_coro()
+                log.warning("Task %s wrapping coro %r did not exit properly", name, coro)
+
+        if tasks:
+            loop.run_until_complete(limited_finalization())
+        loop.run_until_complete(loop.shutdown_asyncgens())
+        loop.run_until_complete(loop.shutdown_default_executor())
+
+        for task in tasks:
+            try:
+                if (exc := task.exception()) is not None:
+                    loop.call_exception_handler(
+                        {
+                            "message": "Unhandled exception in task during shutdown.",
+                            "exception": exc,
+                            "task": task,
+                        }
+                    )
+            except (asyncio.InvalidStateError, asyncio.CancelledError):
+                pass
+
         asyncio.set_event_loop(None)
         loop.close()
 
-        conn.pragma("analysis_limit", 400)
-        conn.pragma("optimize")
-        conn.close()
+        if not fut.cancelled():
+            fut.result()
+
+    conn.pragma("analysis_limit", 400)
+    conn.pragma("optimize")
+    conn.close()
 
 
 def ensure_schema() -> None:
@@ -146,7 +153,8 @@ def ensure_schema() -> None:
 def main() -> None:
     """Launch the bot."""
     parser = argparse.ArgumentParser(description="Launch Dynamo")
-    parser.add_argument("--debug", "-d", action="store_true", help="Enable debug logging")
+    exclusive = parser.add_mutually_exclusive_group()
+    exclusive.add_argument("--debug", "-d", action="store_true", help="Enable debug logging")
     args = parser.parse_args()
 
     ensure_schema()
