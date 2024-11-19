@@ -26,7 +26,7 @@ git clone https://github.com/trumully/dynamo.git
 
 ### Install and run:
 
-Don't forget to set up your `config.yaml` file (see the `config-example.yaml`)
+Don't forget to set up your `.secrets.toml` file (see the `secrets-example.toml`)
 
 ```shell
 cd dynamo

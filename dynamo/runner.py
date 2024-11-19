@@ -1,4 +1,3 @@
-import argparse
 import asyncio
 import logging
 import logging.handlers
@@ -16,6 +15,7 @@ import discord
 import truststore
 from dynaconf.validator import ValidationError
 
+from dynamo.config import get_token
 from dynamo.logger import with_logging
 from dynamo.utils.helper import platformdir
 
@@ -27,13 +27,7 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-def get_token() -> str:
-    from dynamo.config import config
-
-    return str(config.token)
-
-
-def run_bot(loop: asyncio.AbstractEventLoop) -> None:  # noqa: C901, PLR0915
+def _run_bot(loop: asyncio.AbstractEventLoop) -> None:  # noqa: C901, PLR0915
     db_path = platformdir.user_data_path / "dynamo.db"
     conn = apsw.Connection(str(db_path))
 
@@ -150,28 +144,23 @@ def ensure_schema() -> None:
         conn.execute(schema)
 
 
-def main() -> None:
-    """Launch the bot."""
-    parser = argparse.ArgumentParser(description="Launch Dynamo")
-    exclusive = parser.add_mutually_exclusive_group()
-    exclusive.add_argument("--debug", "-d", action="store_true", help="Enable debug logging")
-    args = parser.parse_args()
-
-    ensure_schema()
-    os.umask(0o077)
+def run_bot(*, debug: bool = False) -> None:
     to_apply: tuple[Callable[[apsw.Connection], None], ...] = (
         apsw.bestpractice.connection_wal,
         apsw.bestpractice.connection_busy_timeout,
         apsw.bestpractice.connection_enable_foreign_keys,
         apsw.bestpractice.connection_dqs,
+        apsw.bestpractice.connection_recursive_triggers,
+        apsw.bestpractice.connection_optimize,
     )
     apsw.bestpractice.apply(to_apply)
-    loop = asyncio.new_event_loop()
-    with with_logging(logging.DEBUG if args.debug else logging.INFO):
-        if args.debug:
+    ensure_schema()
+
+    with with_logging(logging.DEBUG if debug else logging.INFO):
+        if debug:
             log.debug("****** Running in DEBUG mode ******")
-        run_bot(loop)
 
+        loop = asyncio.new_event_loop()
+        _run_bot(loop)
 
-if __name__ == "__main__":
-    main()
+    os._exit(0)

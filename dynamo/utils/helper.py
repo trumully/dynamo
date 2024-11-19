@@ -21,7 +21,7 @@ def _resolve_path_with_links(path: Path, mode: PathMode) -> Path:
     try:
         return path.resolve(strict=True)
     except FileNotFoundError:
-        path = _resolve_path_with_links(path.parent, mode) / path.name
+        path = resolve_folder_with_links(path.parent) / path.name
         path.mkdir(mode.value) if mode == PathMode.DIR else path.touch(mode.value)
         return path.resolve(strict=True)
 

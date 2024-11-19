@@ -20,9 +20,18 @@ def valid_token(token: str) -> bool:
 
 
 config = Dynaconf(
-    settings_files=["config.toml"],
+    envvar_prefix="DYNAMO",
+    settings_files=[".secrets.toml"],
     validators=[Validator("token", must_exist=True, is_type_of=str, condition=valid_token)],
 )
 
 
 config.validators.validate()
+
+
+def get_token() -> str:
+    if not valid_token(config.token):
+        msg = "An invalid token was provided. Please check your .secrets.toml file or if you provided a correct token with --token."
+        raise RuntimeError(msg) from None
+
+    return str(config.token)

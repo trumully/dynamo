@@ -32,7 +32,7 @@ async def _generate_identicon(
     p_hex, s_hex = RGB.as_hex(*primary), RGB.as_hex(*secondary)
 
     description = (
-        f"Pattern size: {pattern_size}\nSecondary color weight: {secondary_weight:.2f}\nColors: {p_hex} | {s_hex}"
+        f"Pattern size: {pattern_size}\nSecondary color weight: {secondary_weight:.2f}\nColors: `{p_hex}` | `{s_hex}`"
     )
     embed = discord.Embed(title=name, description=description, color=primary.as_discord_color())
     embed.set_image(url="attachment://identicon.png")

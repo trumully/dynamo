@@ -192,11 +192,11 @@ class ExecModal(discord.ui.Modal):
             # Format response
             response = []
             if stdout:
-                response.extend(["**stdout:**", str(Codeblock(None, stdout[:MAX_OUTPUT_LENGTH]))])
+                response.extend(["**stdout:**", str(Codeblock("ansi", stdout[:MAX_OUTPUT_LENGTH]))])
                 if len(stdout) > MAX_OUTPUT_LENGTH:
                     response.append("*(output truncated)*")
             if stderr:
-                response.extend(["**stderr:**", str(Codeblock(None, stderr[:MAX_OUTPUT_LENGTH]))])
+                response.extend(["**stderr:**", str(Codeblock("ansi", stderr[:MAX_OUTPUT_LENGTH]))])
                 if len(stderr) > MAX_OUTPUT_LENGTH:
                     response.append("*(error output truncated)*")
 
