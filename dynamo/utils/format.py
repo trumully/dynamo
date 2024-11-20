@@ -95,8 +95,6 @@ def is_cjk(text: str) -> CJK:
 
 
 class FontFamily(NamedTuple):
-    __slots__ = ("regular", "bold")
-
     regular: Path
     bold: Path
 

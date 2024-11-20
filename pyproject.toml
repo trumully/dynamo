@@ -40,29 +40,37 @@ dynamo = "dynamo.cli:main"
 
 
 [build-system]
-requires = ["hatchling"]
+requires = [
+    "hatchling",
+]
 build-backend = "hatchling.build"
 
 
 [tool.pytest.ini_options]
+minversion = "7.0"
 asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "session"
 xfail_strict = true
-testpaths = ["tests"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
-python_files = ["test_*.py"]
+testpaths = [
+    "tests",
+]
 
 addopts = [
     "--strict-markers",
-    "--strict-config", 
-    "--numprocesses", "auto",
-    "--dist", "loadfile",
-    "--maxfail", "1",
-    "--verbosity", "2",
-    "--durations", "10",
-    "--durations-min", "1.0",
-    "--hypothesis-show-statistics"
+    "--strict-config",
+    "--numprocesses",
+    "auto",
+    "--dist",
+    "loadfile",
+    "--maxfail",
+    "1",
+    "--verbosity",
+    "2",
+    "--durations",
+    "10",
+    "--durations-min",
+    "1.0",
+    "--hypothesis-show-statistics",
 ]
 
 log_cli = true
@@ -72,29 +80,31 @@ log_cli_date_format = "%Y-%m-%d %H:%M:%S"
 
 
 [tool.ruff]
-src = ["dynamo"]
+src = [
+    "dynamo",
+]
 target-version = "py313"
 line-length = 120
 
 [tool.ruff.lint]
 select = [
-    "A", 
-    "B", 
-    "C", 
-    "E", 
+    "A",
+    "B",
+    "C",
+    "E",
     "D",
-    "F", 
-    "G", 
+    "F",
+    "G",
     "I",
     "N",
     "Q",
     "S",
     "T",
     "W",
-#   "ANN", # annotations handled by pyright
+    #   "ANN", # annotations handled by pyright
     "ARG",
     "BLE",
-#   "COM", # commas handled by black
+    #   "COM", # commas handled by black
     "DJ",
     "DTZ",
     "EM",
@@ -105,7 +115,7 @@ select = [
     "INP",
     "ISC",
     "NPY",
-#   "PD", # too many false positives
+    #   "PD", # too many false positives
     "PGH",
     "PIE",
     "PL",
@@ -121,7 +131,7 @@ select = [
     "TID",
     "TRY",
     "UP",
-    "YTT"
+    "YTT",
 ]
 
 ignore = [
@@ -156,10 +166,14 @@ unfixable = [
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
-ignore-decorators = ["typing.overload"]
+ignore-decorators = [
+    "typing.overload",
+]
 
 [tool.mypy]
-plugins = ["numpy.typing.mypy_plugin"]
+plugins = [
+    "numpy.typing.mypy_plugin",
+]
 python_version = "3.13"
 strict = true
 
