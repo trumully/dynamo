@@ -37,7 +37,7 @@ def get_colors(seed: int) -> tuple[RGB, RGB]:
     return primary, secondary
 
 
-def make_identicon(seed: int, pattern_size: int = 6, secondary_weight: float = 0.6) -> NDArray[np.int_]:
+def make_identicon(seed: int, pattern_size: int = 6, secondary_weight: float = 0.6) -> NDArray[np.int32]:
     """Make an identicon from a seed."""
     rng = np.random.default_rng(seed=seed)
     primary, secondary = get_colors(seed)

@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import re
 from collections import deque
-from dataclasses import dataclass
 from enum import StrEnum, auto
 from typing import TYPE_CHECKING, NamedTuple
 
 from dynamo.utils.helper import ROOT
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Mapping, Sequence
     from pathlib import Path
 
 
@@ -71,7 +70,7 @@ def human_join(seq: Sequence[str], sep: str = ", ", conjunction: str = "or", *, 
     if size == 2:  # noqa: PLR2004
         return f"{seq[0]} {conjunction} {seq[1]}"
 
-    return f"{sep.join(seq[:-1])}{sep if oxford_comma else " "}{conjunction} {seq[-1]}"
+    return f"{sep.join(seq[:-1])}{sep if oxford_comma else ' '}{conjunction} {seq[-1]}"
 
 
 class CJK(StrEnum):
@@ -95,8 +94,9 @@ def is_cjk(text: str) -> CJK:
     return CJK.NONE
 
 
-@dataclass(slots=True, frozen=True)
-class FontFamily:
+class FontFamily(NamedTuple):
+    __slots__ = ("regular", "bold")
+
     regular: Path
     bold: Path
 
@@ -109,7 +109,7 @@ def _get_fonts(font_name: str) -> FontFamily:
     return FontFamily(regular=_font_path(f"{font_name}-Regular.ttf"), bold=_font_path(f"{font_name}-Bold.ttf"))
 
 
-FONTS: dict[CJK, FontFamily] = {
+FONTS: Mapping[CJK, FontFamily] = {
     CJK.NONE: _get_fonts("NotoSans"),
     CJK.CHINESE: _get_fonts("NotoSansTC"),
     CJK.JAPANESE: _get_fonts("NotoSansJP"),

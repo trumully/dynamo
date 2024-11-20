@@ -1,9 +1,6 @@
 import enum
 import importlib.resources
-from collections.abc import AsyncGenerator, AsyncIterable, Iterable
-from contextlib import aclosing
 from pathlib import Path
-from typing import cast
 
 import platformdirs
 from base2048 import decode, encode
@@ -35,17 +32,6 @@ def resolve_file_with_links(file: Path) -> Path:
 
 
 ROOT = Path(str(importlib.resources.files("dynamo"))).parent.parent
-
-
-async def process_async_iterable[T](async_iterable: AsyncIterable[T]) -> Iterable[T]:
-    """Safely process an async iterable.
-
-    See
-    ---
-    - https://peps.python.org/pep-0533/
-    """
-    async with aclosing(cast(AsyncGenerator[T], async_iterable)) as gen:
-        return [item async for item in gen]
 
 
 def b2048_pack(obj: object, /) -> str:

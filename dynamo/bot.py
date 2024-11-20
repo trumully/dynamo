@@ -9,9 +9,9 @@ import discord
 import msgspec
 import xxhash
 from discord import InteractionType, app_commands
-from dynamo_utils.task_cache import LRU
 from dynamo_utils.waterfall import Waterfall
 
+from dynamo.utils.datastructures import LRU
 from dynamo.utils.helper import platformdir, resolve_file_with_links
 
 if TYPE_CHECKING:

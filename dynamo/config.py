@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 from dynaconf import Dynaconf, Validator
 
 
@@ -30,8 +32,10 @@ config.validators.validate()
 
 
 def get_token() -> str:
-    if not valid_token(config.token):
+    token = os.getenv("DYNAMO_TOKEN", config.token)
+
+    if not valid_token(token):
         msg = "An invalid token was provided. Please check your .secrets.toml file or if you provided a correct token with --token."
         raise RuntimeError(msg) from None
 
-    return str(config.token)
+    return str(token)

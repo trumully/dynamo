@@ -5,10 +5,10 @@ from typing import TYPE_CHECKING, Any, cast
 import discord
 from base2048 import decode
 from discord.app_commands import Choice, Group, Range
-from dynamo_utils.task_cache import LRU
 from msgspec import msgpack
 
-from dynamo.types import BotExports, RawSubmittable, Trie
+from dynamo.types import BotExports, RawSubmittable
+from dynamo.utils.datastructures import LRU, Trie
 from dynamo.utils.helper import b2048_pack
 
 if TYPE_CHECKING:
