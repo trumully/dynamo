@@ -31,27 +31,26 @@ class ScheduledEventTransformer(app_commands.Transformer[Dynamo]):
             if result is not None:
                 return result
 
-        match value:
-            case str() as v if match := re.compile(ID_REGEX).match(v):
-                event_id = int(match.group(1))
-                result = guild.get_scheduled_event(event_id) if guild else None
-                if not result:
-                    for g in interaction.client.guilds:
-                        if result := g.get_scheduled_event(event_id):
-                            break
+        if match := re.compile(ID_REGEX).match(value):
+            event_id = int(match.group(1))
+            result = guild.get_scheduled_event(event_id) if guild else None
+            if not result:
+                for g in interaction.client.guilds:
+                    if result := g.get_scheduled_event(event_id):
+                        break
 
-            case str() as v if match := re.match(URL_REGEX, v, flags=re.I):
-                if guild := interaction.client.get_guild(int(match.group("guild_id"))):
-                    result = guild.get_scheduled_event(int(match.group("event_id")))
-                else:
-                    result = None
+        if match := re.match(URL_REGEX, value, flags=re.I):
+            if guild := interaction.client.get_guild(int(match.group("guild_id"))):
+                result = guild.get_scheduled_event(int(match.group("event_id")))
+            else:
+                result = None
 
-            case str() as name:
-                result = discord.utils.get(guild.scheduled_events, name=name) if guild else None
-                if not result:
-                    for g in interaction.client.guilds:
-                        if result := discord.utils.get(g.scheduled_events, name=name):
-                            break
+        else:
+            result = discord.utils.get(guild.scheduled_events, name=value) if guild else None
+            if not result:
+                for g in interaction.client.guilds:
+                    if result := discord.utils.get(g.scheduled_events, name=value):
+                        break
 
         if result is None:
             raise app_commands.TransformerError(value, self.type, self) from None

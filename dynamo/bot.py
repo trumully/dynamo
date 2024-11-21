@@ -188,7 +188,7 @@ class Dynamo(discord.AutoShardedClient):
 
     def is_blocked(self, user_id: int) -> bool:
         try:
-            is_blocked = self.block_cache[user_id]
+            blocked = self.block_cache[user_id]
         except KeyError:
             cursor = self.conn.cursor()
             row = cursor.execute(
@@ -201,6 +201,5 @@ class Dynamo(discord.AutoShardedClient):
                 (user_id,),
             ).fetchone()
             assert row is not None, "SELECT EXISTS top level query"
-            is_blocked: bool = row[0]
-            self.block_cache[user_id] = is_blocked
-        return is_blocked
+            self.block_cache[user_id] = blocked = row[0]
+        return blocked
