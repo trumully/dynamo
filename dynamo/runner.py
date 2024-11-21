@@ -45,9 +45,9 @@ def _run_bot(loop: asyncio.AbstractEventLoop) -> None:  # noqa: C901, PLR0915
     )
     session = aiohttp.ClientSession(connector=connector)
 
-    from .extensions import events, exec, identicon, info, tags
+    from .extensions import code_exec, events, identicon, info, tags
 
-    initial_exts: list[HasExports] = [events, exec, tags, identicon, info]
+    initial_exts: list[HasExports] = [events, code_exec, tags, identicon, info]
 
     from dynamo.bot import Dynamo
 
@@ -109,13 +109,11 @@ def _run_bot(loop: asyncio.AbstractEventLoop) -> None:  # noqa: C901, PLR0915
         for task in tasks:
             try:
                 if (exc := task.exception()) is not None:
-                    loop.call_exception_handler(
-                        {
-                            "message": "Unhandled exception in task during shutdown.",
-                            "exception": exc,
-                            "task": task,
-                        }
-                    )
+                    loop.call_exception_handler({
+                        "message": "Unhandled exception in task during shutdown.",
+                        "exception": exc,
+                        "task": task,
+                    })
             except (asyncio.InvalidStateError, asyncio.CancelledError):
                 pass
 

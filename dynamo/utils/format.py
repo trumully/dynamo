@@ -31,7 +31,7 @@ class Codeblock(NamedTuple):
         for char in content:
             if char == "`" and not in_code and not in_language:
                 backticks += 1
-            if buffer and buffer[-1] == "`" and char != "`" or in_code and "".join(buffer) != "`" * backticks:
+            if (buffer and buffer[-1] == "`" and char != "`") or (in_code and "".join(buffer) != "`" * backticks):
                 in_code = True
                 code.append(char)
             if char == "\n":

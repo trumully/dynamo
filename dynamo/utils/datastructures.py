@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from collections.abc import MutableMapping
 
 
-__all__ = ("Trie", "LRU")
+__all__ = ("LRU", "Trie")
 
 
 class TrieNode:

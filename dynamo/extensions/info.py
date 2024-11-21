@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import logging
+from functools import lru_cache
 from typing import TYPE_CHECKING, NamedTuple
 
 import discord
 from discord import app_commands
-from dynamo_utils.task_cache import task_cache
 
 from dynamo.types import BotExports
 from dynamo.utils import aura, spotify
@@ -21,8 +21,8 @@ class UserAssets(NamedTuple):
     banner: discord.Asset | None
 
 
-@task_cache(ttl=1800)
-async def fetch_user_assets(user: discord.Member | discord.User) -> UserAssets:
+@lru_cache(maxsize=128)
+def fetch_user_assets(user: discord.Member | discord.User) -> UserAssets:
     avatar = user.display_avatar.with_static_format("png")
     banner = user.banner.with_static_format("png") if user.banner else None
 
@@ -47,7 +47,7 @@ async def get_aura(itx: Interaction, user: discord.Member | discord.User) -> Non
     await itx.response.defer()
 
     fetched_user = await itx.client.fetch_user(user.id)
-    assets = await fetch_user_assets(fetched_user)
+    assets = fetch_user_assets(fetched_user)
 
     avatar_bytes = await assets.avatar.read()
     banner_bytes = await assets.banner.read() if assets.banner else None
