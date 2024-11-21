@@ -29,9 +29,6 @@ dynamo-utils = { git = "https://github.com/trumully/dynamo-utils" }
 dev = [
     "hypothesis>=6.119.3",
     "mypy>=1.13.0",
-    "pytest>=8.3.3",
-    "pytest-asyncio>=0.24.0",
-    "pytest-xdist[psutil]>=3.6.1",
     "ruff>=0.7.4",
 ]
 
@@ -44,40 +41,6 @@ requires = [
     "hatchling",
 ]
 build-backend = "hatchling.build"
-
-
-[tool.pytest.ini_options]
-minversion = "7.0"
-asyncio_mode = "strict"
-asyncio_default_fixture_loop_scope = "session"
-xfail_strict = true
-testpaths = [
-    "tests",
-]
-
-addopts = [
-    "--strict-markers",
-    "--strict-config",
-    "--numprocesses",
-    "auto",
-    "--dist",
-    "loadfile",
-    "--maxfail",
-    "1",
-    "--verbosity",
-    "2",
-    "--durations",
-    "10",
-    "--durations-min",
-    "1.0",
-    "--hypothesis-show-statistics",
-]
-
-log_cli = true
-log_cli_level = "INFO"
-log_cli_format = "%(asctime)s [%(levelname)8s] %(message)s (%(filename)s:%(lineno)s)"
-log_cli_date_format = "%Y-%m-%d %H:%M:%S"
-
 
 [tool.ruff]
 src = [

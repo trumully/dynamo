@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
-from typing import TYPE_CHECKING, Any, Literal, Self, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import discord
 import msgspec
@@ -156,7 +156,7 @@ class Dynamo(discord.AutoShardedClient):
     async def _update_last_seen(self, user_id: Sequence[int], /) -> None:
         await asyncio.to_thread(_last_seen_update, self.conn, user_id)
 
-    async def on_interaction(self, interaction: discord.Interaction[Self]) -> None:
+    async def on_interaction(self, interaction: discord.Interaction[Dynamo]) -> None:
         if not self.is_blocked(interaction.user.id):
             self._last_interaction_waterfall.put(interaction.user.id)
 
@@ -172,8 +172,8 @@ class Dynamo(discord.AutoShardedClient):
                 if rs := mapping.get(modal_name):
                     await rs.raw_submit(interaction, data)
 
-    def set_blocked(self, user_id: int, blocked: Literal[True, False]) -> None:
-        self.block_cache[user_id] = blocked
+    def set_blocked(self, user_id: int, *, is_blocked: bool) -> None:
+        self.block_cache[user_id] = is_blocked
         with self.conn:
             cursor = self.conn.cursor()
             cursor.execute(
@@ -183,28 +183,24 @@ class Dynamo(discord.AutoShardedClient):
                 ON CONFLICT (user_id)
                 DO UPDATE SET is_blocked=excluded.is_blocked
                 """,
-                (user_id, blocked),
+                (user_id, is_blocked),
             )
 
     def is_blocked(self, user_id: int) -> bool:
         try:
-            blocked = self.block_cache[user_id]
+            is_blocked = self.block_cache[user_id]
         except KeyError:
-            pass
-        else:
-            return blocked
-
-        cursor = self.conn.cursor()
-        row = cursor.execute(
-            """
-            SELECT EXISTS (
-                SELECT 1 FROM discord_users
-                WHERE user_id=? AND is_blocked LIMIT 1
-            );
-            """,
-            (user_id,),
-        ).fetchone()
-        assert row is not None, "SELECT EXISTS top level query"
-        is_blocked: bool = row[0]
-        self.block_cache[user_id] = is_blocked
+            cursor = self.conn.cursor()
+            row = cursor.execute(
+                """
+                SELECT EXISTS (
+                    SELECT 1 FROM discord_users
+                    WHERE user_id=? AND is_blocked LIMIT 1
+                );
+                """,
+                (user_id,),
+            ).fetchone()
+            assert row is not None, "SELECT EXISTS top level query"
+            is_blocked: bool = row[0]
+            self.block_cache[user_id] = is_blocked
         return is_blocked

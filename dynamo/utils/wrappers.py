@@ -5,7 +5,7 @@ from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from functools import wraps
 
-from dynamo.types import CoroFunction
+from dynamo.types import CoroFn
 
 log = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ def time_it(func_name: str) -> Generator[None]:
     log.debug("%s took %s seconds", func_name, f"{end - start:.2f}")
 
 
-def executor_function[**P, T](func: Callable[P, T]) -> CoroFunction[P, T]:
+def executor_function[**P, T](func: Callable[P, T]) -> CoroFn[P, T]:
     """Send sync function to thread."""
 
     @wraps(func)

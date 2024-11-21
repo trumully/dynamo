@@ -7,7 +7,7 @@ from discord import Interaction as InteractionD
 from discord import app_commands
 
 type Coro[T] = Coroutine[Any, Any, T]
-type CoroFunction[**P, T] = Callable[P, Coro[T]]
+type CoroFn[**P, T] = Callable[P, Coro[T]]
 
 
 class RawSubmittableCls(Protocol):

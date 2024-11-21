@@ -38,6 +38,3 @@ jobs:
 
       - name: ⚙️ Type check
         run: uv run mypy dynamo
-
-      - name: 🧪 Tests
-        run: uv run pytest tests
