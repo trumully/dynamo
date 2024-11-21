@@ -47,9 +47,3 @@ uv sync --all-extras --dev
 ```shell
 uv run dynamo --debug
 ```
-
-### Run tests
-
-```shell
-uv run pytest tests
-```
