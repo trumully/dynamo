@@ -34,10 +34,7 @@ def _run_bot(loop: asyncio.AbstractEventLoop) -> None:  # noqa: C901, PLR0915
     loop.set_task_factory(asyncio.eager_task_factory)
     asyncio.set_event_loop(loop)
 
-    # https://github.com/aio-libs/aiohttp/issues/8599
-    # https://github.com/mikeshardmind/salamander-reloaded
     connector = aiohttp.TCPConnector(
-        happy_eyeballs_delay=None,
         family=socket.AddressFamily.AF_INET,
         ttl_dns_cache=60,
         loop=loop,

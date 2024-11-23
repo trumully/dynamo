@@ -1,11 +1,8 @@
 import argparse
-import logging
 import os
 
 from dynamo.config import config
 from dynamo.runner import run_bot
-
-log = logging.getLogger(__name__)
 
 
 def main() -> None:
