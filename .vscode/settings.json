@@ -21,6 +21,9 @@
     "python.analysis.ignore": [
         "**/.venv/",
     ],
+    "python.analysis.diagnosticSeverityOverrides": {
+        "reportInvalidTypeForm": "none"
+    },
     // HACK: We're using ruff instead of flake8 and pylint,
     // so disable them in case they're installed.
     // It would be better to disable them entirely for this workspace,

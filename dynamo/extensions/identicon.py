@@ -12,16 +12,22 @@ from dynamo.types import BotExports
 from dynamo.utils.color import RGB
 from dynamo.utils.transformer import StringMemberTransformer
 
+type Seed = discord.User | discord.Member | str | int
+
+
+def _clean_seed(seed: Seed) -> Seed:
+    if isinstance(seed, str):
+        if seed.isdigit():
+            seed = int(seed)
+        elif (parsed := urlparse(seed)) and parsed.netloc:
+            seed = (parsed.netloc + parsed.path).replace("/", "-")
+    return seed
+
 
 async def _generate_identicon(
-    seed: discord.User | discord.Member | str | int, pattern_size: int, secondary_weight: float
+    seed: Seed, pattern_size: int, secondary_weight: float
 ) -> tuple[discord.Embed, discord.File]:
-    sanitised_seed = seed
-    if isinstance(sanitised_seed, str):
-        if sanitised_seed.isdigit():
-            sanitised_seed = int(sanitised_seed)
-        elif (parsed := urlparse(sanitised_seed)) and parsed.netloc:
-            sanitised_seed = (parsed.netloc + parsed.path).replace("/", "-")
+    sanitised_seed = _clean_seed(seed)
 
     name = sanitised_seed if isinstance(sanitised_seed, str | int) else sanitised_seed.display_name
     derived_seed = idt.derive_seed(name)
