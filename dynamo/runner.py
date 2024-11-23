@@ -109,11 +109,13 @@ def _run_bot(loop: asyncio.AbstractEventLoop) -> None:  # noqa: C901, PLR0915
         for task in tasks:
             try:
                 if (exc := task.exception()) is not None:
-                    loop.call_exception_handler({
-                        "message": "Unhandled exception in task during shutdown.",
-                        "exception": exc,
-                        "task": task,
-                    })
+                    loop.call_exception_handler(
+                        {
+                            "message": "Unhandled exception in task during shutdown.",
+                            "exception": exc,
+                            "task": task,
+                        }
+                    )
             except (asyncio.InvalidStateError, asyncio.CancelledError):
                 pass
 
