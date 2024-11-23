@@ -8,7 +8,7 @@ from discord.app_commands import Group, Transform
 from dynamo_utils.iterclose import process_async_iterable
 
 from dynamo.types import BotExports
-from dynamo.utils.transformer import ScheduledEventTransformer  # noqa: TCH001  we need this at runtime
+from dynamo.utils.transformer import ScheduledEventTransformer  # noqa: TC001  we need this at runtime
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
