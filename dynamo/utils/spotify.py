@@ -17,16 +17,25 @@ from dynamo.utils.wrappers import executor_function
 log = logging.getLogger(__name__)
 
 
-# Layout constants
-LAYOUT = {
-    "width": 800,
-    "height": 250,
-    "padding": 15,
-    "border": 0,
-    "album_size": 250,
-    "logo_size": 48,
-    "content_offset": 20,
-}
+class Layout(NamedTuple):
+    width: int
+    height: int
+    padding: int
+    border: int
+    album_size: int
+    logo_size: int
+    content_offset: int
+
+
+LAYOUT = Layout(
+    width=800,
+    height=250,
+    padding=15,
+    border=0,
+    album_size=250,
+    logo_size=48,
+    content_offset=20,
+)
 
 # Font sizes
 FONT_SIZES = {
@@ -38,16 +47,16 @@ FONT_SIZES = {
 SPOTIFY_LOGO_PATH = ROOT / "dynamo" / "assets" / "images" / "spotify.png"
 
 # Layout
-CONTENT_START_X: int = LAYOUT["album_size"] + LAYOUT["content_offset"]
-CONTENT_WIDTH: int = LAYOUT["width"] - CONTENT_START_X - LAYOUT["padding"] - LAYOUT["border"] - LAYOUT["logo_size"]
-TITLE_START_Y: int = LAYOUT["padding"]
+CONTENT_START_X: int = LAYOUT.album_size + LAYOUT.content_offset
+CONTENT_WIDTH: int = LAYOUT.width - CONTENT_START_X - LAYOUT.padding - LAYOUT.border - LAYOUT.logo_size
+TITLE_START_Y: int = LAYOUT.padding
 
 # Progress bar
 PROGRESS_BAR_START_X: int = CONTENT_START_X
-PROGRESS_BAR_WIDTH: int = LAYOUT["width"] - CONTENT_START_X - LAYOUT["padding"] - LAYOUT["border"] - 70
+PROGRESS_BAR_WIDTH: int = LAYOUT.width - CONTENT_START_X - LAYOUT.padding - LAYOUT.border - 70
 PROGRESS_BAR_HEIGHT: int = 6
-PROGRESS_BAR_Y: int = LAYOUT["height"] - LAYOUT["padding"] - LAYOUT["border"] - PROGRESS_BAR_HEIGHT - 30
-PROGRESS_TEXT_Y: int = LAYOUT["height"] - LAYOUT["padding"] - LAYOUT["border"] - 24
+PROGRESS_BAR_Y: int = LAYOUT.height - LAYOUT.padding - LAYOUT.border - PROGRESS_BAR_HEIGHT - 30
+PROGRESS_TEXT_Y: int = LAYOUT.height - LAYOUT.padding - LAYOUT.border - 24
 
 BASE_SLIDING_SPEED: int = 2
 MAX_SLIDING_SPEED: int = 10
@@ -95,7 +104,7 @@ def draw(activity: discord.Spotify, album: bytes) -> tuple[BytesIO, str]:
 
     title_font = get_font(activity.title, FONT_SIZES["title"], bold=True)
     artist_font = get_font(", ".join(activity.artists), FONT_SIZES["artist"])
-    spotify_logo = Image.open(SPOTIFY_LOGO_PATH).resize((LAYOUT["logo_size"], LAYOUT["logo_size"]))
+    spotify_logo = Image.open(SPOTIFY_LOGO_PATH).resize((LAYOUT.logo_size, LAYOUT.logo_size))
     static_args = StaticDrawArgs(
         artists=activity.artists,
         artist_font=artist_font,
@@ -127,7 +136,7 @@ def draw_static_image(
     artist_font: ImageFont.FreeTypeFont,
 ) -> tuple[BytesIO, str]:
     base_draw.text((CONTENT_START_X, TITLE_START_Y), activity.title, fill=(255, 255, 255), font=title_font)
-    spotify_logo = Image.open(SPOTIFY_LOGO_PATH).resize((LAYOUT["logo_size"], LAYOUT["logo_size"]))
+    spotify_logo = Image.open(SPOTIFY_LOGO_PATH).resize((LAYOUT.logo_size, LAYOUT.logo_size))
     static_args = StaticDrawArgs(activity.artists, artist_font, activity.duration, activity.end, spotify_logo)
     draw_static_elements(base_draw, base, static_args)
     return save_image(base, "PNG")
@@ -141,7 +150,7 @@ def draw_animated_image(
     available_width: int,
 ) -> tuple[BytesIO, str]:
     text_frames = list(draw_text_scroll(title_font, activity.title, available_width))
-    spotify_logo = Image.open(SPOTIFY_LOGO_PATH).resize((LAYOUT["logo_size"], LAYOUT["logo_size"]))
+    spotify_logo = Image.open(SPOTIFY_LOGO_PATH).resize((LAYOUT.logo_size, LAYOUT.logo_size))
     static_args = StaticDrawArgs(activity.artists, artist_font, activity.duration, activity.end, spotify_logo)
 
     frames = [create_frame(base, text_frame, static_args) for text_frame in text_frames]
@@ -185,7 +194,7 @@ def get_progress(end: datetime.datetime, duration: datetime.timedelta) -> float:
 
 
 def create_base_image(album: Image.Image) -> tuple[Image.Image, ImageDraw.ImageDraw]:
-    base = Image.new("RGBA", (LAYOUT["width"], LAYOUT["height"]))
+    base = Image.new("RGBA", (LAYOUT.width, LAYOUT.height))
     gradient = create_gradient_background(album)
     base.paste(gradient, (0, 0))
     base_draw = ImageDraw.Draw(base)
@@ -194,14 +203,14 @@ def create_base_image(album: Image.Image) -> tuple[Image.Image, ImageDraw.ImageD
 
 def create_gradient_background(album: Image.Image) -> Image.Image:
     # Resize and blur the album cover
-    blurred = album.copy().resize((LAYOUT["width"], LAYOUT["height"])).filter(ImageFilter.GaussianBlur(radius=30))
+    blurred = album.copy().resize((LAYOUT.width, LAYOUT.height)).filter(ImageFilter.GaussianBlur(radius=30))
 
     # Create a gradient overlay
-    gradient = Image.new("RGBA", (LAYOUT["width"], LAYOUT["height"]), (0, 0, 0, 0))
+    gradient = Image.new("RGBA", (LAYOUT.width, LAYOUT.height), (0, 0, 0, 0))
     draw = ImageDraw.Draw(gradient)
-    for y in range(LAYOUT["height"]):
-        alpha = int(255 * (1 - y / LAYOUT["height"]))
-        draw.line([(0, y), (LAYOUT["width"], y)], fill=(0, 0, 0, alpha))
+    for y in range(LAYOUT.height):
+        alpha = int(255 * (1 - y / LAYOUT.height))
+        draw.line([(0, y), (LAYOUT.width, y)], fill=(0, 0, 0, alpha))
 
     # Composite the blurred image and gradient
     blurred = Image.alpha_composite(blurred.convert("RGBA"), gradient)
@@ -212,8 +221,8 @@ def create_gradient_background(album: Image.Image) -> Image.Image:
 
 
 def paste_album_cover(base: Image.Image, album_image: Image.Image) -> None:
-    album_resized = album_image.resize((LAYOUT["album_size"], LAYOUT["album_size"]))
-    base.paste(album_resized, (LAYOUT["border"], LAYOUT["border"]))
+    album_resized = album_image.resize((LAYOUT.album_size, LAYOUT.album_size))
+    base.paste(album_resized, (LAYOUT.border, LAYOUT.border))
 
 
 def draw_static_elements(draw: ImageDraw.ImageDraw, image: Image.Image, args: StaticDrawArgs) -> None:
@@ -231,8 +240,8 @@ def draw_static_elements(draw: ImageDraw.ImageDraw, image: Image.Image, args: St
     image.paste(
         args.spotify_logo,
         (
-            LAYOUT["width"] - LAYOUT["logo_size"] - LAYOUT["padding"] - LAYOUT["border"],
-            LAYOUT["padding"] + LAYOUT["border"],
+            LAYOUT.width - LAYOUT.logo_size - LAYOUT.padding - LAYOUT.border,
+            LAYOUT.padding + LAYOUT.border,
         ),
         args.spotify_logo,
     )

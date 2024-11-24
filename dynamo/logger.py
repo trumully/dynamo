@@ -88,13 +88,8 @@ def with_logging(log_level: int = logging.INFO) -> Generator[None]:
     q_handler.addFilter(KnownWarningFilter())
     stream_handler = logging.StreamHandler()
 
-    log_path = resolve_folder_with_links(platformdir.user_log_path)
-    log_location = log_path / "dynamo.log"
-    rotating_file_handler = logging.handlers.RotatingFileHandler(
-        log_location,
-        maxBytes=2_000_000,
-        backupCount=5,
-    )
+    log_location = resolve_folder_with_links(platformdir.user_log_path) / "dynamo.log"
+    rotating_file_handler = logging.handlers.RotatingFileHandler(log_location, maxBytes=2_000_000, backupCount=5)
 
     if use_color_formatting(sys.stderr):
         stream_handler.setFormatter(AnsiFormatter())
