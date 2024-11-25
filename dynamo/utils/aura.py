@@ -4,7 +4,7 @@ import re
 
 import aiohttp
 import numpy as np
-from dynamo_utils.task_cache import task_cache
+from dynamo_utils.task_cache import lru_task_cache
 
 from dynamo.utils.color import RGB, color_palette_from_image, filter_similar_colors
 
@@ -181,7 +181,7 @@ async def get_palette_description(palette: list[tuple[RGB, float]], session: aio
     return re.sub(r"[^\w\s]", "", raw_response).strip().lower()
 
 
-@task_cache(ttl=3600)
+@lru_task_cache(maxsize=128, ttl=3600)
 async def get_aura(avatar: bytes, banner: bytes | None, session: aiohttp.ClientSession) -> tuple[float, str]:
     """Analyze the aura of a user's avatar and banner."""
     # Extract colors with prominence

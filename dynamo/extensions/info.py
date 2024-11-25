@@ -84,9 +84,10 @@ async def get_spotify(itx: Interaction, user: discord.Member | discord.User) -> 
         return
 
     album_cover = await spotify.fetch_album_cover(spotify_activity.album_cover_url, itx.client.session)
-    if album_cover is None:
-        await itx.response.send_message("Something went wrong while fetching the album cover. Try again.")
+    if not isinstance(album_cover, bytes):
+        msg = "Bad response code" if album_cover is spotify.HTTP_ERROR else "Error fetching album cover"
         spotify.fetch_album_cover.cache_discard(spotify_activity.album_cover_url, itx.client.session)
+        await itx.response.send_message(msg)
         return
 
     buffer, extension = await spotify.draw(spotify_activity, album_cover)

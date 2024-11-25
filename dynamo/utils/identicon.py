@@ -5,7 +5,7 @@ from io import BytesIO
 from typing import TYPE_CHECKING
 
 import numpy as np
-from dynamo_utils.task_cache import task_cache
+from dynamo_utils.task_cache import lru_task_cache
 from PIL import Image
 
 from dynamo.utils.color import RGB
@@ -50,7 +50,7 @@ def make_identicon(seed: int, pattern_size: int = 6, secondary_weight: float = 0
 IDENTICON_SIZE = 256
 
 
-@task_cache
+@lru_task_cache
 @executor_function
 def get_identicon(seed: int, pattern_size: int, secondary_weight: float) -> bytes:
     """Get an identicon as bytes."""

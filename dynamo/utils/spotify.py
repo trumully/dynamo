@@ -7,7 +7,8 @@ from typing import Any, NamedTuple
 
 import aiohttp
 import discord
-from dynamo_utils.task_cache import task_cache
+from dynamo_utils.sentinel import Sentinel
+from dynamo_utils.task_cache import lru_task_cache
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 from dynamo.utils.format import FONTS, human_join, is_cjk
@@ -296,28 +297,19 @@ def create_text_frame(text: str, width: int, height: int, font: ImageFont.FreeTy
     return frame
 
 
-@task_cache
-async def fetch_album_cover(url: str, session: aiohttp.ClientSession) -> bytes | None:
-    """Fetch album cover from a URL.
+HTTP_ERROR = Sentinel("HTTP_ERROR")
+RESPONSE_ERROR = Sentinel("RESPONSE_ERROR")
 
-    Parameters
-    ----------
-    url : str
-        The URL of the album cover
-    session : aiohttp.ClientSession
-        The aiohttp session to use for the request
 
-    Returns:
-    -------
-    bytes | None
-        The album cover as bytes, or None if the fetch failed
-    """
+@lru_task_cache(maxsize=128)
+async def fetch_album_cover(url: str, session: aiohttp.ClientSession) -> bytes | Sentinel:
     try:
         async with session.get(url) as response:
             if response.status == 200:  # noqa: PLR2004
                 return await response.read()
             log.warning("Failed to fetch album cover: %s", response.status)
+            return HTTP_ERROR
     except aiohttp.ClientResponseError:
         log.exception("Error fetching album cover: %s", url)
 
-    return None
+    return RESPONSE_ERROR
