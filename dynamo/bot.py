@@ -3,12 +3,13 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Self, cast, override
 
 import discord
 import msgspec
 import xxhash
 from discord import InteractionType, app_commands
+from dynamo_utils.task_cache import task_cache
 from dynamo_utils.waterfall import Waterfall
 
 from dynamo.utils.datastructures import LRU
@@ -20,7 +21,7 @@ if TYPE_CHECKING:
     import aiohttp
     import apsw
 
-    from dynamo.types import HasExports, RawSubmittable
+    from dynamo.typedefs import HasExports, RawSubmittable
 
 log = logging.getLogger(__name__)
 
@@ -48,7 +49,7 @@ class DynamoTree(app_commands.CommandTree["Dynamo"]):
     """Versionable and mentionable command tree."""
 
     @classmethod
-    def from_dynamo(cls: type[DynamoTree], client: Dynamo) -> DynamoTree:
+    def from_dynamo(cls: type[Self], client: Dynamo) -> Self:
         installs = app_commands.AppInstallationType(user=False, guild=True)
         contexts = app_commands.AppCommandContext(dm_channel=True, guild=True, private_channel=True)
         return cls(
@@ -58,6 +59,7 @@ class DynamoTree(app_commands.CommandTree["Dynamo"]):
             allowed_installs=installs,
         )
 
+    @override
     async def interaction_check(self, interaction: Interaction) -> bool:
         if is_blocked := interaction.client.is_blocked(interaction.user.id):
             response = interaction.response
@@ -104,13 +106,10 @@ class Dynamo(discord.AutoShardedClient):
 
         self._last_interaction_waterfall = Waterfall(10, 100, self._update_last_seen)
 
-    @property
-    def owner(self) -> discord.User:
-        return self.bot_app_info.owner
-
-    @property
-    def user(self) -> discord.ClientUser:
-        return cast(discord.ClientUser, super().user)
+    @task_cache(3600)
+    async def cachefetch_priority_ids(self) -> set[int]:
+        app_info = await self.application_info()
+        return {(owner := app_info.owner.id)} if not (team := app_info.team) else {owner, *(t.id for t in team.members)}
 
     async def start(self, token: str, *, reconnect: bool = True) -> None:
         self._last_interaction_waterfall.start()
@@ -151,7 +150,7 @@ class Dynamo(discord.AutoShardedClient):
     async def _update_last_seen(self, user_id: Sequence[int], /) -> None:
         await asyncio.to_thread(_last_seen_update, self.conn, user_id)
 
-    async def on_interaction(self, interaction: discord.Interaction[Dynamo]) -> None:
+    async def on_interaction(self, interaction: discord.Interaction[Self]) -> None:
         if not self.is_blocked(interaction.user.id):
             self._last_interaction_waterfall.put(interaction.user.id)
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import operator
 from contextlib import contextmanager
 from io import BytesIO
 from typing import TYPE_CHECKING, NamedTuple
@@ -151,7 +152,8 @@ def color_palette_from_image(image: bytes, n: int = 20, *, iterations: int = 50)
 
     for _ in range(iterations):
         pixel_assignments: npt.NDArray[np.int32] = np.argmin(
-            ((valid_pixels[:, np.newaxis] - centroids) ** 2).sum(axis=2), axis=1
+            ((valid_pixels[:, np.newaxis] - centroids) ** 2).sum(axis=2),
+            axis=1,
         )
 
         if np.array_equal(prev_assignments, pixel_assignments):
@@ -199,7 +201,7 @@ def filter_similar_colors(
         min_prominence: Colors less prominent than this are filtered out
     """
     # Sort by prominence
-    sorted_colors = sorted(colors, key=lambda x: x[1], reverse=True)
+    sorted_colors = sorted(colors, key=operator.itemgetter(1), reverse=True)
     filtered: list[tuple[RGB, float]] = []
 
     for color, prominence in sorted_colors:

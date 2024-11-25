@@ -22,12 +22,12 @@ from dynamo.utils.helper import platformdir
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from dynamo.types import HasExports
+    from dynamo.typedefs import HasExports
 
 log = logging.getLogger(__name__)
 
 
-def _run_bot(loop: asyncio.AbstractEventLoop) -> None:  # noqa: C901, PLR0915
+def _run_bot(loop: asyncio.AbstractEventLoop) -> None:  # noqa: PLR0915
     db_path = platformdir.user_data_path / "dynamo.db"
     conn = apsw.Connection(str(db_path))
 
@@ -111,7 +111,7 @@ def _run_bot(loop: asyncio.AbstractEventLoop) -> None:  # noqa: C901, PLR0915
                             "message": "Unhandled exception in task during shutdown.",
                             "exception": exc,
                             "task": task,
-                        }
+                        },
                     )
             except (asyncio.InvalidStateError, asyncio.CancelledError):
                 pass

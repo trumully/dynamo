@@ -45,7 +45,7 @@ def _check_by_guilds(interaction: Interaction, value: Any, /) -> discord.Schedul
 
 
 def _check_by_url(interaction: Interaction, value: Any, /) -> discord.ScheduledEvent | None:
-    if match := re.match(URL_REGEX, value, flags=re.I):
+    if match := re.match(URL_REGEX, value, flags=re.IGNORECASE):
         fetch_guild = interaction.client.get_guild(int(match.group("guild_id")))
         if fetch_guild is not None:
             return fetch_guild.get_scheduled_event(int(match.group("event_id")))
@@ -79,7 +79,7 @@ class ScheduledEventTransformer(app_commands.Transformer[Dynamo]):
 
 
 class StringMemberTransformer(app_commands.Transformer[Dynamo]):
-    async def transform(self, interaction: Interaction, value: Any, /) -> discord.User | discord.Member | str:  # noqa: ARG002
+    async def transform(self, interaction: Interaction, value: Any, /) -> discord.User | discord.Member | str:
         if not isinstance(value, discord.Member | discord.User | str):
             raise app_commands.TransformerError(value, self.type, self)
         return value

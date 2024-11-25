@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, NamedTuple
 import discord
 from discord import app_commands
 
-from dynamo.types import BotExports
+from dynamo.typedefs import BotExports
 from dynamo.utils import aura, spotify
 
 if TYPE_CHECKING:

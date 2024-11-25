@@ -5,7 +5,7 @@ from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from functools import wraps
 
-from dynamo.types import CoroFn
+from dynamo.typedefs import CoroFn
 
 log = logging.getLogger(__name__)
 

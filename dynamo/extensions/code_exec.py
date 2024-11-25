@@ -14,7 +14,8 @@ from base2048 import decode
 from discord import app_commands
 from msgspec import msgpack
 
-from dynamo.types import BotExports, RawSubmittable
+from dynamo.typedefs import BotExports, RawSubmittable
+from dynamo.utils.check import is_in_team
 from dynamo.utils.format import Codeblock
 from dynamo.utils.helper import b2048_pack
 from dynamo.utils.scripting import MAX_OUTPUT_LENGTH_CHARS, ExecutionError, execute_script
@@ -42,14 +43,19 @@ class ExecModal(discord.ui.Modal):
     )
 
     def __init__(
-        self, *, title: str = "Execute Python Code", timeout: float | None = 300, author_id: int, salt: int
+        self,
+        *,
+        title: str = "Execute Python Code",
+        timeout: float | None = 300,
+        author_id: int,
+        salt: int,
     ) -> None:
         _id = b2048_pack((author_id, salt))
         custom_id = f"m:exec:{_id}"
         super().__init__(title=title, timeout=timeout, custom_id=custom_id)
 
     @staticmethod
-    async def raw_submit(itx: Interaction, data: str) -> None:  # noqa: C901
+    async def raw_submit(itx: Interaction, data: str) -> None:
         assert itx.data
 
         try:
@@ -106,7 +112,7 @@ class ExecModal(discord.ui.Modal):
 
 
 @app_commands.command()
-@app_commands.check(lambda itx: itx.user.id == itx.client.owner_id)
+@app_commands.check(is_in_team)
 async def execute(itx: Interaction) -> None:
     """Open the code execution modal."""
     assert itx.user.id == itx.client.owner_id, "Nope."

@@ -8,7 +8,7 @@ from discord.app_commands.transformers import Transform
 
 import dynamo.utils.identicon as idt
 from dynamo.bot import Interaction
-from dynamo.types import BotExports
+from dynamo.typedefs import BotExports
 from dynamo.utils.color import RGB
 from dynamo.utils.transformer import StringMemberTransformer
 
@@ -57,7 +57,7 @@ async def get_identicon(
     seed: Transform[discord.Member | discord.User | str, StringMemberTransformer] | None = None,
     pattern_size: Range[int, 1, 32] = 6,
     secondary_color_weight: Range[float, 0, 1] = 0.6,
-    ephemeral: bool = False,  # noqa: FBT001 FBT002
+    ephemeral: bool = False,
 ) -> None:
     """Get an identicon generated with a seed."""
     final_seed = seed or itx.id

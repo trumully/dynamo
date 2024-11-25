@@ -1,5 +1,6 @@
 import itertools
 import logging
+import operator
 import re
 
 import aiohttp
@@ -21,38 +22,30 @@ def get_harmony_score(colors: list[tuple[RGB, float]]) -> float:
     def detect_color_theme() -> float:
         """Detect if colors follow a specific harmony pattern."""
         # Convert colors to HSV for easier theme detection
-        hsv_colors = [RGB.as_hsv(*color) for color in rgb_colors]
+        hsv_colors = list(itertools.starmap(RGB.as_hsv, rgb_colors))
 
         # Check for common color schemes
         scores: list[tuple[str, float]] = []
 
         # Monochromatic: similar hue, varying saturation/value
         hue_variance: float = float(np.std([h for h, *_ in hsv_colors]))
-        scores.append(("monochromatic", 1.0 - min(hue_variance / 30, 1.0)))
-
-        # Analogous: adjacent hues (within 30 degrees)
         hue_diffs = [
             abs(hsv_colors[i][0] - hsv_colors[j][0]) for i, j in itertools.combinations(range(len(hsv_colors)), 2)
         ]
-        scores.append(("analogous", sum(1.0 for diff in hue_diffs if diff <= 30) / len(hue_diffs)))  # noqa: PLR2004
-
-        # Complementary: opposite hues (180 ± 30 degrees)
-        scores.append(("complementary", sum(1.0 for diff in hue_diffs if 150 <= diff <= 210) / len(hue_diffs)))  # noqa: PLR2004
-
-        # Split-complementary: one hue and two colors adjacent to its complement
-        scores.append(
+        scores.extend([
+            ("monochromatic", 1.0 - min(hue_variance / 30, 1.0)),
+            ("analogous", sum(1.0 for diff in hue_diffs if diff <= 30) / len(hue_diffs)),  # noqa: PLR2004
+            ("complementary", sum(1.0 for diff in hue_diffs if 150 <= diff <= 210) / len(hue_diffs)),  # noqa: PLR2004
             (
                 "split-complementary",
                 sum(1.0 for diff in hue_diffs if 150 <= diff <= 210 or 120 <= diff <= 150 or 210 <= diff <= 240)  # noqa: PLR2004
                 / len(hue_diffs),
-            )
-        )
-
-        # Triadic: three colors evenly spaced (120 ± 15 degrees)
-        scores.append(("triadic", sum(1.0 for diff in hue_diffs if 105 <= diff <= 135) / len(hue_diffs)))  # noqa: PLR2004
+            ),
+            ("triadic", sum(1.0 for diff in hue_diffs if 105 <= diff <= 135) / len(hue_diffs)),  # noqa: PLR2004
+        ])
 
         # Get the best matching theme and its score
-        best_theme, best_score = max(scores, key=lambda x: x[1])
+        best_theme, best_score = max(scores, key=operator.itemgetter(1))
         log.debug("Color theme detected: %s (score: %.2f)", best_theme, best_score)
 
         return best_score
@@ -110,7 +103,7 @@ async def extract_colors(image: bytes) -> list[tuple[RGB, float]]:
 
 
 async def get_palette_description(palette: list[tuple[RGB, float]], session: aiohttp.ClientSession) -> str:
-    sorted_palette = sorted(palette, key=lambda x: x[1], reverse=True)
+    sorted_palette = sorted(palette, key=operator.itemgetter(1), reverse=True)
     color_info = [
         f"{RGB.as_hex(*color)} ({prominence:.1%})"
         for color, prominence in sorted_palette[:6]  # Show top 6 colors

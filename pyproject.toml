@@ -48,46 +48,58 @@ src = [
 ]
 target-version = "py313"
 line-length = 120
+preview = true
 
 
 [tool.ruff.lint]
 select = [
-    "A", "B", "C", "E", "D", "F", "G", "I",
-    "N", "Q", "S", "T", "W", "ARG", "BLE",
-    "DJ", "DTZ", "EM", "ERA", "EXE", "FBT",
-    "ICN", "INP", "ISC", "NPY", "PGH", "PIE", "PERF",
-    "PL", "PT", "PTH", "PYI", "RET", "RSE", "RUF",
-    "SIM", "SLF", "TCH", "TID", "TRY", "UP", "YTT",
+    "A", "ANN", "ASYNC", "B", "BLE", "C4", "COM", "DTZ", "E",
+    "EM", "ERA", "F", "FA", "FURB", "G", "I", "INP", "ISC", "NPY",
+    "PD", "PERF", "PGH", "PIE", "PLC", "PLE", "PLR", "PLW", "PTH", "PYI",
+    "Q", "Q003", "RET", "RSE", "RUF", "S", "SIM", "SLOT", "T20", "TC", "TID",
+    "TRY", "UP", "YTT"
 ]
 
 ignore = [
-    # Well named items don't need docstrings
-    "D1",
-
-    # Black handles this
-    "E501",
-
-    # A bit too opinionated
-    "RET504",
+    "ANN401",  # Any is correct in some cases
+    "D1",  # Well named items don't need docstrings
+    "E501",  # Ruff handles this 
+    "RET504",  # A bit too opinionated 
     "RET505",
     "RET506",
     "RET507",
     "RET508",
-
-    # Allow assert
-    "S101",
-
-    # Allow commented out code
-    "ERA001",
+    "RUF029",  # Some interfaces need an async method
+    "S101",  # Allow assert
+    "ERA001",  # Allow commented out code
+    "PLC0415",  # Top-of-file imports are not always best
 ]
 
 unfixable = [
     "F841", # I'm planning to use it
 ]
 
-per-file-ignores = { "tests/*" = ["PLR2004"] }
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = [
+    "PLR2004",
+]
 
-pydocstyle = { "convention" = "google", "ignore-decorators" = ["typing.overload"] }
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+"ignore-decorators" = [
+    "typing.overload",
+]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+# https://discuss.python.org/t/problems-with-typeis/55410/6
+# https://discuss.python.org/t/problems-with-typeis/55410/46
+# Until what can go into a TypeIs/TypeGuard changes, these are just dangerous.
+
+"typing.TypeIs".msg = "TypeIs is fundamentally unsafe, even when using it as described to be safe"
+"typing.TypeGuard".msg = "TypeGuard is fundamentally unsafe"
+"typing_extensions.TypeIs".msg = "TypeIs is fundamentally unsafe, even when using it as described to be safe"
+"typing_extensions.TypeGuard".msg = "TypeGuard is fundamentally unsafe"
+
 
 [tool.mypy]
 plugins = [

@@ -42,7 +42,9 @@ def make_identicon(seed: int, pattern_size: int = 6, secondary_weight: float = 0
     rng = np.random.default_rng(seed=seed)
     primary, secondary = get_colors(seed)
     pattern = rng.choice(
-        [primary, secondary], size=(pattern_size * 2, pattern_size), p=[secondary_weight, 1 - secondary_weight]
+        [primary, secondary],
+        size=(pattern_size * 2, pattern_size),
+        p=[secondary_weight, 1 - secondary_weight],
     )
     return np.hstack((pattern, np.fliplr(pattern)))
 

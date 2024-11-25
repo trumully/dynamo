@@ -7,7 +7,7 @@ from discord import app_commands
 from discord.app_commands import Group, Transform
 from dynamo_utils.iterclose import process_async_iterable
 
-from dynamo.types import BotExports
+from dynamo.typedefs import BotExports
 from dynamo.utils.transformer import ScheduledEventTransformer  # noqa: TC001  we need this at runtime
 
 if TYPE_CHECKING:
@@ -43,7 +43,7 @@ events_group = Group(name="event", description="Event related commands")
 async def event_interested(
     itx: Interaction,
     event: Transform[discord.ScheduledEvent, ScheduledEventTransformer],
-    ephemeral: bool = False,  # noqa: FBT001 FBT002
+    ephemeral: bool = False,
 ) -> None:
     """Get attendees of an event."""
     await itx.response.defer(ephemeral=ephemeral)

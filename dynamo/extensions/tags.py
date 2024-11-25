@@ -8,7 +8,7 @@ from discord import app_commands
 from discord.app_commands import Choice, Group, Range
 from msgspec import msgpack
 
-from dynamo.types import BotExports, RawSubmittable
+from dynamo.typedefs import BotExports, RawSubmittable
 from dynamo.utils.datastructures import LRU, Trie
 from dynamo.utils.helper import b2048_pack
 

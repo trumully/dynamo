@@ -85,13 +85,18 @@ class StaticDrawArgs(NamedTuple):
 
 
 def make_embed(
-    user: discord.Member | discord.User, activity: discord.Spotify, image: BytesIO, emoji: str, *, ext: str
+    user: discord.Member | discord.User,
+    activity: discord.Spotify,
+    image: BytesIO,
+    emoji: str,
+    *,
+    ext: str,
 ) -> tuple[discord.Embed, discord.File]:
     """Make an embed for the currently playing Spotify track."""
     filename = f"spotify-card.{ext}"
     track = f"[{activity.title}](<{activity.track_url}>)"
     file = discord.File(image, filename=filename)
-    description = f"{user.mention} is listening to **{track}** by **{human_join(activity.artists, conjunction="and")}**"
+    description = f"{user.mention} is listening to **{track}** by **{human_join(activity.artists, conjunction='and')}**"
     embed = discord.Embed(title=f"{emoji} Now Playing", description=description, color=activity.color)
     embed.set_image(url=f"attachment://{filename}")
     return embed, file
@@ -185,7 +190,7 @@ def track_duration(seconds: int) -> str:
     """Convert a track duration in seconds to a string."""
     minutes, seconds = divmod(seconds, 60)
     hours, minutes = divmod(minutes, 60)
-    return f"{f"{hours}:" if hours else ""}{minutes:02d}:{seconds:02d}"
+    return f"{f'{hours}:' if hours else ''}{minutes:02d}:{seconds:02d}"
 
 
 def get_progress(end: datetime.datetime, duration: datetime.timedelta) -> float:
@@ -251,7 +256,8 @@ def draw_static_elements(draw: ImageDraw.ImageDraw, image: Image.Image, args: St
 def draw_track_bar(draw: ImageDraw.ImageDraw, progress: float, duration: datetime.timedelta) -> None:
     duration_width = PROGRESS_BAR_START_X + PROGRESS_BAR_WIDTH
     progress_width = max(
-        PROGRESS_BAR_START_X, min(duration_width, PROGRESS_BAR_START_X + (PROGRESS_BAR_WIDTH * progress))
+        PROGRESS_BAR_START_X,
+        min(duration_width, PROGRESS_BAR_START_X + (PROGRESS_BAR_WIDTH * progress)),
     )
 
     draw.rectangle(
@@ -279,7 +285,8 @@ def draw_text_scroll(font: ImageFont.FreeTypeFont, text: str, width: int) -> lis
     padded_text = f"{text}   {text}"
     full_width = font.getbbox(padded_text)[2]
     sliding_speed = min(
-        MAX_SLIDING_SPEED, max(BASE_SLIDING_SPEED, full_width // (TOTAL_ANIMATION_TIME // MIN_FRAME_DURATION))
+        MAX_SLIDING_SPEED,
+        max(BASE_SLIDING_SPEED, full_width // (TOTAL_ANIMATION_TIME // MIN_FRAME_DURATION)),
     )
     num_frames = int(min(TOTAL_ANIMATION_TIME // MIN_FRAME_DURATION, full_width // sliding_speed))
 
