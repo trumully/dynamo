@@ -113,4 +113,7 @@ async def execute(itx: Interaction) -> None:
     await itx.response.send_modal(ExecModal(author_id=itx.user.id, salt=itx.id))
 
 
-exports = BotExports([execute], {"exec": cast(type[RawSubmittable], ExecModal)})
+exports = BotExports(
+    commands=[execute],
+    raw_modal_submits={"exec": cast(type[RawSubmittable], ExecModal)},
+)

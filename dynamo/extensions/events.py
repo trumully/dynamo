@@ -62,4 +62,6 @@ async def event_interested_error(itx: Interaction, error: app_commands.AppComman
         raise error from None
 
 
-exports = BotExports([events_group])
+exports = BotExports(
+    commands=[events_group],
+)

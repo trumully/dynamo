@@ -15,31 +15,31 @@ from dynamo.utils.transformer import StringMemberTransformer
 type Seed = discord.User | discord.Member | str | int
 
 
-def _clean_seed(seed: Seed) -> Seed:
-    if isinstance(seed, str):
-        if seed.isdigit():
-            seed = int(seed)
-        elif (parsed := urlparse(seed)) and parsed.netloc:
-            seed = (parsed.netloc + parsed.path).replace("/", "-")
+def _clean_seed(seed: Seed) -> str | int:
+    if isinstance(seed, discord.User | discord.Member):
+        return seed.id
+
+    if str(seed).isdigit():
+        return int(seed)
+
+    if (parsed := urlparse(str(seed))) and parsed.netloc:
+        return (parsed.netloc + parsed.path).replace("/", "-")
+
     return seed
 
 
-async def _generate_identicon(
-    seed: Seed, pattern_size: int, secondary_weight: float
-) -> tuple[discord.Embed, discord.File]:
-    sanitised_seed = _clean_seed(seed)
+async def _generate_identicon(seed: Seed, pattern_size: int, weight: float) -> tuple[discord.Embed, discord.File]:
+    clean_seed = _clean_seed(seed)
 
-    name = sanitised_seed if isinstance(sanitised_seed, str | int) else sanitised_seed.display_name
-    derived_seed = idt.derive_seed(name)
+    name = seed.display_name if isinstance(seed, discord.Member | discord.User) else clean_seed
+    derived_seed = idt.derive_seed(clean_seed)
 
-    identicon: bytes = await idt.get_identicon(derived_seed, pattern_size, secondary_weight)
+    identicon: bytes = await idt.get_identicon(derived_seed, pattern_size, weight)
     file = discord.File(BytesIO(identicon), filename="identicon.png")
     primary, secondary = idt.get_colors(derived_seed)
-    p_hex, s_hex = RGB.as_hex(*primary), RGB.as_hex(*secondary)
 
-    description = (
-        f"Pattern size: {pattern_size}\nSecondary color weight: {secondary_weight:.2f}\nColors: `{p_hex}` | `{s_hex}`"
-    )
+    p_hex, s_hex = RGB.as_hex(*primary), RGB.as_hex(*secondary)
+    description = f"Pattern size: {pattern_size}\nSecondary color weight: {weight:.2f}\nColors: `{p_hex}` | `{s_hex}`"
     embed = discord.Embed(title=name, description=description, color=primary.as_discord_color())
     embed.set_image(url="attachment://identicon.png")
     return embed, file
@@ -72,4 +72,6 @@ async def identicon_context_menu(itx: Interaction, user: discord.Member | discor
     await itx.response.send_message(embed=embed, file=file, ephemeral=True)
 
 
-exports = BotExports([get_identicon, identicon_context_menu])
+exports = BotExports(
+    commands=[get_identicon, identicon_context_menu],
+)

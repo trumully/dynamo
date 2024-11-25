@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 import discord
 from base2048 import decode
+from discord import app_commands
 from discord.app_commands import Choice, Group, Range
 from msgspec import msgpack
 
@@ -92,27 +93,17 @@ tag_group = Group(name="tag", description="Tag related commands")
 
 
 @tag_group.command(name="create")
+@app_commands.describe(name="The name of the tag to create")
 async def tag_create(itx: Interaction, name: Range[str, 1, 20]) -> None:
-    """Create a tag.
-
-    Parameters
-    ----------
-    name : Range[str, 1, 20]
-        Name of the tag
-    """
+    """Create a tag."""
     modal = TagModal(tag_name=name, author_id=itx.user.id)
     await itx.response.send_modal(modal)
 
 
 @tag_group.command(name="get")
+@app_commands.describe(name="The name of the tag to get")
 async def tag_get(itx: Interaction, name: Range[str, 1, 20]) -> None:
-    """Get a tag.
-
-    Parameters
-    ----------
-    name : Range[str, 1, 20]
-        Name of the tag
-    """
+    """Get a tag."""
     conn: Connection = itx.client.conn
     cursor = conn.cursor()
     row = cursor.execute(
@@ -131,14 +122,9 @@ async def tag_get(itx: Interaction, name: Range[str, 1, 20]) -> None:
 
 
 @tag_group.command(name="delete")
+@app_commands.describe(name="The name of the tag to delete")
 async def tag_delete(itx: Interaction, name: Range[str, 1, 20]) -> None:
-    """Delete a tag.
-
-    Parameters
-    ----------
-    name : Range[str, 1, 20]
-        Name of the tag
-    """
+    """Delete a tag."""
     await itx.response.defer(ephemeral=True)
     conn: Connection = itx.client.conn
     cursor = conn.cursor()
@@ -173,4 +159,7 @@ async def tag_autocomplete(itx: Interaction, current: str) -> list[Choice[str]]:
     return [Choice(name=match, value=match) for match in matches]
 
 
-exports = BotExports([tag_group], {"tag": cast(type[RawSubmittable], TagModal)})
+exports = BotExports(
+    commands=[tag_group],
+    raw_modal_submits={"tag": cast(type[RawSubmittable], TagModal)},
+)

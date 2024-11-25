@@ -73,21 +73,21 @@ async def get_spotify(itx: Interaction, user: discord.Member | discord.User) -> 
     """Get the Spotify status of a user."""
     assert itx.guild is not None
 
-    member: discord.Member | None = itx.guild.get_member(user.id)
-    if member is None:
-        await itx.response.send_message("The user is not in the server", ephemeral=True)
+    if (member := itx.guild.get_member(user.id)) is None:
+        await itx.response.send_message("That user is not in this guild.", ephemeral=True)
         return
 
     spotify_activity = next((act for act in member.activities if isinstance(act, discord.Spotify)), None)
     if spotify_activity is None:
-        await itx.response.send_message("The user is not listening to Spotify", ephemeral=True)
+        prefix = "You are" if user is itx.user else f"{user!s} is"
+        await itx.response.send_message(f"{prefix} not listening to Spotify.", ephemeral=True)
         return
 
     album_cover = await spotify.fetch_album_cover(spotify_activity.album_cover_url, itx.client.session)
     if not isinstance(album_cover, bytes):
-        msg = "Bad response code" if album_cover is spotify.HTTP_ERROR else "Error fetching album cover"
+        msg = "Bad response code." if album_cover is spotify.HTTP_ERROR else "Error fetching album cover."
         spotify.fetch_album_cover.cache_discard(spotify_activity.album_cover_url, itx.client.session)
-        await itx.response.send_message(msg)
+        await itx.response.send_message(msg, ephemeral=True)
         return
 
     buffer, extension = await spotify.draw(spotify_activity, album_cover)
@@ -96,4 +96,6 @@ async def get_spotify(itx: Interaction, user: discord.Member | discord.User) -> 
     await itx.response.send_message(embed=embed, file=file)
 
 
-exports = BotExports([user_avatar, get_aura, get_spotify])
+exports = BotExports(
+    commands=[user_avatar, get_aura, get_spotify],
+)
