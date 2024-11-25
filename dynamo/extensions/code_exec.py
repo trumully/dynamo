@@ -112,7 +112,7 @@ class ExecModal(discord.ui.Modal):
 
 
 @app_commands.command()
-@app_commands.check(is_in_team)
+@is_in_team()
 async def execute(itx: Interaction) -> None:
     """Open the code execution modal."""
     assert itx.user.id == itx.client.owner_id, "Nope."

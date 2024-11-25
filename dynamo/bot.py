@@ -106,7 +106,7 @@ class Dynamo(discord.AutoShardedClient):
 
         self._last_interaction_waterfall = Waterfall(10, 100, self._update_last_seen)
 
-    @task_cache(3600)
+    @task_cache(ttl=3600)
     async def cachefetch_priority_ids(self) -> set[int]:
         app_info = await self.application_info()
         return {(owner := app_info.owner.id)} if not (team := app_info.team) else {owner, *(t.id for t in team.members)}
