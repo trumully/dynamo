@@ -117,9 +117,9 @@ class Dynamo(discord.AutoShardedClient):
         return await super().start(token, reconnect=reconnect)
 
     async def close(self) -> None:
-        await self._last_interaction_waterfall.stop(wait=True)
-        await self.session.close()
         await super().close()
+        await self.session.close()
+        await self._last_interaction_waterfall.stop(wait=True)
 
     async def setup_hook(self) -> None:
         """Initialize bot and sync commands."""
@@ -147,11 +147,6 @@ class Dynamo(discord.AutoShardedClient):
                 await self.tree.sync()
                 fp.seek(0)
                 fp.write(tree_hash)
-
-    async def on_ready(self) -> None:
-        if not hasattr(self, "uptime"):
-            self.uptime = discord.utils.utcnow()
-        log.info("Ready: %s (ID: %d)", str(self.user), self.user.id)
 
     async def _update_last_seen(self, user_id: Sequence[int], /) -> None:
         await asyncio.to_thread(_last_seen_update, self.conn, user_id)
@@ -187,19 +182,19 @@ class Dynamo(discord.AutoShardedClient):
             )
 
     def is_blocked(self, user_id: int) -> bool:
-        try:
-            blocked = self.block_cache[user_id]
-        except KeyError:
-            cursor = self.conn.cursor()
-            row = cursor.execute(
-                """
-                SELECT EXISTS (
-                    SELECT 1 FROM discord_users
-                    WHERE user_id=? AND is_blocked LIMIT 1
-                );
-                """,
-                (user_id,),
-            ).fetchone()
-            assert row is not None, "SELECT EXISTS top level query"
-            self.block_cache[user_id] = blocked = row[0]
-        return blocked
+        if (blocked := self.block_cache.get(user_id, None)) is not None:
+            return blocked
+        cursor = self.conn.cursor()
+        row = cursor.execute(
+            """
+            SELECT EXISTS (
+                SELECT 1 FROM discord_users
+                WHERE user_id=? AND is_blocked LIMIT 1
+            );
+            """,
+            (user_id,),
+        ).fetchone()
+        assert row is not None, "SELECT EXISTS top level query"
+        b: bool = row[0]
+        self.block_cache[user_id] = b
+        return b
