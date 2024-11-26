@@ -264,7 +264,7 @@ dev = [
 [[package]]
 name = "dynamo-utils"
 version = "0.1.0"
-source = { git = "https://github.com/trumully/dynamo-utils#2a8af030351163b59a08de3e8c0cd7d7a08d7488" }
+source = { git = "https://github.com/trumully/dynamo-utils#b335d98001db77cef91f43c71b97c440c6acadec" }
 
 [[package]]
 name = "frozenlist"

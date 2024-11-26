@@ -115,7 +115,7 @@ class ExecModal(discord.ui.Modal):
 @is_in_team()
 async def execute(itx: Interaction) -> None:
     """Open the code execution modal."""
-    assert itx.user.id == itx.client.owner_id, "Nope."
+    assert itx.user.id in await itx.client.cachefetch_priority_ids()  # type: ignore[call-arg]
     await itx.response.send_modal(ExecModal(author_id=itx.user.id, salt=itx.id))
 
 
