@@ -13,7 +13,7 @@ import apsw.bestpractice
 import apsw.ext
 import discord
 import truststore
-from dynaconf.validator import ValidationError
+from dynaconf.validator import ValidationError  # type: ignore[reportMissingTypeStubs]
 
 from dynamo.config import get_token
 from dynamo.logger import with_logging
@@ -150,7 +150,7 @@ def run_bot(*, debug: bool = False) -> None:
         apsw.bestpractice.connection_recursive_triggers,
         apsw.bestpractice.connection_optimize,
     )
-    apsw.bestpractice.apply(to_apply)
+    apsw.bestpractice.apply(to_apply)  # type: ignore[reportUnknownMemberType]
     ensure_schema()
 
     with with_logging(logging.DEBUG if debug else logging.INFO):
@@ -160,4 +160,4 @@ def run_bot(*, debug: bool = False) -> None:
         loop = asyncio.new_event_loop()
         _run_bot(loop)
 
-    os._exit(0)
+    os._exit(0)  # type: ignore[reportPrivateUsage]

@@ -1,40 +1,23 @@
-name: Check
+name: CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   pull_request:
     types: [opened, reopened, synchronize]
-    branches:
-      - main
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  check:
+  ruff:
     runs-on: ubuntu-22.04
-    name: Check
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v3
+      - uses: astral-sh/ruff-action@d0a0e814ec17e92d33be7d24dd922b479f1bcd38
         with:
-          enable-cache: true
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+          args: 'format --check'
+      - uses: astral-sh/ruff-action@d0a0e814ec17e92d33be7d24dd922b479f1bcd38
         with:
-          python-version-file: "pyproject.toml"
-
-      - name: Install the project
-        run: uv sync --all-extras --dev
-
-      - name: 🧹 Lint
-        run: uv run ruff check --output-format github
-
-      - name: ⚙️ Type check
-        run: uv run mypy dynamo
+          args: 'check'

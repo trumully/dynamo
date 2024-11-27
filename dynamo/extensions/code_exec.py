@@ -73,7 +73,7 @@ class ExecModal(discord.ui.Modal):
         if not raw:
             return
 
-        components = []
+        components: list[Any] = []
         for row in raw:
             if row_components := row.get("components"):
                 components.extend(row_components)
@@ -93,7 +93,7 @@ class ExecModal(discord.ui.Modal):
             stdout, stderr = await execute_script(script, deps)
 
             # Format response
-            response = []
+            response: list[str] = []
             if stdout:
                 response.extend(["**stdout:**", str(Codeblock("ansi", stdout[:MAX_OUTPUT_LENGTH_CHARS]))])
                 if len(stdout) > MAX_OUTPUT_LENGTH_CHARS:
@@ -115,7 +115,7 @@ class ExecModal(discord.ui.Modal):
 @is_in_team()
 async def execute(itx: Interaction) -> None:
     """Open the code execution modal."""
-    assert itx.user.id in await itx.client.cachefetch_priority_ids()  # type: ignore[call-arg]
+    assert itx.user.id in await itx.client.cachefetch_priority_ids()
     await itx.response.send_modal(ExecModal(author_id=itx.user.id, salt=itx.id))
 
 

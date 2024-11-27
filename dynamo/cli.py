@@ -14,7 +14,7 @@ def main() -> None:
         "--with-token",
         "-t",
         help="Run bot with token superseding current configuration",
-        default=config.token,
+        default=config.token,  # type: ignore[reportUnknownMemberType]
         dest="token",
     )
     parser.add_argument(
@@ -26,7 +26,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    config.update({"token": args.token})
+    config.update({"token": args.token})  # type: ignore[reportUnknownMemberType]
 
     run_bot(debug=args.debug)
 

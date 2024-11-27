@@ -109,7 +109,8 @@ class Dynamo(discord.AutoShardedClient):
     @task_cache(ttl=3600)
     async def cachefetch_priority_ids(self) -> set[int]:
         app_info = await self.application_info()
-        return {(owner := app_info.owner.id)} if not (team := app_info.team) else {owner, *(t.id for t in team.members)}
+        owner = app_info.owner.id
+        return {owner} if not (team := app_info.team) else {owner, *(t.id for t in team.members)}
 
     async def start(self, token: str, *, reconnect: bool = True) -> None:
         self._last_interaction_waterfall.start()
@@ -122,9 +123,6 @@ class Dynamo(discord.AutoShardedClient):
 
     async def setup_hook(self) -> None:
         """Initialize bot and sync commands."""
-        self.bot_app_info = await self.application_info()
-        self.owner_id = self.bot_app_info.owner.id
-
         # Load commands
         for module in self.initial_exts:
             exports = module.exports

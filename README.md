@@ -18,13 +18,13 @@
 - Python >=3.13
 - [uv](https://docs.astral.sh/uv/getting-started/installation/)
 
-### Clone the repository:
+### Clone the repository
 
 ```shell
 git clone https://github.com/trumully/dynamo.git
 ```
 
-### Install and run:
+### Install and run
 
 Don't forget to set up your `.secrets.toml` file (see the `secrets-example.toml`)
 
@@ -34,15 +34,7 @@ uv sync
 uv run dynamo
 ```
 
-## Development <a name="development"></a>
-
-### Install dev dependencies
-
-```shell
-uv sync --all-extras --dev
-```
-
-### Debug mode
+## Debug mode
 
 ```shell
 uv run dynamo --debug

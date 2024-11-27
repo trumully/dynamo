@@ -54,7 +54,7 @@ async def event_interested(
     await itx.followup.send(content=interested, ephemeral=ephemeral)
 
 
-@event_interested.error
+@event_interested.error  # type: ignore[reportUnknownMemberType]
 async def event_interested_error(itx: Interaction, error: app_commands.AppCommandError) -> None:
     if isinstance(error, app_commands.TransformerError):
         await itx.response.send_message(content=f"Event not found: {error.value}", ephemeral=True)

@@ -1,4 +1,5 @@
 import re
+from functools import partial
 from typing import Any
 
 import discord
@@ -62,12 +63,12 @@ class ScheduledEventTransformer(app_commands.Transformer[Dynamo]):
             (_check_by_cache, (guild.id, value)),
             (_check_by_id, (interaction, guild, value)),
             (_check_by_url, (interaction, value)),
-            (discord.utils.get, (guild.scheduled_events, value)),
+            (partial(discord.utils.get, guild.scheduled_events), (value,)),
             (_check_by_guilds, (interaction, value)),
         )
 
         for check_func, args in checks:
-            if (result := check_func(*args)) is not None:
+            if (result := check_func(*args)) is not None:  # type: ignore[reportArgumentType]
                 _guild_events_cache[guild.id] = (*_guild_events_cache.get(guild.id, ()), result)
                 return result
 

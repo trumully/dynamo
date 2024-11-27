@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 
-from dynaconf import Dynaconf, Validator
+from dynaconf import Dynaconf, Validator  # type: ignore[reportMissingTypeStubs]
 
 
 def valid_token(token: str) -> bool:
@@ -28,14 +28,14 @@ config = Dynaconf(
 )
 
 
-config.validators.validate()
+config.validators.validate()  # type: ignore[reportUnknownMemberType]
 
 
 def get_token() -> str:
-    token = os.getenv("DYNAMO_TOKEN", config.token)
+    token = os.getenv("DYNAMO_TOKEN", config.token)  # type: ignore[reportUnknownMemberType]
 
-    if not valid_token(token):
+    if not valid_token(token):  # type: ignore[reportUnknownMemberType]
         msg = "An invalid token was provided. Please check your .secrets.toml file or if you provided a correct token with --token."
         raise RuntimeError(msg) from None
 
-    return str(token)
+    return str(token)  # type: ignore[reportUnknownMemberType]
