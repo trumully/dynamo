@@ -48,14 +48,20 @@ SPOTIFY_LOGO_PATH = ROOT / "dynamo" / "assets" / "images" / "spotify.png"
 
 # Layout
 CONTENT_START_X: int = LAYOUT.album_size + LAYOUT.content_offset
-CONTENT_WIDTH: int = LAYOUT.width - CONTENT_START_X - LAYOUT.padding - LAYOUT.border - LAYOUT.logo_size
+CONTENT_WIDTH: int = (
+    LAYOUT.width - CONTENT_START_X - LAYOUT.padding - LAYOUT.border - LAYOUT.logo_size
+)
 TITLE_START_Y: int = LAYOUT.padding
 
 # Progress bar
 PROGRESS_BAR_START_X: int = CONTENT_START_X
-PROGRESS_BAR_WIDTH: int = LAYOUT.width - CONTENT_START_X - LAYOUT.padding - LAYOUT.border - 70
+PROGRESS_BAR_WIDTH: int = (
+    LAYOUT.width - CONTENT_START_X - LAYOUT.padding - LAYOUT.border - 70
+)
 PROGRESS_BAR_HEIGHT: int = 6
-PROGRESS_BAR_Y: int = LAYOUT.height - LAYOUT.padding - LAYOUT.border - PROGRESS_BAR_HEIGHT - 30
+PROGRESS_BAR_Y: int = (
+    LAYOUT.height - LAYOUT.padding - LAYOUT.border - PROGRESS_BAR_HEIGHT - 30
+)
 PROGRESS_TEXT_Y: int = LAYOUT.height - LAYOUT.padding - LAYOUT.border - 24
 
 BASE_SLIDING_SPEED: int = 2
@@ -96,7 +102,9 @@ def make_embed(
     track = f"[{activity.title}](<{activity.track_url}>)"
     file = discord.File(image, filename=filename)
     description = f"{user.mention} is listening to **{track}** by **{human_join(activity.artists, conjunction='and')}**"
-    embed = discord.Embed(title=f"{emoji} Now Playing", description=description, color=activity.color)
+    embed = discord.Embed(
+        title=f"{emoji} Now Playing", description=description, color=activity.color
+    )
     embed.set_image(url=f"attachment://{filename}")
     return embed, file
 
@@ -109,7 +117,10 @@ def draw(activity: discord.Spotify, album: bytes) -> tuple[BytesIO, str]:
 
     title_font = get_font(activity.title, FONT_SIZES["title"], bold=True)
     artist_font = get_font(", ".join(activity.artists), FONT_SIZES["artist"])
-    spotify_logo = Image.open(SPOTIFY_LOGO_PATH).resize((LAYOUT.logo_size, LAYOUT.logo_size))
+    spotify_logo = Image.open(SPOTIFY_LOGO_PATH).resize((
+        LAYOUT.logo_size,
+        LAYOUT.logo_size,
+    ))
     static_args = StaticDrawArgs(
         artists=activity.artists,
         artist_font=artist_font,
@@ -120,7 +131,12 @@ def draw(activity: discord.Spotify, album: bytes) -> tuple[BytesIO, str]:
 
     # Check if title fits and handle accordingly
     if int(title_font.getbbox(activity.title)[2]) <= CONTENT_WIDTH:
-        base_draw.text((CONTENT_START_X, TITLE_START_Y), activity.title, fill=(255, 255, 255), font=title_font)
+        base_draw.text(
+            (CONTENT_START_X, TITLE_START_Y),
+            activity.title,
+            fill=(255, 255, 255),
+            font=title_font,
+        )
         draw_static_elements(base_draw, base, static_args)
         return save_image(base, "PNG")
 
@@ -129,8 +145,17 @@ def draw(activity: discord.Spotify, album: bytes) -> tuple[BytesIO, str]:
         create_frame(base, text_frame, static_args)
         for text_frame in draw_text_scroll(title_font, activity.title, CONTENT_WIDTH)
     ]
-    frame_duration = min(max(TOTAL_ANIMATION_TIME // len(frames), MIN_FRAME_DURATION), MAX_FRAME_DURATION)
-    return save_image(frames[0], "GIF", save_all=True, append_images=frames[1:], duration=frame_duration, loop=0)
+    frame_duration = min(
+        max(TOTAL_ANIMATION_TIME // len(frames), MIN_FRAME_DURATION), MAX_FRAME_DURATION
+    )
+    return save_image(
+        frames[0],
+        "GIF",
+        save_all=True,
+        append_images=frames[1:],
+        duration=frame_duration,
+        loop=0,
+    )
 
 
 def draw_static_image(
@@ -140,9 +165,19 @@ def draw_static_image(
     title_font: ImageFont.FreeTypeFont,
     artist_font: ImageFont.FreeTypeFont,
 ) -> tuple[BytesIO, str]:
-    base_draw.text((CONTENT_START_X, TITLE_START_Y), activity.title, fill=(255, 255, 255), font=title_font)
-    spotify_logo = Image.open(SPOTIFY_LOGO_PATH).resize((LAYOUT.logo_size, LAYOUT.logo_size))
-    static_args = StaticDrawArgs(activity.artists, artist_font, activity.duration, activity.end, spotify_logo)
+    base_draw.text(
+        (CONTENT_START_X, TITLE_START_Y),
+        activity.title,
+        fill=(255, 255, 255),
+        font=title_font,
+    )
+    spotify_logo = Image.open(SPOTIFY_LOGO_PATH).resize((
+        LAYOUT.logo_size,
+        LAYOUT.logo_size,
+    ))
+    static_args = StaticDrawArgs(
+        activity.artists, artist_font, activity.duration, activity.end, spotify_logo
+    )
     draw_static_elements(base_draw, base, static_args)
     return save_image(base, "PNG")
 
@@ -155,23 +190,41 @@ def draw_animated_image(
     available_width: int,
 ) -> tuple[BytesIO, str]:
     text_frames = list(draw_text_scroll(title_font, activity.title, available_width))
-    spotify_logo = Image.open(SPOTIFY_LOGO_PATH).resize((LAYOUT.logo_size, LAYOUT.logo_size))
-    static_args = StaticDrawArgs(activity.artists, artist_font, activity.duration, activity.end, spotify_logo)
+    spotify_logo = Image.open(SPOTIFY_LOGO_PATH).resize((
+        LAYOUT.logo_size,
+        LAYOUT.logo_size,
+    ))
+    static_args = StaticDrawArgs(
+        activity.artists, artist_font, activity.duration, activity.end, spotify_logo
+    )
 
     frames = [create_frame(base, text_frame, static_args) for text_frame in text_frames]
-    frame_duration = min(max(TOTAL_ANIMATION_TIME // len(frames), MIN_FRAME_DURATION), MAX_FRAME_DURATION)
+    frame_duration = min(
+        max(TOTAL_ANIMATION_TIME // len(frames), MIN_FRAME_DURATION), MAX_FRAME_DURATION
+    )
 
-    return save_image(frames[0], "GIF", save_all=True, append_images=frames[1:], duration=frame_duration, loop=0)
+    return save_image(
+        frames[0],
+        "GIF",
+        save_all=True,
+        append_images=frames[1:],
+        duration=frame_duration,
+        loop=0,
+    )
 
 
-def create_frame(base: Image.Image, text_frame: Image.Image, static_args: StaticDrawArgs) -> Image.Image:
+def create_frame(
+    base: Image.Image, text_frame: Image.Image, static_args: StaticDrawArgs
+) -> Image.Image:
     frame = base.copy()
     frame.paste(text_frame, (CONTENT_START_X, TITLE_START_Y), text_frame)
     draw_static_elements(ImageDraw.Draw(frame), frame, static_args)
     return frame
 
 
-def save_image(image: Image.Image, image_format: str, **kwargs: Any) -> tuple[BytesIO, str]:
+def save_image(
+    image: Image.Image, image_format: str, **kwargs: Any
+) -> tuple[BytesIO, str]:
     buffer = BytesIO()
     image.save(buffer, format=image_format, **kwargs)
     buffer.seek(0)
@@ -208,7 +261,11 @@ def create_base_image(album: Image.Image) -> tuple[Image.Image, ImageDraw.ImageD
 
 def create_gradient_background(album: Image.Image) -> Image.Image:
     # Resize and blur the album cover
-    blurred = album.copy().resize((LAYOUT.width, LAYOUT.height)).filter(ImageFilter.GaussianBlur(radius=30))
+    blurred = (
+        album.copy()
+        .resize((LAYOUT.width, LAYOUT.height))
+        .filter(ImageFilter.GaussianBlur(radius=30))
+    )
 
     # Create a gradient overlay
     gradient = Image.new("RGBA", (LAYOUT.width, LAYOUT.height), (0, 0, 0, 0))
@@ -230,7 +287,9 @@ def paste_album_cover(base: Image.Image, album_image: Image.Image) -> None:
     base.paste(album_resized, (LAYOUT.border, LAYOUT.border))
 
 
-def draw_static_elements(draw: ImageDraw.ImageDraw, image: Image.Image, args: StaticDrawArgs) -> None:
+def draw_static_elements(
+    draw: ImageDraw.ImageDraw, image: Image.Image, args: StaticDrawArgs
+) -> None:
     draw.text(
         xy=(CONTENT_START_X, TITLE_START_Y + FONT_SIZES["title"] + 5),
         text=", ".join(args.artists),
@@ -252,7 +311,9 @@ def draw_static_elements(draw: ImageDraw.ImageDraw, image: Image.Image, args: St
     )
 
 
-def draw_track_bar(draw: ImageDraw.ImageDraw, progress: float, duration: datetime.timedelta) -> None:
+def draw_track_bar(
+    draw: ImageDraw.ImageDraw, progress: float, duration: datetime.timedelta
+) -> None:
     duration_width = PROGRESS_BAR_START_X + PROGRESS_BAR_WIDTH
     progress_width = max(
         PROGRESS_BAR_START_X,
@@ -260,23 +321,42 @@ def draw_track_bar(draw: ImageDraw.ImageDraw, progress: float, duration: datetim
     )
 
     draw.rectangle(
-        (PROGRESS_BAR_START_X, PROGRESS_BAR_Y, duration_width, PROGRESS_BAR_Y + PROGRESS_BAR_HEIGHT),
+        (
+            PROGRESS_BAR_START_X,
+            PROGRESS_BAR_Y,
+            duration_width,
+            PROGRESS_BAR_Y + PROGRESS_BAR_HEIGHT,
+        ),
         fill=(64, 64, 64),  # Dark gray for the background bar
     )
 
     if progress_width > PROGRESS_BAR_START_X:
         draw.rectangle(
-            (PROGRESS_BAR_START_X, PROGRESS_BAR_Y, progress_width, PROGRESS_BAR_Y + PROGRESS_BAR_HEIGHT),
+            (
+                PROGRESS_BAR_START_X,
+                PROGRESS_BAR_Y,
+                progress_width,
+                PROGRESS_BAR_Y + PROGRESS_BAR_HEIGHT,
+            ),
             fill=(255, 255, 255),  # White for the progress bar
         )
 
-    played_seconds = min(int(duration.total_seconds()), int(duration.total_seconds() * progress))
+    played_seconds = min(
+        int(duration.total_seconds()), int(duration.total_seconds() * progress)
+    )
     progress_text = f"{track_duration(played_seconds)} / {track_duration(int(duration.total_seconds()))}"
     progress_font = get_font(progress_text, FONT_SIZES["progress"])
-    draw.text((PROGRESS_BAR_START_X, PROGRESS_TEXT_Y), progress_text, fill=(255, 255, 255), font=progress_font)
+    draw.text(
+        (PROGRESS_BAR_START_X, PROGRESS_TEXT_Y),
+        progress_text,
+        fill=(255, 255, 255),
+        font=progress_font,
+    )
 
 
-def draw_text_scroll(font: ImageFont.FreeTypeFont, text: str, width: int) -> list[Image.Image]:
+def draw_text_scroll(
+    font: ImageFont.FreeTypeFont, text: str, width: int
+) -> list[Image.Image]:
     text_width = int(font.getbbox(text)[2])
     if text_width <= width:
         return [create_text_frame(text, width, int(font.getbbox(text)[3]), font)]
@@ -285,17 +365,29 @@ def draw_text_scroll(font: ImageFont.FreeTypeFont, text: str, width: int) -> lis
     full_width = font.getbbox(padded_text)[2]
     sliding_speed = min(
         MAX_SLIDING_SPEED,
-        max(BASE_SLIDING_SPEED, full_width // (TOTAL_ANIMATION_TIME // MIN_FRAME_DURATION)),
+        max(
+            BASE_SLIDING_SPEED, full_width // (TOTAL_ANIMATION_TIME // MIN_FRAME_DURATION)
+        ),
     )
-    num_frames = int(min(TOTAL_ANIMATION_TIME // MIN_FRAME_DURATION, full_width // sliding_speed))
+    num_frames = int(
+        min(TOTAL_ANIMATION_TIME // MIN_FRAME_DURATION, full_width // sliding_speed)
+    )
 
     return [
-        create_text_frame(padded_text, width, int(font.getbbox(text)[3]), font, int(-i * sliding_speed % full_width))
+        create_text_frame(
+            padded_text,
+            width,
+            int(font.getbbox(text)[3]),
+            font,
+            int(-i * sliding_speed % full_width),
+        )
         for i in range(num_frames)
     ]
 
 
-def create_text_frame(text: str, width: int, height: int, font: ImageFont.FreeTypeFont, x_pos: int = 0) -> Image.Image:
+def create_text_frame(
+    text: str, width: int, height: int, font: ImageFont.FreeTypeFont, x_pos: int = 0
+) -> Image.Image:
     frame = Image.new("RGBA", (width, height))
     draw = ImageDraw.Draw(frame)
     draw.text((x_pos, 0), text, fill=(255, 255, 255), font=font)

@@ -28,7 +28,7 @@ log = logging.getLogger(__name__)
 MODAL_REGEX = re.compile(r"^m:(.{1,10}):(.*)$", flags=re.DOTALL)
 BUTTON_REGEX = re.compile(r"^b:(.{1,10}):(.*)$", flags=re.DOTALL)
 
-type Interaction = discord.Interaction["Dynamo"]
+type Interaction = discord.Interaction[Dynamo]
 
 
 def _last_seen_update(conn: apsw.Connection, user_ids: Sequence[int]) -> None:
@@ -51,7 +51,9 @@ class DynamoTree(app_commands.CommandTree["Dynamo"]):
     @classmethod
     def from_dynamo(cls: type[Self], client: Dynamo) -> Self:
         installs = app_commands.AppInstallationType(user=False, guild=True)
-        contexts = app_commands.AppCommandContext(dm_channel=True, guild=True, private_channel=True)
+        contexts = app_commands.AppCommandContext(
+            dm_channel=True, guild=True, private_channel=True
+        )
         return cls(
             client,
             fallback_to_global=False,
@@ -64,17 +66,24 @@ class DynamoTree(app_commands.CommandTree["Dynamo"]):
         if is_blocked := interaction.client.is_blocked(interaction.user.id):
             response = interaction.response
             if interaction.type is InteractionType.application_command:
-                await response.send_message("You are blocked from using this bot.", ephemeral=True)
+                await response.send_message(
+                    "You are blocked from using this bot.", ephemeral=True
+                )
             else:
                 await response.defer(ephemeral=True)
         return not is_blocked
 
     async def get_hash(self, tree: app_commands.CommandTree) -> bytes:
         """Get the hash of the command tree."""
-        commands = sorted(self._get_all_commands(guild=None), key=lambda c: c.qualified_name)
+        commands = sorted(
+            self._get_all_commands(guild=None), key=lambda c: c.qualified_name
+        )
 
         if translator := self.translator:
-            payload = [await command.get_translated_payload(tree, translator) for command in commands]
+            payload = [
+                await command.get_translated_payload(tree, translator)
+                for command in commands
+            ]
         else:
             payload = [command.to_dict(tree) for command in commands]
 
@@ -110,7 +119,11 @@ class Dynamo(discord.AutoShardedClient):
     async def cachefetch_priority_ids(self) -> set[int]:
         app_info = await self.application_info()
         owner = app_info.owner.id
-        return {owner} if not (team := app_info.team) else {owner, *(t.id for t in team.members)}
+        return (
+            {owner}
+            if not (team := app_info.team)
+            else {owner, *(t.id for t in team.members)}
+        )
 
     async def start(self, token: str, *, reconnect: bool = True) -> None:
         self._last_interaction_waterfall.start()
@@ -158,7 +171,7 @@ class Dynamo(discord.AutoShardedClient):
         ):
             if interaction.type is not relevant_type or interaction.data is None:
                 continue
-            custom_id: str = cast(str, interaction.data.get("custom_id", ""))
+            custom_id: str = cast("str", interaction.data.get("custom_id", ""))
             if match := regex.match(custom_id):
                 modal_name, data = match.groups()
                 if rs := mapping.get(modal_name):

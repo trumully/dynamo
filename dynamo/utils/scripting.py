@@ -61,7 +61,9 @@ class ExecutionError(Exception):
     """Raised when code execution fails."""
 
 
-async def execute_command(args: Sequence[str], env: ExecutionEnvironment | None = None) -> CommandOutput:
+async def execute_command(
+    args: Sequence[str], env: ExecutionEnvironment | None = None
+) -> CommandOutput:
     """Execute a command asynchronously with timeout protection.
 
     Args:
@@ -126,8 +128,12 @@ async def execute_script(script: str, dependencies: Sequence[str]) -> CommandOut
         msg = "Script cannot be empty"
         raise ExecutionError(msg)
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".py", encoding="utf-8", delete=False) as temp_file:
-        temp_file.write(write_dependency_header(dependencies) + script if dependencies else script)
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".py", encoding="utf-8", delete=False
+    ) as temp_file:
+        temp_file.write(
+            write_dependency_header(dependencies) + script if dependencies else script
+        )
         temp_path = Path(temp_file.name)
 
     try:

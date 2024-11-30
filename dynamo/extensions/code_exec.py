@@ -95,20 +95,30 @@ class ExecModal(discord.ui.Modal):
             # Format response
             response: list[str] = []
             if stdout:
-                response.extend(["**stdout:**", str(Codeblock("ansi", stdout[:MAX_OUTPUT_LENGTH_CHARS]))])
+                response.extend([
+                    "**stdout:**",
+                    str(Codeblock("ansi", stdout[:MAX_OUTPUT_LENGTH_CHARS])),
+                ])
                 if len(stdout) > MAX_OUTPUT_LENGTH_CHARS:
                     response.append("*(output truncated)*")
             if stderr:
-                response.extend(["**stderr:**", str(Codeblock("ansi", stderr[:MAX_OUTPUT_LENGTH_CHARS]))])
+                response.extend([
+                    "**stderr:**",
+                    str(Codeblock("ansi", stderr[:MAX_OUTPUT_LENGTH_CHARS])),
+                ])
                 if len(stderr) > MAX_OUTPUT_LENGTH_CHARS:
                     response.append("*(error output truncated)*")
 
-            await itx.followup.send("\n".join(response) or "✅ Script executed with no output", ephemeral=True)
+            await itx.followup.send(
+                "\n".join(response) or "✅ Script executed with no output", ephemeral=True
+            )
 
         except ExecutionError as e:
             await itx.followup.send(f"❌ Execution failed: {e!s}", ephemeral=True)
         except Exception as e:  # noqa: BLE001
-            await itx.followup.send(f"❌ An unexpected error occurred: {e!s}", ephemeral=True)
+            await itx.followup.send(
+                f"❌ An unexpected error occurred: {e!s}", ephemeral=True
+            )
 
 
 @app_commands.command()
@@ -121,5 +131,5 @@ async def execute(itx: Interaction) -> None:
 
 exports = BotExports(
     commands=[execute],
-    raw_modal_submits={"exec": cast(type[RawSubmittable], ExecModal)},
+    raw_modal_submits={"exec": cast("type[RawSubmittable]", ExecModal)},
 )

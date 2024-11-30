@@ -28,7 +28,9 @@ class RGB(NamedTuple):
     g: int
     b: int
 
-    def is_similar_to(self, other: RGB, *, threshold: float = COLOR_THRESHOLD, epsilon: float = 1e-4) -> bool:
+    def is_similar_to(
+        self, other: RGB, *, threshold: float = COLOR_THRESHOLD, epsilon: float = 1e-4
+    ) -> bool:
         # Calculate both distance metrics
         p_distance = self.perceived_distance_from(other)
         e_distance = self.euclidean_distance_from(other)
@@ -41,7 +43,10 @@ class RGB(NamedTuple):
         # Make threshold more permissive for colors with very different intensities
         adjusted_threshold = threshold * (1 + intensity_diff)
 
-        return p_distance <= adjusted_threshold + epsilon and e_distance <= adjusted_threshold + epsilon
+        return (
+            p_distance <= adjusted_threshold + epsilon
+            and e_distance <= adjusted_threshold + epsilon
+        )
 
     def difference_of(self, other: RGB) -> RGB:
         return RGB(*tuple(a - b for a, b in zip(self, other, strict=False)))
@@ -60,7 +65,9 @@ class RGB(NamedTuple):
         """
         r_mean = (self.r + other.r) >> 1
         r, g, b = self.difference_of(other)
-        distance: float = ((((512 + r_mean) * r * r) >> 8) + 4 * g * g + (((767 - r_mean) * b * b) >> 8)) ** 0.5
+        distance: float = (
+            (((512 + r_mean) * r * r) >> 8) + 4 * g * g + (((767 - r_mean) * b * b) >> 8)
+        ) ** 0.5
         return distance / MAX_PERCEIVED_DISTANCE
 
     def euclidean_distance_from(self, other: RGB) -> float:
@@ -123,7 +130,9 @@ PIXEL_COUNT_THRESHOLD = 10000
 
 
 @executor_function
-def color_palette_from_image(image: bytes, n: int = 20, *, iterations: int = 50) -> list[tuple[RGB, float]]:
+def color_palette_from_image(
+    image: bytes, n: int = 20, *, iterations: int = 50
+) -> list[tuple[RGB, float]]:
     """Extract a color palette from an image using K-means clustering, returning colors and their prominence."""
     with open_image_bytes(image) as img:
         # Convert to RGBA to handle transparency
@@ -142,7 +151,9 @@ def color_palette_from_image(image: bytes, n: int = 20, *, iterations: int = 50)
     # K-means++ initialization
     centroids = valid_pixels[rng.choice(len(valid_pixels), 1)]
     for _ in range(1, n):
-        probabilities = ((valid_pixels[:, np.newaxis] - centroids) ** 2).sum(axis=2).min(axis=1)
+        probabilities = (
+            ((valid_pixels[:, np.newaxis] - centroids) ** 2).sum(axis=2).min(axis=1)
+        )
         probabilities /= probabilities.sum()
         next_centroid = valid_pixels[rng.choice(len(valid_pixels), 1, p=probabilities)]
         centroids = np.vstack([centroids, next_centroid])
@@ -178,11 +189,16 @@ def color_palette_from_image(image: bytes, n: int = 20, *, iterations: int = 50)
 
     colors_by_prominence = (
         (color, prominence)
-        for color, prominence in zip(centroids, color_counts / len(valid_pixels), strict=False)
+        for color, prominence in zip(
+            centroids, color_counts / len(valid_pixels), strict=False
+        )
         if prominence >= PROMINENCE_THRESHOLD
     )
 
-    return [(RGB(*color.astype(int)), float(prominence)) for color, prominence in colors_by_prominence]
+    return [
+        (RGB(*color.astype(int)), float(prominence))
+        for color, prominence in colors_by_prominence
+    ]
 
 
 MAX_FILTERED = 10

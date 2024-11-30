@@ -237,7 +237,7 @@ requires-dist = [
     { name = "base2048", specifier = ">=0.1.3" },
     { name = "discord-py", extras = ["speed"], git = "https://github.com/mikeshardmind/discord.py.git?rev=89ac64f" },
     { name = "dynaconf", specifier = ">=3.2.6" },
-    { name = "dynamo-utils", git = "https://github.com/trumully/dynamo-utils" },
+    { name = "dynamo-utils", git = "https://github.com/trumully/dynamo-utils?rev=c3db2f8a9f07dfa91e44e2837737456209bc310c" },
     { name = "msgspec", git = "https://github.com/jcrist/msgspec?rev=main" },
     { name = "numpy", specifier = ">=2.1.3" },
     { name = "pillow", specifier = ">=11.0.0" },
@@ -247,13 +247,10 @@ requires-dist = [
     { name = "xxhash", specifier = ">=3.5.0" },
 ]
 
-[package.metadata.requires-dev]
-dev = []
-
 [[package]]
 name = "dynamo-utils"
-version = "2024.11.27"
-source = { git = "https://github.com/trumully/dynamo-utils#f71ae90c57e38d38d3979f0ddc9904a87b44fcd4" }
+version = "2024.11.28"
+source = { git = "https://github.com/trumully/dynamo-utils?rev=c3db2f8a9f07dfa91e44e2837737456209bc310c#c3db2f8a9f07dfa91e44e2837737456209bc310c" }
 
 [[package]]
 name = "frozenlist"

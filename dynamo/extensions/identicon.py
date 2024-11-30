@@ -28,10 +28,18 @@ def _clean_seed(seed: Seed) -> str | int:
     return seed
 
 
-async def _generate_identicon(seed: Seed, pattern_size: int, weight: float) -> tuple[discord.Embed, discord.File]:
+async def _generate_identicon(
+    seed: Seed,
+    pattern_size: int,
+    weight: float,
+) -> tuple[discord.Embed, discord.File]:
     clean_seed = _clean_seed(seed)
 
-    name = seed.display_name if isinstance(seed, discord.Member | discord.User) else clean_seed
+    name = (
+        seed.display_name
+        if isinstance(seed, discord.Member | discord.User)
+        else clean_seed
+    )
     derived_seed = idt.derive_seed(clean_seed)
 
     identicon: bytes = await idt.get_identicon(derived_seed, pattern_size, weight)
@@ -39,8 +47,14 @@ async def _generate_identicon(seed: Seed, pattern_size: int, weight: float) -> t
     primary, secondary = idt.get_colors(derived_seed)
 
     p_hex, s_hex = RGB.as_hex(*primary), RGB.as_hex(*secondary)
-    description = f"Pattern size: {pattern_size}\nSecondary color weight: {weight:.2f}\nColors: `{p_hex}` | `{s_hex}`"
-    embed = discord.Embed(title=name, description=description, color=primary.as_discord_color())
+    description = (
+        f"Pattern size: {pattern_size}\n"
+        f"Secondary color weight: {weight:.2f}\n"
+        f"Colors: `{p_hex}` | `{s_hex}`"
+    )
+    embed = discord.Embed(
+        title=name, description=description, color=primary.as_discord_color()
+    )
     embed.set_image(url="attachment://identicon.png")
     return embed, file
 
@@ -54,7 +68,8 @@ async def _generate_identicon(seed: Seed, pattern_size: int, weight: float) -> t
 )
 async def get_identicon(
     itx: Interaction,
-    seed: Transform[discord.Member | discord.User | str, StringMemberTransformer] | None = None,
+    seed: Transform[discord.Member | discord.User | str, StringMemberTransformer]
+    | None = None,
     pattern_size: Range[int, 1, 32] = 6,
     secondary_color_weight: Range[float, 0, 1] = 0.6,
     ephemeral: bool = False,
@@ -62,16 +77,18 @@ async def get_identicon(
     """Get an identicon generated with a seed."""
     final_seed = seed or itx.id
 
-    embed, file = await _generate_identicon(final_seed, pattern_size, secondary_color_weight)
+    embed, file = await _generate_identicon(
+        final_seed, pattern_size, secondary_color_weight
+    )
     await itx.response.send_message(embed=embed, file=file, ephemeral=ephemeral)
 
 
 @app_commands.context_menu(name="Identicon")
-async def identicon_context_menu(itx: Interaction, user: discord.Member | discord.User) -> None:
+async def identicon_context_menu(
+    itx: Interaction, user: discord.Member | discord.User
+) -> None:
     embed, file = await _generate_identicon(user, 6, 0.6)
     await itx.response.send_message(embed=embed, file=file, ephemeral=True)
 
 
-exports = BotExports(
-    commands=[get_identicon, identicon_context_menu],
-)
+exports = BotExports(commands=[get_identicon, identicon_context_menu])

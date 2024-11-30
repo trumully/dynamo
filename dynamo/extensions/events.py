@@ -8,7 +8,9 @@ from discord.app_commands import Group, Transform
 from dynamo_utils.iterclose import process_async_iterable
 
 from dynamo.typedefs import BotExports
-from dynamo.utils.transformer import ScheduledEventTransformer  # noqa: TC001  we need this at runtime
+from dynamo.utils.transformer import (
+    ScheduledEventTransformer,  # noqa: TC001  we need this at runtime
+)
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -55,13 +57,15 @@ async def event_interested(
 
 
 @event_interested.error  # type: ignore[reportUnknownMemberType]
-async def event_interested_error(itx: Interaction, error: app_commands.AppCommandError) -> None:
+async def event_interested_error(
+    itx: Interaction, error: app_commands.AppCommandError
+) -> None:
     if isinstance(error, app_commands.TransformerError):
-        await itx.response.send_message(content=f"Event not found: {error.value}", ephemeral=True)
+        await itx.response.send_message(
+            content=f"Event not found: {error.value}", ephemeral=True
+        )
     else:
         raise error from None
 
 
-exports = BotExports(
-    commands=[events_group],
-)
+exports = BotExports(commands=[events_group])

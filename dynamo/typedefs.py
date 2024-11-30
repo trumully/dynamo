@@ -1,10 +1,15 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Coroutine
-from typing import Any, NamedTuple, Protocol
+from typing import TYPE_CHECKING, Any, NamedTuple, Protocol
 
+from discord import AutoShardedClient, app_commands
 from discord import Interaction as InteractionD
-from discord import app_commands
+
+if TYPE_CHECKING:
+    import aiohttp
+    import apsw
+
 
 type Coro[T] = Coroutine[Any, Any, T]
 type CoroFn[**P, T] = Callable[P, Coro[T]]
@@ -12,7 +17,9 @@ type CoroFn[**P, T] = Callable[P, Coro[T]]
 
 class RawSubmittableCls(Protocol):
     @classmethod
-    async def raw_submit(cls: type[RawSubmittableCls], interaction: InteractionD, data: str) -> Any: ...
+    async def raw_submit(
+        cls: type[RawSubmittableCls], interaction: InteractionD, data: str
+    ) -> Any: ...
 
 
 class RawSubmittableStatic(Protocol):
@@ -33,3 +40,9 @@ class BotExports(NamedTuple):
 
 class HasExports(Protocol):
     exports: BotExports
+
+
+class DynamoContext(NamedTuple):
+    bot: AutoShardedClient
+    db: apsw.Connection
+    session: aiohttp.ClientSession

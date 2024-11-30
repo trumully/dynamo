@@ -24,7 +24,9 @@ def valid_token(token: str) -> bool:
 config = Dynaconf(
     envvar_prefix="DYNAMO",
     settings_files=[".secrets.toml"],
-    validators=[Validator("token", must_exist=True, is_type_of=str, condition=valid_token)],
+    validators=[
+        Validator("token", must_exist=True, is_type_of=str, condition=valid_token)
+    ],
 )
 
 
