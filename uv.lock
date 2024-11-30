@@ -188,8 +188,8 @@ wheels = [
 
 [[package]]
 name = "discord-py"
-version = "2.5.0a5124+g89ac64fa"
-source = { git = "https://github.com/mikeshardmind/discord.py.git?rev=89ac64f#89ac64fa51ef12fbc91836e789e20c76f032df08" }
+version = "2.5.0a5127+ge1b6310e"
+source = { git = "https://github.com/Rapptz/discord.py.git#e1b6310ef387481a654a1085653a33aa1b17e034" }
 dependencies = [
     { name = "aiohttp" },
     { name = "audioop-lts" },
@@ -235,10 +235,10 @@ dependencies = [
 requires-dist = [
     { name = "apsw", specifier = ">=3.47.0.0" },
     { name = "base2048", specifier = ">=0.1.3" },
-    { name = "discord-py", extras = ["speed"], git = "https://github.com/mikeshardmind/discord.py.git?rev=89ac64f" },
+    { name = "discord-py", extras = ["speed"], git = "https://github.com/Rapptz/discord.py.git" },
     { name = "dynaconf", specifier = ">=3.2.6" },
-    { name = "dynamo-utils", git = "https://github.com/trumully/dynamo-utils" },
-    { name = "msgspec", git = "https://github.com/jcrist/msgspec?rev=main" },
+    { name = "dynamo-utils", git = "https://github.com/trumully/dynamo-utils.git" },
+    { name = "msgspec", git = "https://github.com/jcrist/msgspec.git?rev=main" },
     { name = "numpy", specifier = ">=2.1.3" },
     { name = "pillow", specifier = ">=11.0.0" },
     { name = "platformdirs", specifier = ">=4.3.6" },
@@ -250,7 +250,7 @@ requires-dist = [
 [[package]]
 name = "dynamo-utils"
 version = "2024.11.30"
-source = { git = "https://github.com/trumully/dynamo-utils#7b94d70fcf9b06f813b3c81ee89138751ad9f3ea" }
+source = { git = "https://github.com/trumully/dynamo-utils.git#7b94d70fcf9b06f813b3c81ee89138751ad9f3ea" }
 
 [[package]]
 name = "frozenlist"
@@ -288,7 +288,7 @@ wheels = [
 [[package]]
 name = "msgspec"
 version = "0.18.6+30.g595c33c"
-source = { git = "https://github.com/jcrist/msgspec?rev=main#595c33c4a71c6d0c539b82233982a65819e240cf" }
+source = { git = "https://github.com/jcrist/msgspec.git?rev=main#595c33c4a71c6d0c539b82233982a65819e240cf" }
 
 [[package]]
 name = "multidict"
