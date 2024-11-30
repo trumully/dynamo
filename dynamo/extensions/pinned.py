@@ -22,17 +22,22 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
+class NameWithId(NamedTuple):
+    name: str
+    id: int
+
+
 class PinnedMessage(NamedTuple):
-    channel: int
+    channel: NameWithId
     message: int
-    author: int
+    author: NameWithId
 
 
-def sort_by_user(pins: IsIterable[PinnedMessage]) -> dict[int, list[str]]:
-    sorted_by_user: dict[int, list[str]] = {}
-    for message in pins:
-        sorted_by_user.setdefault(message.author, []).append(
-            f"https://discord.com/channels/{_GUILD}/{message.channel}/{message.message}"
+def sort_by_user(pins: IsIterable[PinnedMessage]) -> dict[str, list[str]]:
+    sorted_by_user: dict[str, list[str]] = {}
+    for msg in pins:
+        sorted_by_user.setdefault(msg.author.name, []).append(
+            f"https://discord.com/channels/{_GUILD}/{msg.channel.id}/{msg.message}"
         )
     return sorted_by_user
 
@@ -40,7 +45,7 @@ def sort_by_user(pins: IsIterable[PinnedMessage]) -> dict[int, list[str]]:
 def sort_by_channel(pins: IsIterable[PinnedMessage]) -> dict[int, list[PinnedMessage]]:
     pins_by_channel: dict[int, list[PinnedMessage]] = {}
     for pin in pins:
-        pins_by_channel.setdefault(pin.channel, []).append(pin)
+        pins_by_channel.setdefault(pin.channel.id, []).append(pin)
     return pins_by_channel
 
 
@@ -92,7 +97,14 @@ async def fetch_channel_pins(
         pins = await channel.pins()
     except (discord.HTTPException, discord.Forbidden):
         return []
-    return [b2048_pack((pin.channel.id, pin.id, pin.author.id)) for pin in pins]
+    return [
+        b2048_pack((
+            (cast("discord.TextChannel", pin.channel).name, pin.channel.id),
+            pin.id,
+            (pin.author.display_name, pin.author.id),
+        ))
+        for pin in pins
+    ]
 
 
 async def write_to_excel(data: Sequence[int], method: ChannelFetchMethod) -> bytes:
