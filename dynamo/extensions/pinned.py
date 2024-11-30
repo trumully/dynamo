@@ -1,13 +1,25 @@
-import operator
-from collections.abc import Callable
-from typing import Final, NamedTuple, cast
+from __future__ import annotations
+
+import asyncio
+import io
+import logging
+from collections.abc import Callable, Sequence
+from itertools import chain
+from typing import TYPE_CHECKING, Final, NamedTuple, cast
 
 import discord
+import pandas as pd
 from discord import app_commands
 from dynamo_utils.task_cache import task_cache
 
-from dynamo.bot import Interaction
-from dynamo.typedefs import BotExports
+from dynamo.typedefs import BotExports, IsIterable
+from dynamo.utils.check import in_personal_guild
+from dynamo.utils.helper import b2048_pack, b2048_unpack
+
+if TYPE_CHECKING:
+    from dynamo.bot import Interaction
+
+log = logging.getLogger(__name__)
 
 
 class PinnedMessage(NamedTuple):
@@ -16,7 +28,23 @@ class PinnedMessage(NamedTuple):
     author: int
 
 
-_past_channels: Final[set[int]] = {
+def sort_by_user(pins: IsIterable[PinnedMessage]) -> dict[int, list[str]]:
+    sorted_by_user: dict[int, list[str]] = {}
+    for message in pins:
+        sorted_by_user.setdefault(message.author, []).append(
+            f"https://discord.com/channels/{_GUILD}/{message.channel}/{message.message}"
+        )
+    return sorted_by_user
+
+
+def sort_by_channel(pins: IsIterable[PinnedMessage]) -> dict[int, list[PinnedMessage]]:
+    pins_by_channel: dict[int, list[PinnedMessage]] = {}
+    for pin in pins:
+        pins_by_channel.setdefault(pin.channel, []).append(pin)
+    return pins_by_channel
+
+
+_past_channels: Final[tuple[int, ...]] = (
     696276827341324323,
     748654855262044181,
     793711844241309706,
@@ -45,69 +73,68 @@ _past_channels: Final[set[int]] = {
     1180466068884574248,
     1217978228438859776,
     1271041914300399629,
-}
-_GUILD: int = 696276827341324318
+)
+
+_GUILD: Final[int] = 696276827341324318
 
 
-type ChannelFetchMethod = Callable[
-    [int], discord.abc.GuildChannel | discord.Thread | discord.abc.PrivateChannel | None
-]
+type Channel = discord.abc.GuildChannel | discord.Thread | discord.abc.PrivateChannel
+type ChannelFetchMethod = Callable[[int], Channel | None]
 
 
 @task_cache
 async def fetch_channel_pins(
-    fetch_method: ChannelFetchMethod, channel_id: int
-) -> list[PinnedMessage]:
+    method: ChannelFetchMethod,
+    channel_id: int,
+) -> list[str]:
     try:
-        channel: discord.TextChannel = cast(
-            "discord.TextChannel", fetch_method(channel_id)
-        )
+        channel: discord.TextChannel = cast("discord.TextChannel", method(channel_id))
         pins = await channel.pins()
     except (discord.HTTPException, discord.Forbidden):
         return []
-    return [PinnedMessage(channel.id, pin.id, pin.author.id) for pin in pins]
+    return [b2048_pack((pin.channel.id, pin.id, pin.author.id)) for pin in pins]
+
+
+async def write_to_excel(data: Sequence[int], method: ChannelFetchMethod) -> bytes:
+    out = io.BytesIO()
+
+    log.info("Processing channels")
+    tasks = (fetch_channel_pins(method, channel_id) for channel_id in data)
+    pins = chain.from_iterable(await asyncio.gather(*tasks))
+    unpacked_pins = (b2048_unpack(pin, PinnedMessage) for pin in pins)
+    pins_by_channel = sort_by_channel(unpacked_pins)
+
+    log.info("Writing to Excel")
+    with pd.ExcelWriter(out, engine="xlsxwriter") as writer:
+        for i, (channel_id, pins) in enumerate(pins_by_channel.items()):
+            log.info("Processing results for channel #%d: %d", i + 1, channel_id)
+            sorted_by_user = sort_by_user(pins)
+            all_data = (
+                (author, len(urls), "|||".join(urls))
+                for author, urls in sorted_by_user.items()
+            )
+            pinned_dataframe = pd.DataFrame(
+                all_data, columns=["Author", "Total Messages", "Links"]
+            )
+            sheet_name = f"Pinned Messages {i + 1}"
+            pinned_dataframe.to_excel(writer, sheet_name=sheet_name, index=False)  # type: ignore[reportUnknownMemberType]
+
+    out.seek(0)
+    return out.read()
 
 
 pins_group = app_commands.Group(name="pins", description="Check pinned message stats.")
 
 
-def sort_and_count_by_user(pins: list[PinnedMessage]) -> dict[int, int]:
-    count_by_author: dict[int, int] = {}
-    for message in pins:
-        count_by_author.setdefault(message.author, 0)
-        count_by_author[message.author] += 1
-    return count_by_author
-
-
-def get_as_embed(count_by_author: dict[int, int]) -> discord.Embed:
-    return discord.Embed(
-        title="Pins by user",
-        description="\n".join(
-            f"<@{user_id}>: {count}"
-            for user_id, count in sorted(
-                count_by_author.items(), key=operator.itemgetter(1), reverse=True
-            )
-        ),
-    )
-
-
-@pins_group.command(name="list")
-@app_commands.describe(channel="The channel to get pins from. All if empty.")
-@app_commands.guild_only()
-async def get_pins(itx: Interaction, channel: discord.TextChannel | None = None) -> None:
-    assert itx.guild is not None
-    assert itx.guild.id == _GUILD
-
+@pins_group.command(name="generate")
+@in_personal_guild()
+async def generate_pins_excel(itx: Interaction) -> None:
+    """Generate an Excel file with pinned message stats."""
     await itx.response.defer()
 
-    pins: list[PinnedMessage] = []
-    if channel is not None:
-        pins = await fetch_channel_pins(itx.client.get_channel, channel.id)
-    else:
-        # TODO
-        ...
-
-    await itx.followup.send(embed=get_as_embed(sort_and_count_by_user(pins)))
+    excel_file = await write_to_excel(_past_channels, itx.client.get_channel)
+    file_obj = io.BytesIO(excel_file)
+    await itx.followup.send(file=discord.File(file_obj, filename="pins.xlsx"))
 
 
 exports = BotExports(commands=[pins_group])
