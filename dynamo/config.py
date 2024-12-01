@@ -1,3 +1,5 @@
+# pyright: reportUnknownMemberType=false, reportUnknownArgumentType=false
+
 from __future__ import annotations
 
 import os
@@ -24,18 +26,24 @@ def valid_token(token: str) -> bool:
 config = Dynaconf(
     envvar_prefix="DYNAMO",
     settings_files=[".secrets.toml"],
-    validators=[Validator("token", must_exist=True, is_type_of=str, condition=valid_token)],
+    validators=[
+        Validator("token", must_exist=True, is_type_of=str, condition=valid_token)
+    ],
 )
 
 
-config.validators.validate()  # type: ignore[reportUnknownMemberType]
+config.validators.validate()
 
 
 def get_token() -> str:
-    token = os.getenv("DYNAMO_TOKEN", config.token)  # type: ignore[reportUnknownMemberType]
+    token = str(os.getenv("DYNAMO_TOKEN", config.token))
 
-    if not valid_token(token):  # type: ignore[reportUnknownMemberType]
-        msg = "An invalid token was provided. Please check your .secrets.toml file or if you provided a correct token with --token."
+    if not valid_token(token):
+        msg = (
+            "An invalid token was provided. "
+            "Please check your .secrets.toml file or "
+            "if you provided a correct token with --token."
+        )
         raise RuntimeError(msg) from None
 
-    return str(token)  # type: ignore[reportUnknownMemberType]
+    return str(token)

@@ -161,5 +161,5 @@ async def tag_autocomplete(itx: Interaction, current: str) -> list[Choice[str]]:
 
 exports = BotExports(
     commands=[tag_group],
-    raw_modal_submits={"tag": cast(type[RawSubmittable], TagModal)},
+    raw_modal_submits={"tag": cast("type[RawSubmittable]", TagModal)},
 )

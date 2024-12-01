@@ -31,7 +31,9 @@ class Codeblock(NamedTuple):
         for char in content:
             if char == "`" and not in_code and not in_language:
                 backticks += 1
-            if (buffer and buffer[-1] == "`" and char != "`") or (in_code and "".join(buffer) != "`" * backticks):
+            if (buffer and buffer[-1] == "`" and char != "`") or (
+                in_code and "".join(buffer) != "`" * backticks
+            ):
                 in_code = True
                 code.append(char)
             if char == "\n":
@@ -55,7 +57,13 @@ class Codeblock(NamedTuple):
         return f"```{self.language}\n{self.content}\n```"
 
 
-def human_join(seq: Sequence[str], sep: str = ", ", conjunction: str = "or", *, oxford_comma: bool = True) -> str:
+def human_join(
+    seq: Sequence[str],
+    sep: str = ", ",
+    conjunction: str = "or",
+    *,
+    oxford_comma: bool = True,
+) -> str:
     """Join a sequence of strings into a human-readable format."""
     # hack: str is a Sequence[str], no point in joining it
     if isinstance(seq, str):
@@ -104,7 +112,10 @@ def _font_path(font: str) -> Path:
 
 
 def _get_fonts(font_name: str) -> FontFamily:
-    return FontFamily(regular=_font_path(f"{font_name}-Regular.ttf"), bold=_font_path(f"{font_name}-Bold.ttf"))
+    return FontFamily(
+        regular=_font_path(f"{font_name}-Regular.ttf"),
+        bold=_font_path(f"{font_name}-Bold.ttf"),
+    )
 
 
 FONTS: Mapping[CJK, FontFamily] = {

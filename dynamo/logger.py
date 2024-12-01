@@ -38,7 +38,9 @@ class KnownWarningFilter(logging.Filter):
 
 
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
-FORMAT = logging.Formatter("[%(asctime)s] [%(levelname)-8s] %(name)s: %(message)s", DATE_FORMAT)
+FORMAT = logging.Formatter(
+    "[%(asctime)s] [%(levelname)-8s] %(name)s: %(message)s", DATE_FORMAT
+)
 
 _MSG_PREFIX = "\x1b[30;1m%(asctime)s\x1b[0m "
 _MSG_POSTFIX = "%(levelname)-8s\x1b[0m \x1b[35m%(name)s\x1b[0m: %(message)s"
@@ -54,7 +56,8 @@ class AnsiFormatter(logging.Formatter):
     )
 
     FORMATS: Final = {
-        level: logging.Formatter(_MSG_PREFIX + color + _MSG_POSTFIX, DATE_FORMAT) for level, color in LEVEL_TO_COLOR
+        level: logging.Formatter(_MSG_PREFIX + color + _MSG_POSTFIX, DATE_FORMAT)
+        for level, color in LEVEL_TO_COLOR
     }
 
     def format(self, record: logging.LogRecord) -> str:
@@ -89,7 +92,11 @@ def with_logging(log_level: int = logging.INFO) -> Generator[None]:
     stream_handler = logging.StreamHandler()
 
     log_location = resolve_folder_with_links(platformdir.user_log_path) / "dynamo.log"
-    rotating_file_handler = logging.handlers.RotatingFileHandler(log_location, maxBytes=2_000_000, backupCount=5)
+    rotating_file_handler = logging.handlers.RotatingFileHandler(
+        log_location,
+        maxBytes=2_000_000,
+        backupCount=5,
+    )
 
     if use_color_formatting(sys.stderr):
         stream_handler.setFormatter(AnsiFormatter())

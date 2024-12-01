@@ -52,7 +52,9 @@ async def get_aura(itx: Interaction, user: discord.Member | discord.User) -> Non
     avatar_bytes = await assets.avatar.read()
     banner_bytes = await assets.banner.read() if assets.banner else None
 
-    score, description = await aura.get_aura(avatar_bytes, banner_bytes, itx.client.session)
+    score, description = await aura.get_aura(
+        avatar_bytes, banner_bytes, itx.client.session
+    )
 
     embed = discord.Embed(
         title=f"Aura of {user.name}",
@@ -77,15 +79,24 @@ async def get_spotify(itx: Interaction, user: discord.Member | discord.User) -> 
         await itx.response.send_message("That user is not in this guild.", ephemeral=True)
         return
 
-    spotify_activity = next((act for act in member.activities if isinstance(act, discord.Spotify)), None)
+    spotify_activity = next(
+        (act for act in member.activities if isinstance(act, discord.Spotify)), None
+    )
     if spotify_activity is None:
         prefix = "You are" if user is itx.user else f"{user!s} is"
-        await itx.response.send_message(f"{prefix} not listening to Spotify.", ephemeral=True)
+        await itx.response.send_message(
+            f"{prefix} not listening to Spotify.", ephemeral=True
+        )
         return
 
-    album_cover = await spotify.fetch_album_cover(spotify_activity.album_cover_url, itx.client.session)
+    album_cover = await spotify.fetch_album_cover(
+        spotify_activity.album_cover_url, itx.client.session
+    )
     if not isinstance(album_cover, bytes):
         await itx.response.send_message("Error fetching album cover.", ephemeral=True)
+        spotify.fetch_album_cover.cache_discard(
+            spotify_activity.album_cover_url, itx.client.session
+        )
         return
 
     buffer, extension = await spotify.draw(spotify_activity, album_cover)
@@ -94,6 +105,4 @@ async def get_spotify(itx: Interaction, user: discord.Member | discord.User) -> 
     await itx.response.send_message(embed=embed, file=file)
 
 
-exports = BotExports(
-    commands=[user_avatar, get_aura, get_spotify],
-)
+exports = BotExports(commands=[user_avatar, get_aura, get_spotify])

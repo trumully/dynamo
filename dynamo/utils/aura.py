@@ -30,18 +30,29 @@ def get_harmony_score(colors: list[tuple[RGB, float]]) -> float:
         # Monochromatic: similar hue, varying saturation/value
         hue_variance: float = float(np.std([h for h, *_ in hsv_colors]))
         hue_diffs = [
-            abs(hsv_colors[i][0] - hsv_colors[j][0]) for i, j in itertools.combinations(range(len(hsv_colors)), 2)
+            abs(hsv_colors[i][0] - hsv_colors[j][0])
+            for i, j in itertools.combinations(range(len(hsv_colors)), 2)
         ]
         scores.extend([
             ("monochromatic", 1.0 - min(hue_variance / 30, 1.0)),
             ("analogous", sum(1.0 for diff in hue_diffs if diff <= 30) / len(hue_diffs)),  # noqa: PLR2004
-            ("complementary", sum(1.0 for diff in hue_diffs if 150 <= diff <= 210) / len(hue_diffs)),  # noqa: PLR2004
+            (
+                "complementary",
+                sum(1.0 for diff in hue_diffs if 150 <= diff <= 210) / len(hue_diffs),  # noqa: PLR2004
+            ),
             (
                 "split-complementary",
-                sum(1.0 for diff in hue_diffs if 150 <= diff <= 210 or 120 <= diff <= 150 or 210 <= diff <= 240)  # noqa: PLR2004
+                sum(
+                    1.0
+                    for diff in hue_diffs
+                    if 150 <= diff <= 210 or 120 <= diff <= 150 or 210 <= diff <= 240  # noqa: PLR2004
+                )
                 / len(hue_diffs),
             ),
-            ("triadic", sum(1.0 for diff in hue_diffs if 105 <= diff <= 135) / len(hue_diffs)),  # noqa: PLR2004
+            (
+                "triadic",
+                sum(1.0 for diff in hue_diffs if 105 <= diff <= 135) / len(hue_diffs),  # noqa: PLR2004
+            ),
         ])
 
         # Get the best matching theme and its score
@@ -51,7 +62,9 @@ def get_harmony_score(colors: list[tuple[RGB, float]]) -> float:
         return best_score
 
     # Calculate base metrics
-    all_pairs: list[tuple[tuple[int, RGB], tuple[int, RGB]]] = list(itertools.combinations(enumerate(rgb_colors), 2))  # type: ignore[reportUnknownArgumentType]
+    all_pairs: list[tuple[tuple[int, RGB], tuple[int, RGB]]] = list(
+        itertools.combinations(enumerate(rgb_colors), 2)  # type: ignore[reportUnknownArgumentType]
+    )
     distances: list[float] = []
     weights: list[float] = []
 
@@ -59,7 +72,9 @@ def get_harmony_score(colors: list[tuple[RGB, float]]) -> float:
         distances.append(c1.perceived_distance_from(c2))
         weights.append(prominences[i1] * prominences[i2])
 
-    avg_distance = sum(d * w for d, w in zip(distances, weights, strict=False)) / sum(weights)
+    avg_distance = sum(d * w for d, w in zip(distances, weights, strict=False)) / sum(
+        weights
+    )
 
     # Calculate component scores
     visual_interest = min(len(colors) / 4, 1.0)  # Ideal: 3-4 distinct colors
@@ -102,7 +117,9 @@ async def extract_colors(image: bytes) -> list[tuple[RGB, float]]:
     return filter_similar_colors(palette)
 
 
-async def get_palette_description(palette: list[tuple[RGB, float]], session: aiohttp.ClientSession) -> str:
+async def get_palette_description(
+    palette: list[tuple[RGB, float]], session: aiohttp.ClientSession
+) -> str:
     sorted_palette = sorted(palette, key=operator.itemgetter(1), reverse=True)
     color_info = [
         f"{RGB.as_hex(*color)} ({prominence:.1%})"
@@ -175,7 +192,9 @@ async def get_palette_description(palette: list[tuple[RGB, float]], session: aio
 
 
 @lru_task_cache(maxsize=128, ttl=3600)
-async def get_aura(avatar: bytes, banner: bytes | None, session: aiohttp.ClientSession) -> tuple[float, str]:
+async def get_aura(
+    avatar: bytes, banner: bytes | None, session: aiohttp.ClientSession
+) -> tuple[float, str]:
     """Analyze the aura of a user's avatar and banner."""
     # Extract colors with prominence
     avatar_colors = await color_palette_from_image(avatar, iterations=100)
@@ -192,7 +211,10 @@ async def get_aura(avatar: bytes, banner: bytes | None, session: aiohttp.ClientS
         palette = filter_similar_colors(avatar_colors)
 
     log.debug("Final filtered colors: %d", len(palette))
-    log.debug("Color prominences: %s", [f"{RGB.as_hex(*color)}:{prominence:.2%}" for color, prominence in palette])
+    log.debug(
+        "Color prominences: %s",
+        [f"{RGB.as_hex(*color)}:{prominence:.2%}" for color, prominence in palette],
+    )
 
     harmony_score = get_harmony_score(palette)
     try:
