@@ -1,3 +1,4 @@
+# pyright: reportUnknownMemberType=false
 import argparse
 import os
 
@@ -14,7 +15,7 @@ def main() -> None:
         "--with-token",
         "-t",
         help="Run bot with token superseding current configuration",
-        default=config.token,  # type: ignore[reportUnknownMemberType]
+        default=config.token,
         dest="token",
     )
     parser.add_argument(
@@ -26,7 +27,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    config.update({"token": args.token})  # type: ignore[reportUnknownMemberType]
+    config.update({"token": args.token})
 
     run_bot(debug=args.debug)
 

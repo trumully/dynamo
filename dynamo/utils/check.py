@@ -9,8 +9,7 @@ type Check[T] = Callable[[T], T]
 
 def is_in_team[T]() -> Check[T]:
     async def predicate(itx: Interaction) -> bool:
-        priority_ids: set[int] = await itx.client.cachefetch_priority_ids()
-        return itx.user.id in priority_ids
+        return itx.user.id in await itx.client.cachefetch_priority_ids()
 
     return app_commands.check(predicate)
 

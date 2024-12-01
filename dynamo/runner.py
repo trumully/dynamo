@@ -38,20 +38,14 @@ class DynamoHooks(
     def sync_setup(self, context: DynamoContext) -> None:
         pass
 
-    async def async_main(
-        self,
-        context: DynamoContext,
-    ) -> None:
+    async def async_main(self, context: DynamoContext) -> None:
         try:
             async with context.bot:
                 await context.bot.start(get_token())
         except ValidationError:
             log.critical("Invalid token in config.toml")
 
-    async def async_cleanup(
-        self,
-        context: DynamoContext,
-    ) -> None:
+    async def async_cleanup(self, context: DynamoContext) -> None:
         if not context.bot.is_closed():
             await context.bot.close()
 
