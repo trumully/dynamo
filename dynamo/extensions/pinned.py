@@ -37,7 +37,7 @@ def sort_by_user(pins: IsIterable[PinnedMessage]) -> dict[str, list[str]]:
     sorted_by_user: dict[str, list[str]] = {}
     for msg in pins:
         sorted_by_user.setdefault(msg.author.name, []).append(
-            f"https://discord.com/channels/{_GUILD}/{msg.channel.id}/{msg.message}"
+            f"{msg.channel.id}/{msg.message}"
         )
     return sorted_by_user
 
@@ -79,8 +79,6 @@ _past_channels: Final[tuple[int, ...]] = (
     1217978228438859776,
     1271041914300399629,
 )
-
-_GUILD: Final[int] = 696276827341324318
 
 
 type Channel = discord.abc.GuildChannel | discord.Thread | discord.abc.PrivateChannel
