@@ -119,11 +119,9 @@ class Dynamo(discord.AutoShardedClient):
     async def cachefetch_priority_ids(self) -> set[int]:
         app_info = await self.application_info()
         owner = app_info.owner.id
-        return (
-            {owner}
-            if not (team := app_info.team)
-            else {owner, *(t.id for t in team.members)}
-        )
+        if not (team := app_info.team):
+            return {owner}
+        return {owner, *(t.id for t in team.members)}
 
     async def start(self, token: str, *, reconnect: bool = True) -> None:
         self._last_interaction_waterfall.start()

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Coroutine
+from collections.abc import Callable, Coroutine, Generator
 from typing import TYPE_CHECKING, Any, NamedTuple, Protocol
 
 from discord import AutoShardedClient, app_commands
@@ -13,6 +13,10 @@ if TYPE_CHECKING:
 
 type Coro[T] = Coroutine[Any, Any, T]
 type CoroFn[**P, T] = Callable[P, Coro[T]]
+
+
+type _I[T] = dict[T, Any] | set[T] | frozenset[T] | list[T] | tuple[T, ...]
+type IsIterable[T] = _I[T] | Generator[T]
 
 
 class RawSubmittableCls(Protocol):

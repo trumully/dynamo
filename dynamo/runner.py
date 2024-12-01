@@ -38,20 +38,14 @@ class DynamoHooks(
     def sync_setup(self, context: DynamoContext) -> None:
         pass
 
-    async def async_main(
-        self,
-        context: DynamoContext,
-    ) -> None:
+    async def async_main(self, context: DynamoContext) -> None:
         try:
             async with context.bot:
                 await context.bot.start(get_token())
         except ValidationError:
             log.critical("Invalid token in config.toml")
 
-    async def async_cleanup(
-        self,
-        context: DynamoContext,
-    ) -> None:
+    async def async_cleanup(self, context: DynamoContext) -> None:
         if not context.bot.is_closed():
             await context.bot.close()
 
@@ -77,9 +71,9 @@ def _run_bot(loop: asyncio.AbstractEventLoop) -> None:
     )
     session = aiohttp.ClientSession(connector=connector)
 
-    from .extensions import code_exec, events, identicon, info, tags
+    from .extensions import code_exec, events, identicon, info, pinned, tags
 
-    initial_exts: list[HasExports] = [events, code_exec, tags, identicon, info]
+    initial_exts: list[HasExports] = [events, code_exec, tags, identicon, info, pinned]
 
     from dynamo.bot import Dynamo
 
