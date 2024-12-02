@@ -3,10 +3,11 @@ import contextlib
 import logging
 import shlex
 import tempfile
-from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
+
+from dynamo.typedefs import SequenceNotStr
 
 log = logging.getLogger(__name__)
 
@@ -17,7 +18,7 @@ MAX_OUTPUT_LENGTH_CHARS: Final[int] = 1000
 MEMORY_LIMIT_BYTES: Final[int] = 512 * 1024 * 1024  # 512MB
 
 
-def write_dependency_header(dependencies: Sequence[str]) -> str:
+def write_dependency_header(dependencies: SequenceNotStr[str]) -> str:
     """Write dependency header for an arbitrary script with proper formatting.
 
     >>> write_dependency_header(["requests<3", "rich"])
@@ -62,7 +63,7 @@ class ExecutionError(Exception):
 
 
 async def execute_command(
-    args: Sequence[str], env: ExecutionEnvironment | None = None
+    args: SequenceNotStr[str], env: ExecutionEnvironment | None = None
 ) -> CommandOutput:
     """Execute a command asynchronously with timeout protection.
 
@@ -110,7 +111,7 @@ async def execute_command(
     return stdout, stderr
 
 
-async def execute_script(script: str, dependencies: Sequence[str]) -> CommandOutput:
+async def execute_script(script: str, dependencies: SequenceNotStr[str]) -> CommandOutput:
     """Execute a Python script with safety checks.
 
     Args:

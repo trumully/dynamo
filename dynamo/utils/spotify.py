@@ -1,6 +1,6 @@
 import datetime
 import logging
-from collections.abc import Generator, Sequence
+from collections.abc import Generator
 from contextlib import contextmanager
 from io import BytesIO
 from typing import Any, NamedTuple
@@ -10,6 +10,7 @@ import discord
 from dynamo_utils.task_cache import lru_task_cache
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
+from dynamo.typedefs import SequenceNotStr
 from dynamo.utils.format import FONTS, human_join, is_cjk
 from dynamo.utils.helper import ROOT
 from dynamo.utils.wrappers import executor_function
@@ -82,7 +83,7 @@ def open_image_bytes(image: bytes) -> Generator[Image.Image]:
 
 
 class StaticDrawArgs(NamedTuple):
-    artists: Sequence[str]
+    artists: SequenceNotStr[str]
     artist_font: ImageFont.FreeTypeFont
     duration: datetime.timedelta | None
     end: datetime.datetime | None

@@ -8,8 +8,10 @@ from typing import TYPE_CHECKING, NamedTuple
 from dynamo.utils.helper import ROOT
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Mapping
     from pathlib import Path
+
+    from dynamo.typedefs import SequenceNotStr
 
 
 class Codeblock(NamedTuple):
@@ -58,17 +60,13 @@ class Codeblock(NamedTuple):
 
 
 def human_join(
-    seq: Sequence[str],
+    seq: SequenceNotStr[str],
     sep: str = ", ",
     conjunction: str = "or",
     *,
     oxford_comma: bool = True,
 ) -> str:
     """Join a sequence of strings into a human-readable format."""
-    # hack: str is a Sequence[str], no point in joining it
-    if isinstance(seq, str):
-        return seq
-
     if (size := len(seq)) == 0:
         return ""
 
